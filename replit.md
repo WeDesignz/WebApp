@@ -15,7 +15,11 @@ Built with **Next.js 14 (App Router, React Server Components)** and **TypeScript
 Employs an HSL-based color system for theming, supporting light/dark modes. Features interactive components like spotlight effects, magnetic hover, particle systems, and a 3D model viewer.
 
 ### Page Structure
--   **Landing Page**: Single-page application with sections for hero, statistics, spotlight features, 3D gallery, categories, interactive Bento grid, pricing, creator CTAs, and FAQ.
+-   **Landing Page**: Single-page application with sections for hero, statistics, spotlight features, 3D gallery, categories, interactive Bento grid, pricing, creator CTAs, and FAQ. The navbar includes "Designer Onboarding" button that links to the onboarding wizard.
+-   **Designer Onboarding**: Full-screen guided wizard with two-step process for new designers:
+    -   **Step 1 - Basic Profile**: Personal information form with real-time validation, profile photo upload, email/phone OTP verification modals, password strength meter, and inline error messages.
+    -   **Step 2 - Business & Razorpay Details**: Tabbed form (Contact Details / Business Details / Legal Info) for business registration, address, PAN/GST/MSME documents, and Razorpay linked account creation with status display.
+    -   **Features**: Progress indicator, two-column layout (tips + form), OTP verification for all contact methods, file uploads with validation, Razorpay account creation flow with verification status (verified/pending/rejected), and responsive design.
 -   **Designer Console**: A comprehensive dashboard for designers, including:
     -   **Dashboard**: KPIs, wallet balance, notifications, smart settlement widget.
     -   **My Designs**: Uploads, filtering, grid/list views, design detail panel, performance scoring.
