@@ -35,6 +35,7 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
   const [showEmailOTP, setShowEmailOTP] = useState(false);
   const [showPhoneOTP, setShowPhoneOTP] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isDragging, setIsDragging] = useState(false);
 
   const validateEmail = (email: string) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -46,18 +47,57 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
     return regex.test(phone);
   };
 
+  const processPhotoFile = (file: File) => {
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors({ ...errors, profilePhoto: 'File size must be less than 5MB' });
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setErrors({ ...errors, profilePhoto: 'Please upload an image file' });
+      toast.error('Please upload an image file');
+      return;
+    }
+    setFormData({ ...formData, profilePhoto: file });
+    setPhotoPreview(URL.createObjectURL(file));
+    const newErrors = { ...errors };
+    delete newErrors.profilePhoto;
+    setErrors(newErrors);
+    toast.success('Profile photo uploaded');
+  };
+
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors({ ...errors, profilePhoto: 'File size must be less than 5MB' });
-        return;
-      }
-      setFormData({ ...formData, profilePhoto: file });
-      setPhotoPreview(URL.createObjectURL(file));
-      const newErrors = { ...errors };
-      delete newErrors.profilePhoto;
-      setErrors(newErrors);
+      processPhotoFile(file);
+    }
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processPhotoFile(file);
     }
   };
 
@@ -130,11 +170,25 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
 
             <div className="flex justify-center">
               <div className="relative">
-                <div className="w-32 h-32 rounded-full bg-muted border-4 border-border overflow-hidden flex items-center justify-center">
+                <div
+                  className={`w-32 h-32 rounded-full bg-muted border-4 overflow-hidden flex items-center justify-center cursor-pointer transition-all ${
+                    isDragging ? 'border-primary border-dashed scale-105' : 'border-border'
+                  }`}
+                  onDragEnter={handleDragEnter}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => document.getElementById('photo-upload')?.click()}
+                >
                   {photoPreview ? (
                     <img src={photoPreview} alt="Profile preview" className="w-full h-full object-cover" />
                   ) : (
-                    <Camera className="w-12 h-12 text-muted-foreground" />
+                    <div className="flex flex-col items-center gap-1">
+                      <Camera className="w-8 h-8 text-muted-foreground" />
+                      <p className="text-xs text-muted-foreground text-center px-2">
+                        {isDragging ? 'Drop here' : 'Click or drag'}
+                      </p>
+                    </div>
                   )}
                 </div>
                 <input
