@@ -24,9 +24,17 @@ Employs an HSL-based color system for theming, supporting light/dark modes. Feat
     -   **Earnings & Wallet**: Wallet summary, monthly settlement window with acceptance/rejection, transaction history with filtering, and payout tracking.
 -   **Customer Dashboard**: User-facing interface for browsing and managing purchases, featuring:
     -   **Sidebar Navigation**: Collapsible on desktop, full-screen overlay on mobile, with menu items and utility links.
-    -   **Top Bar**: Search input, category filter, profile menu.
+    -   **Top Bar**: Search input, category filter, cart button (with count badge), wishlist button (with count badge), profile menu.
     -   **Main Content**: Category cards slider, "Invite Freelancers" CTA, responsive design feed grid with hover effects for free/premium designs, infinite scroll.
-    -   **Product Modal**: Detailed product view with description, plan types, sub-product table, and conditional actions (Download, Add to Cart, Buy Now, Purchase Plan).
+    -   **Product Modal**: Detailed product view with description, plan types, sub-product table, heart button (add to wishlist), and conditional actions (Download, Add to Cart, Buy Now, Purchase Plan).
+    -   **Cart & Wishlist**: Full shopping cart and wishlist functionality with context-based state management and localStorage persistence.
+        -   **Cart Drawer**: Slide-in drawer from right with items list, coupon input (visual), promo callout, subtotal/total, "View Cart" and "Continue Shopping" CTAs.
+        -   **Cart Page** (`/customer-dashboard/cart`): Two-column layout (desktop, single-column mobile) with item list (left), order summary (right). Features: bulk select/actions, individual item actions (Remove, Save to Wishlist), coupon application, payment methods display, empty state.
+        -   **Wishlist Page** (`/customer-dashboard/wishlist`): Grid (4-column) and list view toggle. Features: bulk select/actions, individual actions (Add to Cart, Quick View, Remove), filled heart icons, premium badges, empty state.
+        -   **Quick View Modal**: Product preview modal with image, details, tags, file formats, license, price, heart button, Add to Cart button.
+        -   **Context State Management** (`contexts/CartWishlistContext.tsx`): React Context with localStorage persistence for cart and wishlist. Functions: addToCart, removeFromCart, clearCart, moveToWishlist, addToWishlist, removeFromWishlist, clearWishlist, moveToCart, helper functions for counts and totals.
+        -   **Animations**: Framer Motion for drawer slide-in, item add/remove, modal open/close. Toast notifications for all user actions.
+        -   **Responsive Design**: Cart drawer 450px on desktop, full-width on mobile. Cart page stacks columns on mobile. Wishlist grid adapts 1/2/3/4 columns based on breakpoint.
 -   **Global Layout**: Includes theme provider, toast notifications, tooltip provider, query client provider, and a full-page WebGL particle background.
 
 ### Data Fetching
