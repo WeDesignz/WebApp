@@ -85,6 +85,16 @@ export default function Navbar() {
               <a href="/customer-dashboard">Customer Dashboard</a>
             </Button>
 
+            {/* Designer Onboarding Button */}
+            <Button
+              variant="outline"
+              className="hidden lg:inline-flex px-5 py-2 rounded-full text-sm font-semibold border-2 border-primary/50 hover:bg-primary/10"
+              data-testid="button-designer-onboarding"
+              asChild
+            >
+              <a href="/designer-onboarding">Designer Onboarding</a>
+            </Button>
+
             {/* Designer Console Button */}
             <Button
               className="hidden lg:inline-flex px-5 py-2 rounded-full text-sm font-semibold shadow-lg"
@@ -120,6 +130,14 @@ export default function Navbar() {
                 asChild
               >
                 <a href="/customer-dashboard">Customer Dashboard</a>
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full rounded-full font-semibold border-2 border-primary/50"
+                data-testid="button-designer-onboarding-mobile"
+                asChild
+              >
+                <a href="/designer-onboarding">Designer Onboarding</a>
               </Button>
               <Button
                 className="w-full rounded-full font-semibold"
