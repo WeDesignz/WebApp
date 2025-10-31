@@ -80,16 +80,18 @@ export default function Navbar() {
               variant="outline"
               className="hidden lg:inline-flex px-5 py-2 rounded-full text-sm font-medium border-2"
               data-testid="button-customer-dashboard"
+              asChild
             >
-              Customer Dashboard
+              <a href="/customer-dashboard">Customer Dashboard</a>
             </Button>
 
             {/* Designer Console Button */}
             <Button
               className="hidden lg:inline-flex px-5 py-2 rounded-full text-sm font-semibold shadow-lg"
               data-testid="button-designer-console"
+              asChild
             >
-              Designer Console
+              <a href="/designer-console">Designer Console</a>
             </Button>
 
             {/* Mobile Menu Button */}
@@ -115,14 +117,16 @@ export default function Navbar() {
                 variant="outline"
                 className="w-full rounded-full font-medium border-2"
                 data-testid="button-customer-dashboard-mobile"
+                asChild
               >
-                Customer Dashboard
+                <a href="/customer-dashboard">Customer Dashboard</a>
               </Button>
               <Button
                 className="w-full rounded-full font-semibold"
                 data-testid="button-designer-console-mobile"
+                asChild
               >
-                Designer Console
+                <a href="/designer-console">Designer Console</a>
               </Button>
             </div>
           </div>

@@ -1,0 +1,51 @@
+When I click on the designer console button in navbar then this Designer Console Page should open. Make that page based on the details below: 
+Imagine a clean, two-column layout with a fixed top bar and a left vertical nav. The left-side menu is slim (icons + text) and collapsible; the content area is the main canvas.
+Top bar
+Left: context-sensitive breadcrumb (e.g., Dashboard → My Designs → Upload).
+Center: a large, readable page title (e.g., “My Designs”) and under it a faint subtitle / helper line for context (e.g., “Manage your uploads, check review status, and view analytics”).
+Right: compact cluster of action icons:
+Notifications (bell) with a numeric unread badge; click opens a dropdown showing the 5 most recent notifications and a link to the full Notifications page.
+User avatar + chevron opens a menu: Profile, Linked Account Status, Settings, Logout.
+Accessibility: all icons include aria-labels and keyboard focus states.
+Left navigation (fixed column, collapsible)
+Logo at Top
+Vertical list with these items in order: 
+Dashboard
+My Designs
+Upload Design
+Analytics
+Earnings & Wallet
+Settlements
+Downloads (PDFs)
+Notifications
+Messages/Support
+Settings.
+Each menu item has an icon + label; collapsed state shows only icons with tooltips on hover.
+
+
+This main container is where designers get a concise, actionable snapshot. The page is split into a left main column (2/3 width) and a right utility column (1/3 width).
+Top hero
+Greeting (“Good afternoon, Vaibhav”), big balance number for Wallet, and a micro KPI line: “Net earnings this month | Pending withdrawals | Total downloads”.
+KPI cards (grid)
+Six medium cards with icons:
+Total uploads (click navigates to My Designs)
+Approved designs
+Pending reviews (click opens filtered designs)
+Views 
+Downloads
+Performance Score (with small progress bar and tooltip explaining the 0.2/0.6/0.2 formula)
+Each card is a quick link — click to drill down.
+
+Recent Designs table
+Shows latest 6 designs with columns: thumbnail, title, status badge (Pending/Rejected/Approved), uploaded date, views, downloads, purchases, action menu (3 dots) which will show a button ‘Show More’.
+Action menu includes Edit, Duplicate, Delete (delete only active when allowed — see rules), View Analytics.
+
+Activity timeline
+Below the table, a small timeline showing recent events: 
+“Design X approved”, 
+“₹XXX credited to wallet”, 
+“Settlement accepted (scheduled)”.
+Right column (utility)
+Notifications quick list (3 unread max).
+Linked Account Status card with large status badge and CTA: “View linked account details” or “Complete verification”.
+Settlement Widget: visible only during the month’s settlement window (day 5–10). It shows the pending settlement breakdown with an Accept button and deadline countdown. If outside the window, show the next settlement date and a small explanation.
