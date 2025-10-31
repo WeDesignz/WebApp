@@ -111,12 +111,26 @@ const Particles: React.FC<ParticlesProps> = ({
     const container = containerRef.current;
     if (!container) return;
 
-    const renderer = new Renderer({ depth: false, alpha: true });
-    const gl = renderer.gl;
-    container.appendChild(gl.canvas);
-    gl.clearColor(0, 0, 0, 0);
+    let renderer: Renderer;
+    let gl: WebGLRenderingContext;
 
-const camera = new Camera(gl, { fov: 15 });
+    try {
+      renderer = new Renderer({ depth: false, alpha: true });
+      gl = renderer.gl;
+      
+      if (!gl) {
+        console.warn('WebGL not supported, particles will not render');
+        return;
+      }
+
+      container.appendChild(gl.canvas);
+      gl.clearColor(0, 0, 0, 0);
+    } catch (error) {
+      console.warn('Failed to create WebGL context:', error);
+      return;
+    }
+
+    const camera = new Camera(gl, { fov: 15 });
     camera.position.set(0, 0, cameraDistance);
 
     const resize = () => {
@@ -128,7 +142,7 @@ const camera = new Camera(gl, { fov: 15 });
     window.addEventListener('resize', resize, false);
     resize();
 
-const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (e: MouseEvent) => {
       const rect = container.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       const y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
@@ -160,7 +174,7 @@ const handleMouseMove = (e: MouseEvent) => {
       colors.set(col, i * 3);
     }
 
-const geometry = new Geometry(gl, {
+    const geometry = new Geometry(gl, {
       position: { size: 3, data: positions },
       random: { size: 4, data: randoms },
       color: { size: 3, data: colors }
@@ -219,7 +233,7 @@ const geometry = new Geometry(gl, {
         container.removeEventListener('mousemove', handleMouseMove);
       }
       cancelAnimationFrame(animationFrameId);
-      if (container.contains(gl.canvas)) {
+      if (gl && gl.canvas && container.contains(gl.canvas)) {
         container.removeChild(gl.canvas);
       }
     };
