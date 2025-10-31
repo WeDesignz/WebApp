@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { ChevronDown, Search, Menu, X } from 'lucide-react';
+import { ChevronDown, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -84,15 +84,6 @@ export default function Navbar() {
 
           {/* Right Side */}
           <div className="flex items-center gap-3">
-            {/* Search Bar - Desktop Only */}
-            <div className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-full bg-muted/50 border border-border">
-              <Search className="w-4 h-4 text-muted-foreground" />
-              <input
-                type="search"
-                placeholder="Search..."
-                className="bg-transparent border-none outline-none text-sm w-40 placeholder:text-muted-foreground"
-              />
-            </div>
             {/* Sign In */}
             <a
               href="#signin"
