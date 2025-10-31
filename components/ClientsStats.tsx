@@ -65,6 +65,11 @@ export default function ClientsStats() {
     setIsDragging(false);
   };
 
+  const handleMouseLeaveSlider = () => {
+    setIsDragging(false);
+    setPaused(false);
+  };
+
   const logos = ["Figma", "Adobe", "Dribbble", "Behance", "Sketch", "InVision", "Canva", "Framer"];
 
   return (
@@ -135,8 +140,8 @@ export default function ClientsStats() {
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUpOrLeave}
-            onMouseLeave={handleMouseUpOrLeave}
-            onClick={() => setPaused(!paused)}
+            onMouseLeave={handleMouseLeaveSlider}
+            onMouseEnter={() => setPaused(true)}
             className="flex gap-8 overflow-x-auto scrollbar-none select-none cursor-grab active:cursor-grabbing"
             style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
           >
@@ -150,7 +155,7 @@ export default function ClientsStats() {
             ))}
           </div>
           <div className="text-center mt-4 text-xs text-muted-foreground">
-            Click to pause • Drag to scroll
+            Hover to pause • Drag to scroll
           </div>
         </motion.div>
       </div>

@@ -32,11 +32,9 @@ export default function Navbar() {
           scrolled ? '' : ''
         }`}
       >
-        <div className="flex h-16 md:h-20 items-center justify-between px-2 md:px-4">
-          <div className={`w-full flex items-center justify-between rounded-full border border-border ${scrolled ? 'bg-background/90 shadow-xl backdrop-blur-xl' : 'bg-background/60 shadow-lg backdrop-blur-lg'} px-4 md:px-6 py-2`}
-          >
+        <div className={`flex h-16 md:h-20 items-center justify-between rounded-full border border-border ${scrolled ? 'bg-background/90 shadow-xl backdrop-blur-xl' : 'bg-background/60 shadow-lg backdrop-blur-lg'} px-4 md:px-6`}>
           {/* Logo */}
-          <a href="/" className="flex items-center gap-2" data-testid="link-home">
+          <a href="/" className="flex items-center gap-2 flex-shrink-0" data-testid="link-home">
             <div className="h-8 md:h-10 w-8 md:w-10 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-lg md:text-xl">W</span>
             </div>
@@ -44,7 +42,7 @@ export default function Navbar() {
           </a>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-6">
+          <div className="hidden lg:flex items-center gap-6 ml-8">
             <div className="relative">
               <button
                 onClick={() => setResourcesOpen(!resourcesOpen)}
@@ -55,7 +53,7 @@ export default function Navbar() {
                 <ChevronDown className={`w-4 h-4 transition-transform ${resourcesOpen ? 'rotate-180' : ''}`} />
               </button>
               {resourcesOpen && (
-                <div className="absolute top-full mt-2 left-0 w-56 rounded-xl bg-popover/95 backdrop-blur-lg shadow-2xl border border-popover-border p-2">
+                <div className="absolute top-full mt-2 left-0 w-56 rounded-xl bg-popover/95 backdrop-blur-lg shadow-2xl border border-popover-border p-2 z-50">
                   {[
                     { label: 'About Us', href: '#about' },
                     { label: 'Contact Us', href: '#contact' },
@@ -72,10 +70,10 @@ export default function Navbar() {
             <a href="#pricing" className="text-sm font-medium hover:text-primary transition-colors">Pricing</a>
           </div>
 
-          {/* Center CTA */}
-          <div className="hidden md:block absolute left-1/2 -translate-x-1/2">
+          {/* Center Section - Spacer */}
+          <div className="flex-1 hidden lg:flex items-center justify-center">
             <Button
-              className="px-8 py-3 rounded-full shadow-lg font-semibold tracking-wide"
+              className="px-6 py-2.5 rounded-full shadow-lg font-semibold tracking-wide text-sm"
               data-testid="button-join-designer-nav"
             >
               Join as Designer
@@ -83,7 +81,7 @@ export default function Navbar() {
           </div>
 
           {/* Right Side */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-shrink-0 ml-auto lg:ml-0">
             {/* Sign In */}
             <a
               href="#signin"
@@ -92,9 +90,6 @@ export default function Navbar() {
             >
               Sign In
             </a>
-
-            {/* Theme Toggle */}
-            <ThemeToggle />
 
             {/* Mobile Menu Button */}
             <button
@@ -105,34 +100,30 @@ export default function Navbar() {
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
-          </div>
         </div>
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-border px-6 py-4 space-y-4">
+          <div className="lg:hidden mt-4 rounded-2xl border border-border bg-background/95 backdrop-blur-xl shadow-xl p-6 space-y-4">
             <a href="#about" className="block py-2 text-sm hover:text-primary transition-colors">About</a>
             <a href="#gallery" className="block py-2 text-sm hover:text-primary transition-colors">Gallery</a>
             <a href="#faqs" className="block py-2 text-sm hover:text-primary transition-colors">FAQs</a>
             <a href="#pricing" className="block py-2 text-sm hover:text-primary transition-colors">Pricing</a>
-            <div className="md:hidden">
+            <div>
               <Button
                 className="w-full rounded-full font-semibold tracking-wide"
                 data-testid="button-join-designer-mobile"
               >
-                Upload Design
+                Join as Designer
               </Button>
             </div>
             <a
               href="#signin"
-              className="block py-2 text-sm hover:text-primary transition-colors md:hidden"
+              className="block py-2 text-sm hover:text-primary transition-colors"
               data-testid="link-mobile-signin"
             >
               Sign In
             </a>
-            <div className="pt-2">
-              <ThemeToggle />
-            </div>
           </div>
         )}
       </nav>

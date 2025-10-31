@@ -30,7 +30,6 @@ export default function CardSlider({ title, items }: { title: string; items: Ite
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!ref.current) return;
     setIsDragging(true);
-    setPaused(true);
     startXRef.current = e.pageX - ref.current.offsetLeft;
     scrollLeftRef.current = ref.current.scrollLeft;
   };
@@ -45,6 +44,14 @@ export default function CardSlider({ title, items }: { title: string; items: Ite
 
   const handleMouseUpOrLeave = () => {
     setIsDragging(false);
+  };
+
+  const handleMouseEnter = () => {
+    setPaused(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
     setPaused(false);
   };
 
@@ -55,14 +62,15 @@ export default function CardSlider({ title, items }: { title: string; items: Ite
       <div className="max-w-7xl mx-auto px-6 md:px-8">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-2xl md:text-3xl font-bold tracking-tight">{title}</h3>
-          <div className="text-xs text-muted-foreground">Auto-scrolling • Drag to explore</div>
+          <div className="text-xs text-muted-foreground">Hover to pause • Drag to explore</div>
         </div>
         <div
           ref={ref}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUpOrLeave}
-          onMouseLeave={handleMouseUpOrLeave}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
           className="flex gap-5 overflow-x-auto scrollbar-none select-none cursor-grab active:cursor-grabbing pb-2"
           style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
         >

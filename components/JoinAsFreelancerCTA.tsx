@@ -1,93 +1,139 @@
 "use client";
 
-import { ArrowRight, Sparkles, TrendingUp, Users } from "lucide-react";
+import { ArrowRight, Award, Palette, Rocket, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import ElectricBorder from "@/components/ElectricBorder";
 
 export default function JoinAsFreelancerCTA() {
+  const benefits = [
+    { icon: <Star className="w-5 h-5" />, text: "Top 1% Designers" },
+    { icon: <Award className="w-5 h-5" />, text: "Premium Clients" },
+    { icon: <Rocket className="w-5 h-5" />, text: "Fast Growth" }
+  ];
+
   return (
-    <section className="py-28 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
+    <section className="py-32 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
       
-      <div className="max-w-6xl mx-auto px-6 md:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/10 backdrop-blur text-xs mb-6">
-            <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" />
-            Join the Creative Revolution
-          </div>
-          
-          <h2 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-tight">
-            Ready to <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-primary animate-gradient">Transform</span> Your
-            <br /> Design Career?
-          </h2>
-          
-          <p className="text-foreground/80 text-lg md:text-xl mt-8 max-w-3xl mx-auto leading-relaxed">
-            Join thousands of designers already using WeDesign to build their portfolios, connect with clients, and create amazing work. Your creative
-            journey starts here.
-          </p>
+      <div className="max-w-7xl mx-auto px-6 md:px-8 relative">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary mb-6">
+              <Palette className="w-3.5 h-3.5" />
+              For Creative Professionals
+            </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-4 mt-12">
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] mb-6">
+              Showcase Your Work.
+              <br />
+              <span className="bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent">
+                Get Discovered.
+              </span>
+            </h2>
+
+            <p className="text-lg text-foreground/70 mb-8 leading-relaxed">
+              Join a thriving community of elite designers. Build your portfolio, connect with premium clients, and take your creative career to the next level.
+            </p>
+
+            <div className="flex flex-wrap gap-6 mb-8">
+              {benefits.map((benefit, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: 0.1 * i }}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                    {benefit.icon}
+                  </div>
+                  <span className="font-medium">{benefit.text}</span>
+                </motion.div>
+              ))}
+            </div>
+
             <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="flex flex-wrap gap-4"
             >
-              <Button className="px-10 py-7 rounded-full text-lg font-semibold tracking-wide shadow-2xl shadow-primary/30 bg-gradient-to-r from-primary to-purple-600 hover:shadow-primary/50 transition-all">
-                Join as Designer
-                <ArrowRight className="w-5 h-5 ml-2" />
+              <Button className="px-8 py-6 rounded-full text-base font-semibold bg-gradient-to-r from-primary to-purple-600 hover:shadow-2xl hover:shadow-primary/30 hover:scale-105 transition-all">
+                Start Your Journey
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+              <Button variant="outline" className="px-8 py-6 rounded-full text-base font-semibold border-2">
+                View Success Stories
               </Button>
             </motion.div>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Button variant="outline" className="px-10 py-7 rounded-full text-lg font-semibold tracking-wide border-2">
-                Browse Designs
-              </Button>
-            </motion.div>
-          </div>
 
-          <div className="text-sm text-foreground/60 mt-8">
-            No credit card required • Free to start • Cancel anytime
-          </div>
-        </motion.div>
+            <p className="text-xs text-foreground/50 mt-6">
+              Join 350+ designers • No credit card required • Free to start
+            </p>
+          </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16"
-        >
-          <div className="rounded-2xl border border-border bg-card/60 backdrop-blur p-6 text-center hover-elevate">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/15 text-primary mb-4">
-              <Sparkles className="w-7 h-7" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">AI-Powered Tools</h3>
-            <p className="text-sm text-foreground/70">Leverage cutting-edge AI to accelerate your creative workflow</p>
-          </div>
-          
-          <div className="rounded-2xl border border-border bg-card/60 backdrop-blur p-6 text-center hover-elevate">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-purple-500/15 text-purple-500 mb-4">
-              <TrendingUp className="w-7 h-7" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Grow Your Career</h3>
-            <p className="text-sm text-foreground/70">Access premium clients and expand your professional network</p>
-          </div>
-          
-          <div className="rounded-2xl border border-border bg-card/60 backdrop-blur p-6 text-center hover-elevate">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/15 text-primary mb-4">
-              <Users className="w-7 h-7" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Global Community</h3>
-            <p className="text-sm text-foreground/70">Connect with 350+ designers worldwide</p>
-          </div>
-        </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="relative"
+          >
+            <ElectricBorder color="#7df9ff" speed={1} chaos={0.2} thickness={2} style={{ borderRadius: 24 }}>
+              <div className="relative rounded-3xl bg-gradient-to-br from-card/80 to-primary/5 backdrop-blur-xl p-8 md:p-10">
+                <div className="space-y-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center flex-shrink-0">
+                      <Star className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg mb-1">Premium Exposure</h3>
+                      <p className="text-sm text-foreground/70">Get featured on our homepage and reach 10,000+ monthly visitors</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-primary flex items-center justify-center flex-shrink-0">
+                      <Award className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg mb-1">Verified Badge</h3>
+                      <p className="text-sm text-foreground/70">Stand out with our exclusive verification badge for professionals</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center flex-shrink-0">
+                      <Rocket className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg mb-1">Growth Tools</h3>
+                      <p className="text-sm text-foreground/70">Analytics, AI tools, and insights to accelerate your creative business</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 pt-8 border-t border-border/50">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-foreground/60">Avg. Designer Income</span>
+                    <span className="text-2xl font-bold text-primary">$4.2K/mo</span>
+                  </div>
+                </div>
+              </div>
+            </ElectricBorder>
+
+            <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-primary/20 rounded-full blur-3xl" />
+            <div className="absolute -top-6 -left-6 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl" />
+          </motion.div>
+        </div>
       </div>
     </section>
   );
