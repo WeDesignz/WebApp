@@ -7,6 +7,7 @@ import CustomerDashboardContent from "./CustomerDashboardContent";
 
 export default function CustomerDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
@@ -15,6 +16,8 @@ export default function CustomerDashboard() {
       <CustomerDashboardSidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        mobileMenuOpen={mobileMenuOpen}
+        onMobileMenuClose={() => setMobileMenuOpen(false)}
       />
       
       <div className="flex flex-col flex-1 overflow-hidden">
@@ -24,7 +27,7 @@ export default function CustomerDashboard() {
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
           sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onToggleSidebar={() => setMobileMenuOpen(!mobileMenuOpen)}
         />
         
         <main className="flex-1 overflow-y-auto">

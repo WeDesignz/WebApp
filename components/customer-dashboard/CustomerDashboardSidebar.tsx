@@ -23,6 +23,8 @@ import { Card } from "@/components/ui/card";
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  mobileMenuOpen: boolean;
+  onMobileMenuClose: () => void;
 }
 
 const menuItems = [
@@ -33,7 +35,7 @@ const menuItems = [
   { icon: HelpCircle, label: "Support", href: "/customer-dashboard/support" },
 ];
 
-export default function CustomerDashboardSidebar({ collapsed, onToggle }: SidebarProps) {
+export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMenuOpen, onMobileMenuClose }: SidebarProps) {
   const { theme, setTheme } = useTheme();
   const [hovering, setHovering] = useState(false);
 
@@ -180,6 +182,111 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle }: Sideba
           )}
         </button>
       </motion.aside>
+
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onMobileMenuClose}
+              className="md:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ type: "spring", damping: 25 }}
+              className="md:hidden fixed left-0 top-0 bottom-0 w-72 bg-card border-r border-border z-50 overflow-y-auto"
+            >
+              <div className="p-4 flex items-center justify-between border-b border-border">
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
+                    <span className="text-primary-foreground font-bold text-xl">W</span>
+                  </div>
+                  <span className="font-display font-bold text-xl">WeDesignz</span>
+                </div>
+              </div>
+
+              <nav className="flex-1 p-3 space-y-2">
+                {menuItems.map((item) => (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
+                      item.active
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    }`}
+                    onClick={onMobileMenuClose}
+                  >
+                    <item.icon className="w-5 h-5 flex-shrink-0" />
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </a>
+                ))}
+
+                <Card className="mt-4 p-4 bg-gradient-to-br from-primary/10 to-purple-500/10 border-primary/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="w-5 h-5 text-primary" />
+                    <h4 className="font-semibold text-sm">Custom Design</h4>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Get your custom design delivered in just 1 hour!
+                  </p>
+                  <Button size="sm" className="w-full">
+                    Order Now
+                  </Button>
+                </Card>
+              </nav>
+
+              <div className="p-3 border-t border-border space-y-2">
+                <button
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted transition-colors w-full"
+                  onClick={onMobileMenuClose}
+                >
+                  <Bell className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm">Notifications</span>
+                </button>
+                
+                <button
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted transition-colors w-full"
+                  onClick={onMobileMenuClose}
+                >
+                  <HelpCircle className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm">Help & Support</span>
+                </button>
+                
+                <a
+                  href="https://chat.whatsapp.com/your-community-link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted transition-colors w-full"
+                  onClick={onMobileMenuClose}
+                >
+                  <MessageCircle className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm">WhatsApp</span>
+                </a>
+                
+                <button
+                  onClick={() => {
+                    setTheme(theme === "dark" ? "light" : "dark");
+                    onMobileMenuClose();
+                  }}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted transition-colors w-full"
+                >
+                  {theme === "dark" ? (
+                    <Sun className="w-5 h-5 flex-shrink-0" />
+                  ) : (
+                    <Moon className="w-5 h-5 flex-shrink-0" />
+                  )}
+                  <span className="text-sm">Theme</span>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border p-2 z-40 flex justify-around">
         {menuItems.slice(0, 5).map((item) => (
