@@ -7,8 +7,8 @@ import GallerySection from "@/components/GallerySection";
  
 import SpotlightCard from "@/components/SpotlightCard";
 import dynamic from "next/dynamic";
-const ModelViewer = dynamic(() => import("@/components/ModelViewer"), { ssr: false });
 import CSSParticles from "@/components/CSSParticles";
+import JerseyShowcase from "@/components/JerseyShowcase";
 import MagicBento from "@/components/MagicBento";
 import PricingPlans from "@/components/PricingPlans";
 import CreatorCallout from "@/components/CreatorCallout";
@@ -45,24 +45,7 @@ export default function Page() {
         { title: 'Material 3', desc: 'Modern components & patterns', image: '/generated_images/Website_Mockup_Design_f379e810.png' },
         { title: 'Isometric', desc: '3D-inspired vector scenes', image: '/generated_images/3D_Product_Rendering_3967b01e.png' }
       ]} />
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-16">
-        <h3 className="text-2xl md:text-3xl font-bold tracking-tight mb-6">Try the 3D Model Viewer</h3>
-        <div className="flex flex-col md:flex-row items-center gap-8">
-          <ModelViewer
-            url="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/ToyCar/glTF-Binary/ToyCar.glb"
-            width={400}
-            height={400}
-            enableManualRotation
-            enableManualZoom
-            environmentPreset="studio"
-          />
-          <div className="max-w-prose">
-            <p className="text-sm text-foreground/70">
-              Interact with the model: drag to rotate, scroll/pinch to zoom. Works with GLB/GLTF, FBX, and OBJ.
-            </p>
-          </div>
-        </div>
-      </div>
+      <JerseyShowcase />
       <PricingPlans />
       <JoinAsFreelancerCTA />
       <FAQSection />

@@ -118,7 +118,7 @@ export default function PricingPlans() {
                 className="relative"
               >
                 {plan.highlight ? (
-                  <ElectricBorder color="#7df9ff" speed={1} chaos={0.15} thickness={2} style={{ borderRadius: 24 }}>
+                  <ElectricBorder color="#a78bfa" speed={1.5} chaos={2.8} thickness={3} style={{ borderRadius: 24 }}>
                     {cardContent}
                   </ElectricBorder>
                 ) : (
