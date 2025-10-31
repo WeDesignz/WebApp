@@ -15,7 +15,10 @@ Built with **Next.js 14 (App Router, React Server Components)** and **TypeScript
 Employs an HSL-based color system for theming, supporting light/dark modes. Features interactive components like spotlight effects, magnetic hover, particle systems, and a 3D model viewer.
 
 ### Page Structure
--   **Landing Page**: Single-page application with sections for hero, statistics, spotlight features, 3D gallery, categories, interactive Bento grid, pricing, creator CTAs, and FAQ. The navbar includes "Designer Onboarding" button that links to the onboarding wizard.
+-   **Landing Page**: Single-page application with sections for hero, statistics, spotlight features, 3D gallery, infinite-scrolling category sliders, interactive Bento grid, 3D jersey showcase with model viewer, enhanced pricing plans with electric borders, creator CTAs, and FAQ. The navbar includes "Designer Onboarding" button that links to the onboarding wizard. Features:
+    -   **Infinite Sliders**: CardSlider components with looping animation for Popular Categories and Trending Collections
+    -   **Jersey Showcase**: Interactive 3D model viewer for jersey designs with carousel navigation, auto-rotate, zoom controls, model selector grid, and interactive controls guide
+    -   **Pricing Plans**: Three-tier pricing (Free/Pro/Agency) with enhanced electric border animation on the Pro plan (purple color, high chaos effect)
 -   **Designer Onboarding**: Full-screen guided wizard with two-step process for new designers:
     -   **Step 1 - Basic Profile**: Personal information form with real-time validation, profile photo upload, email/phone OTP verification modals, password strength meter, and inline error messages.
     -   **Step 2 - Business & Razorpay Details**: Tabbed form (Contact Details / Business Details / Legal Info) for business registration, address, PAN/GST/MSME documents, and Razorpay linked account creation with status display.
