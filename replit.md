@@ -101,6 +101,20 @@ Full-featured designer dashboard for managing designs, uploads, and earnings:
   - Real-time file validation with error messages
   - Form validation preventing submission until all required fields are filled
 
+- **Analytics Page** (`/designer-console/analytics`):
+  - Performance Overview with 6 KPI cards: Lifetime Earnings, Views (30/90 days), Downloads, Purchases, Active Listings, Avg Price per Sale
+  - Each KPI card displays trend indicators (percentage change with up/down arrows)
+  - Trends & Insights section with three chart cards:
+    - Views Over Time (line chart)
+    - Purchases Over Time (line chart)
+    - Downloads Over Time (line chart)
+  - Each chart includes date-range selector (30d/90d/1y) and CSV export button
+  - AI-generated insights below each chart providing actionable recommendations
+  - Design Performance table with search functionality
+  - Per-design analytics showing Views, Downloads, Purchases, Revenue
+  - 90-day trend sparklines for each design
+  - Custom SVG-based chart components (LineChart, Sparkline)
+
 **Global Layout**
 - Theme provider wrapping entire application (dark theme only)
 - Toast notification system
