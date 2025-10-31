@@ -1,8 +1,10 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShoppingCart, Download, CreditCard } from "lucide-react";
+import { X, ShoppingCart, Download, CreditCard, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useCartWishlist } from "@/contexts/CartWishlistContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -32,6 +34,57 @@ interface ProductModalProps {
 }
 
 export default function ProductModal({ isOpen, onClose, hasActivePlan, product }: ProductModalProps) {
+  const { addToCart, addToWishlist, isInWishlist } = useCartWishlist();
+  const { toast } = useToast();
+
+  const handleAddToCart = (subProduct?: any) => {
+    const cartItem = {
+      id: subProduct ? `${product.id}-${subProduct.id}` : `${product.id}`,
+      productId: String(product.id),
+      title: product.title,
+      designer: product.created_by,
+      category: product.category,
+      price: subProduct ? subProduct.price : product.sub_products[0]?.price || 0,
+      image: product.media[0],
+      tags: [product.category, product.product_plan_type],
+      license: 'Standard License',
+      subProductId: subProduct?.id,
+      color: subProduct?.color,
+    };
+    addToCart(cartItem);
+    toast({
+      title: "Added to cart",
+      description: `${product.title} has been added to your cart.`,
+    });
+  };
+
+  const handleAddToWishlist = () => {
+    const wishlistItem = {
+      id: String(product.id),
+      productId: String(product.id),
+      title: product.title,
+      designer: product.created_by,
+      category: product.category,
+      price: product.sub_products[0]?.price || 0,
+      image: product.media[0],
+      tags: [product.category, product.product_plan_type],
+      isPremium: product.product_plan_type.toLowerCase().includes('premium'),
+    };
+    
+    if (isInWishlist(String(product.id))) {
+      toast({
+        title: "Already in wishlist",
+        description: `${product.title} is already in your wishlist.`,
+      });
+    } else {
+      addToWishlist(wishlistItem);
+      toast({
+        title: "Added to wishlist",
+        description: `${product.title} has been saved to your wishlist.`,
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Active":
@@ -92,12 +145,22 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product }
                         </span>
                       </div>
                     </div>
-                    <button
-                      onClick={onClose}
-                      className="p-2 hover:bg-muted rounded-full transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleAddToWishlist}
+                        className="p-2 hover:bg-muted rounded-full transition-colors"
+                      >
+                        <Heart 
+                          className={`w-5 h-5 ${isInWishlist(String(product.id)) ? 'fill-destructive text-destructive' : ''}`} 
+                        />
+                      </button>
+                      <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-muted rounded-full transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
                   
                   <p className="text-muted-foreground mb-4">{product.description}</p>
@@ -153,6 +216,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product }
                               variant="outline"
                               className="rounded-full"
                               disabled={subProduct.stock === 0 || subProduct.status === "Hide"}
+                              onClick={() => handleAddToCart(subProduct)}
                             >
                               <ShoppingCart className="w-3 h-3 mr-1" />
                               Add
@@ -180,11 +244,19 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product }
                     </>
                   ) : (
                     <>
-                      <Button variant="outline" className="flex-1 rounded-full h-12 text-base font-semibold">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 rounded-full h-12 text-base font-semibold"
+                        onClick={() => handleAddToCart()}
+                      >
                         <ShoppingCart className="w-5 h-5 mr-2" />
                         Add to Cart
                       </Button>
-                      <Button variant="outline" className="flex-1 rounded-full h-12 text-base font-semibold">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 rounded-full h-12 text-base font-semibold"
+                        onClick={() => handleAddToCart()}
+                      >
                         Buy Now
                       </Button>
                       <Button className="flex-1 rounded-full h-12 text-base font-semibold bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90">
