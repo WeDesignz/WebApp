@@ -115,6 +115,33 @@ Full-featured designer dashboard for managing designs, uploads, and earnings:
   - 90-day trend sparklines for each design
   - Custom SVG-based chart components (LineChart, Sparkline)
 
+- **Earnings & Wallet Page** (`/designer-console/earnings`):
+  - Wallet Summary section with two-column card layout:
+    - Available Balance card showing current balance with "Withdraw Funds" button
+    - Pending Payouts card showing amount scheduled for next settlement
+    - Withdraw button disabled with tooltip when account not verified
+    - Warning alert when account verification required
+  - Monthly Settlement Window (5th-10th of each month, Asia/Kolkata timezone):
+    - Settlement card displayed only during 5th-10th window (IST/Asia/Kolkata timezone)
+    - Shows gross earnings, platform fee, net payable amount, period dates, and expected payout date
+    - Accept button (green) to confirm settlement - disabled if account not verified with tooltip
+    - Decline button (text) to dismiss settlement offer
+    - Success banner shown after acceptance with reference ID and scheduled date
+    - Banner is dismissible
+  - Transactions Tab with dual filtering:
+    - Transaction type filter: All Types, Credits Only, Debits Only
+    - Date range filter: All Time, Last 7 Days, Last 30 Days, Last 90 Days
+    - Combined filtering logic (both type AND date range)
+    - Table columns: Date, Type (badge), Description, Reference (monospace), Amount (colored +/- based on type), Receipt download
+    - Pagination controls at bottom
+    - Color-coded badges: CREDIT (green border), DEBIT (red border)
+    - Amount display with + prefix for credits (green), - prefix for debits (red)
+  - Payouts Tab with status tracking:
+    - Table showing payout history with columns: Payout ID, Scheduled Date, Amount, Status (badge with icon), Settled Date, Receipt download
+    - Status badges with icons: SETTLED (green with CheckCircle), SCHEDULED (blue with Clock), EXPIRED (yellow with XCircle), CANCELLED (red with XCircle)
+    - Receipt download button only shown for SETTLED payouts
+    - Empty state for settled date when not yet processed
+
 **Global Layout**
 - Theme provider wrapping entire application (dark theme only)
 - Toast notification system
