@@ -1,0 +1,70 @@
+Description
+Build a Customer Dashboard for the WeDesignz platform. It should be modern, dark-themed by default, responsive, and ready for future feature expansion.
+Layout Structure
+1. Left Sidebar Menu
+At the top: WeDesignz logo.
+
+
+Then main menu items (keep placeholder icons + text):
+Dashboard
+My Downloads
+Categories
+Freelancers
+Support
+
+
+Sidebar should be collapsible (expand/collapse on hover or toggle).
+
+
+Bottom of Sidebar:
+Notifications icon
+Support/Help icon
+WhatsApp Community join icon (links externally)
+Theme toggle (dark/light)
+
+
+Sidebar should have a card for: custom design creation (icon + text), these custom orders will be delivered in 1hrs.
+Sidebar should be scalable so in future, new categories like vectors, psd, icons, illustrations, mockups, 3D models can be easily added.
+
+
+2. Top Bar
+At the top center:
+Large search bar with placeholder “Search designs, vectors, mockups...”
+Right beside it: category filter dropdown.
+
+
+At the top right corner:
+Profile/settings icon → when clicked, open dropdown with options:
+Profile / Account
+Theme
+Support
+Subscription / Plans
+Logout
+
+3. Main Dashboard Content
+Category Card Slider (icon + title):
+Below the search bar, create a horizontal scrollable row of category cards (e.g., Jerseys, Vectors, PSDs, Icons, Mockups, Illustrations, 3D Models).
+ Each card: image/icon + category title. Smooth hover animation.
+
+
+Invite Freelancers Section:
+ Add a visible section/button with “+ Invite Freelancers to List Their Designs”.
+ You can place it right below category cards or floating at a visible position.
+ It should look like a CTA (Call-To-Action) card.
+
+
+Image Feed Section (Infinite Scroll):
+ Grid layout (like Pinterest or Freepik style).
+Each image card has hover effects:
+If Free, show a Download icon on hover.
+If Premium, show a Premium badge/icon always visible. On hover, show an icon/button “View Plans” which redirects to Plans page.
+
+
+Infinite scroll should load more images dynamically (use mock data initially).
+
+
+
+Functional Requirements
+Responsive layout (mobile, tablet, desktop).
+Sidebar collapses into icons on small screens.
+Use Tailwind transitions and Framer Motion (optional) for animations.
