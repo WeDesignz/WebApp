@@ -70,11 +70,43 @@ Single-page application structure with sections:
 - FAQ accordion
 - Footer with sitemap
 
+**Designer Console (app/designer-console/*)**
+Full-featured designer dashboard for managing designs, uploads, and earnings:
+
+- **Dashboard Page** (`/designer-console`):
+  - Collapsible sidebar navigation with all console sections
+  - KPI cards showing total earnings, designs uploaded, downloads, and active projects
+  - Wallet balance display with payout/withdraw actions
+  - Notifications panel showing recent activity
+  - Smart settlement widget (conditional rendering for 5th-10th monthly window)
+  - Recent designs grid with quick actions
+
+- **My Designs Page** (`/designer-console/designs`):
+  - Upload button and search functionality
+  - Filter chips for status (All, Pending, Approved, Rejected) and categories
+  - Grid view (default): 3-column masonry layout with hover actions
+  - List view: Sortable table with bulk selection and actions
+  - Design detail slide-over panel with metadata, stats, and activity log
+  - Smart edit/delete rules based on design status and purchase count
+  - Performance score calculation (Quality 20%, Satisfaction 60%, Engagement 20%)
+
+- **Upload Design Page** (`/designer-console/upload`):
+  - Design Details section: Title, description, category/subcategory, tags, pricing toggle
+  - Dynamic subcategory dropdown based on selected category
+  - Chip-based tag input with add/remove
+  - Free/Paid pricing toggle with conditional price input
+  - File Upload section with Single/Bulk mode toggle
+  - Single mode: 5 required file formats (.eps, .cdr, .jpg, .png, .svg) with validation
+  - Bulk mode: .zip upload with template download and requirements
+  - Real-time file validation with error messages
+  - Form validation preventing submission until all required fields are filled
+
 **Global Layout**
-- Theme provider wrapping entire application
+- Theme provider wrapping entire application (dark theme only)
 - Toast notification system
 - Tooltip provider for accessible hover content
 - Query client provider for data fetching
+- Full-page WebGL particle background with graceful fallback
 
 ### Data Fetching Strategy
 
