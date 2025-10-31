@@ -4,12 +4,14 @@ import { useState } from "react";
 import CustomerDashboardSidebar from "./CustomerDashboardSidebar";
 import CustomerDashboardTopBar from "./CustomerDashboardTopBar";
 import CustomerDashboardContent from "./CustomerDashboardContent";
+import CartDrawer from "./CartDrawer";
 
 export default function CustomerDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -28,6 +30,7 @@ export default function CustomerDashboard() {
           onCategoryChange={setSelectedCategory}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setMobileMenuOpen(!mobileMenuOpen)}
+          onOpenCart={() => setCartDrawerOpen(true)}
         />
         
         <main className="flex-1 overflow-y-auto">
@@ -37,6 +40,11 @@ export default function CustomerDashboard() {
           />
         </main>
       </div>
+
+      <CartDrawer 
+        isOpen={cartDrawerOpen} 
+        onClose={() => setCartDrawerOpen(false)} 
+      />
     </div>
   );
 }

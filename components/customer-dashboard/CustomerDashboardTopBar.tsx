@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Menu, User, Settings, LifeBuoy, CreditCard, LogOut } from "lucide-react";
+import { Search, Menu, User, Settings, LifeBuoy, CreditCard, LogOut, ShoppingCart, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCartWishlist } from "@/contexts/CartWishlistContext";
 
 interface TopBarProps {
   searchQuery: string;
@@ -18,6 +19,7 @@ interface TopBarProps {
   onCategoryChange: (value: string) => void;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
+  onOpenCart: () => void;
 }
 
 const categories = [
@@ -38,9 +40,11 @@ export default function CustomerDashboardTopBar({
   onCategoryChange,
   sidebarCollapsed,
   onToggleSidebar,
+  onOpenCart,
 }: TopBarProps) {
   const [profileOpen, setProfileOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { getCartCount, getWishlistCount } = useCartWishlist();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -87,6 +91,30 @@ export default function CustomerDashboardTopBar({
             </SelectContent>
           </Select>
         </div>
+
+        <a 
+          href="/customer-dashboard/wishlist"
+          className="relative p-2 hover:bg-muted rounded-full transition-colors hidden sm:flex"
+        >
+          <Heart className="w-6 h-6" />
+          {getWishlistCount() > 0 && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center font-semibold">
+              {getWishlistCount()}
+            </span>
+          )}
+        </a>
+
+        <button 
+          onClick={onOpenCart}
+          className="relative p-2 hover:bg-muted rounded-full transition-colors hidden sm:flex"
+        >
+          <ShoppingCart className="w-6 h-6" />
+          {getCartCount() > 0 && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center font-semibold">
+              {getCartCount()}
+            </span>
+          )}
+        </button>
 
         <div className="relative" ref={dropdownRef}>
           <button
