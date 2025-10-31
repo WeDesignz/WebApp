@@ -142,6 +142,43 @@ Full-featured designer dashboard for managing designs, uploads, and earnings:
     - Receipt download button only shown for SETTLED payouts
     - Empty state for settled date when not yet processed
 
+**Customer Dashboard (app/customer-dashboard)**
+Customer-facing interface for browsing, downloading, and managing design purchases:
+
+- **Main Dashboard Page** (`/customer-dashboard`):
+  - **Sidebar Navigation** (Desktop):
+    - WeDesignz logo at top
+    - Main menu: Dashboard, My Downloads, Categories, Freelancers, Support
+    - Collapsible on hover/toggle with smooth Framer Motion animations
+    - Icon-only mode when collapsed
+    - Custom Design card: 1-hour delivery CTA with "Order Now" button
+    - Bottom utility section: Notifications, Help & Support, WhatsApp Community link, Theme toggle (dark/light)
+    - Manual toggle button for expand/collapse
+  - **Sidebar Navigation** (Mobile):
+    - Full-screen overlay sidebar sliding from left
+    - Backdrop overlay with click-to-close
+    - All desktop features included
+    - Auto-closes on menu item selection
+    - Bottom navigation bar with primary menu items
+  - **Top Bar**:
+    - Large search input: "Search designs, vectors, mockups..."
+    - Category filter dropdown: All Categories, Jerseys, Vectors, PSD, Icons, Mockups, Illustrations, 3D Models
+    - Profile menu dropdown: Profile/Account, Theme, Support, Subscription/Plans, Logout
+    - Hamburger menu button (mobile) for sidebar toggle
+  - **Main Content Area**:
+    - Category Cards Slider: Horizontal scrollable row with 7 animated category cards (Jerseys, Vectors, PSD Files, Icons, Mockups, Illustrations, 3D Models)
+    - Each card: Emoji icon, title, gradient background, hover scale animation
+    - Invite Freelancers CTA: Prominent card with UserPlus icon, description, "+ Invite Freelancers" button
+    - Design Feed Grid: Pinterest/Freepik-style responsive grid (1/2/3/4 columns)
+    - Image cards with hover effects:
+      - Free designs: Download button appears on hover
+      - Premium designs: Always-visible "Premium" badge with crown icon, "View Plans" button on hover
+    - Infinite Scroll: Intersection Observer automatically loads more designs as user scrolls
+  - **Responsive Design**:
+    - Desktop: Full sidebar (collapsible) + content
+    - Tablet: Collapsed sidebar with hover-expand + content
+    - Mobile: Hidden sidebar + mobile overlay menu + bottom navigation bar
+
 **Global Layout**
 - Theme provider wrapping entire application (dark theme only)
 - Toast notification system
