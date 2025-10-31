@@ -26,6 +26,10 @@ Employs an HSL-based color system for theming, supporting light/dark modes. Feat
     -   **Upload Design**: Form for design details, category, tags, pricing, and file uploads with validation.
     -   **Analytics**: Performance overview with KPIs, trend charts (Views, Purchases, Downloads) with AI-generated insights, and per-design analytics.
     -   **Earnings & Wallet**: Wallet summary, monthly settlement window with acceptance/rejection, transaction history with filtering, and payout tracking.
+    -   **Notifications**: Centralized message hub with Today/This Week/Older grouping, type-specific icons (sales, achievements, messages, approvals, warnings, info, system), bulk actions (mark all as read, delete selected), filter by category, contextual actions (View Design, navigate to related pages), mark as read/delete per notification, and animated list items.
+    -   **Settings**: Profile and account management with two tabs:
+        -   **Profile Tab**: Editable personal information (first name, last name, email, phone), profile photo upload with validation (images only, max 5MB), re-verification buttons for email/phone with OTP modals, password & security section with change password option.
+        -   **Business & Account Tab**: Razorpay linked account status UI (Not Created/Pending/Verified/Rejected states), rejection reason with step-by-step corrections and retry button, pending state with action items and ETA, verified state with status cards, editable business information (business email, phone, legal name, business type readonly, PAN number, GST number optional).
 -   **Customer Dashboard**: User-facing interface for browsing and managing purchases, featuring:
     -   **Sidebar Navigation**: Collapsible on desktop, full-screen overlay on mobile, with menu items and utility links.
     -   **Top Bar**: Search input, category filter, cart button (with count badge), wishlist button (with count badge), profile menu.
