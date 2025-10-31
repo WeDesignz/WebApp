@@ -70,26 +70,27 @@ export default function Navbar() {
             <a href="#pricing" className="text-sm font-medium hover:text-primary transition-colors">Pricing</a>
           </div>
 
-          {/* Center Section - Spacer */}
-          <div className="flex-1 hidden lg:flex items-center justify-center">
-            <Button
-              className="px-6 py-2.5 rounded-full shadow-lg font-semibold tracking-wide text-sm"
-              data-testid="button-join-designer-nav"
-            >
-              Join as Designer
-            </Button>
-          </div>
+          {/* Spacer */}
+          <div className="flex-1" />
 
           {/* Right Side */}
-          <div className="flex items-center gap-3 flex-shrink-0 ml-auto lg:ml-0">
-            {/* Sign In */}
-            <a
-              href="#signin"
-              className="hidden md:inline-block text-sm font-medium hover:text-primary transition-colors relative after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full"
-              data-testid="link-signin"
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {/* Customer Dashboard Button */}
+            <Button
+              variant="outline"
+              className="hidden lg:inline-flex px-5 py-2 rounded-full text-sm font-medium border-2"
+              data-testid="button-customer-dashboard"
             >
-              Sign In
-            </a>
+              Customer Dashboard
+            </Button>
+
+            {/* Designer Console Button */}
+            <Button
+              className="hidden lg:inline-flex px-5 py-2 rounded-full text-sm font-semibold shadow-lg"
+              data-testid="button-designer-console"
+            >
+              Designer Console
+            </Button>
 
             {/* Mobile Menu Button */}
             <button
@@ -109,21 +110,21 @@ export default function Navbar() {
             <a href="#gallery" className="block py-2 text-sm hover:text-primary transition-colors">Gallery</a>
             <a href="#faqs" className="block py-2 text-sm hover:text-primary transition-colors">FAQs</a>
             <a href="#pricing" className="block py-2 text-sm hover:text-primary transition-colors">Pricing</a>
-            <div>
+            <div className="space-y-3 pt-2">
               <Button
-                className="w-full rounded-full font-semibold tracking-wide"
-                data-testid="button-join-designer-mobile"
+                variant="outline"
+                className="w-full rounded-full font-medium border-2"
+                data-testid="button-customer-dashboard-mobile"
               >
-                Join as Designer
+                Customer Dashboard
+              </Button>
+              <Button
+                className="w-full rounded-full font-semibold"
+                data-testid="button-designer-console-mobile"
+              >
+                Designer Console
               </Button>
             </div>
-            <a
-              href="#signin"
-              className="block py-2 text-sm hover:text-primary transition-colors"
-              data-testid="link-mobile-signin"
-            >
-              Sign In
-            </a>
           </div>
         )}
       </nav>
