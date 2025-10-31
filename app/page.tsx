@@ -8,7 +8,7 @@ import GallerySection from "@/components/GallerySection";
 import SpotlightCard from "@/components/SpotlightCard";
 import dynamic from "next/dynamic";
 const ModelViewer = dynamic(() => import("@/components/ModelViewer"), { ssr: false });
-const Particles = dynamic(() => import("@/components/Particles"), { ssr: false });
+import CSSParticles from "@/components/CSSParticles";
 import MagicBento from "@/components/MagicBento";
 import PricingPlans from "@/components/PricingPlans";
 import CreatorCallout from "@/components/CreatorCallout";
@@ -22,19 +22,10 @@ import CardSlider from "@/components/CardSlider";
 export default function Page() {
   return (
     <div className="relative min-h-screen bg-background">
-      <div className="fixed inset-0 -z-10">
-        <Particles
-          particleColors={["#ffffff", "#ffffff"]}
-          particleCount={2600}
-          particleSpread={100}
-          speed={1}
-          particleBaseSize={100}
-          moveParticlesOnHover={true}
-          alphaParticles={false}
-          disableRotation={false}
-          className="pointer-events-none"
-        />
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <CSSParticles particleCount={150} className="opacity-60" />
       </div>
+      <div className="relative z-10">
       <Navbar />
       <HeroSection />
       <ClientsStats />
@@ -76,7 +67,7 @@ export default function Page() {
       <JoinAsFreelancerCTA />
       <FAQSection />
       <Footer />
-      
+      </div>
     </div>
   );
 }

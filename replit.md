@@ -43,7 +43,7 @@ Employs an HSL-based color system for theming, supporting light/dark modes. Feat
         -   **Context State Management** (`contexts/CartWishlistContext.tsx`): React Context with localStorage persistence for cart and wishlist. Functions: addToCart, removeFromCart, clearCart, moveToWishlist, addToWishlist, removeFromWishlist, clearWishlist, moveToCart, helper functions for counts and totals.
         -   **Animations**: Framer Motion for drawer slide-in, item add/remove, modal open/close. Toast notifications for all user actions.
         -   **Responsive Design**: Cart drawer 450px on desktop, full-width on mobile. Cart page stacks columns on mobile. Wishlist grid adapts 1/2/3/4 columns based on breakpoint.
--   **Global Layout**: Includes theme provider, toast notifications, tooltip provider, query client provider, and a full-page WebGL particle background.
+-   **Global Layout**: Includes theme provider, toast notifications, tooltip provider, query client provider, and a full-page CSS-animated particle background with purple/violet glowing particles.
 
 ### Data Fetching
 Utilizes a custom `apiRequest` helper for standardized fetch calls with JSON handling, configured for session-based authentication and error handling. **TanStack Query** is configured for no automatic refetching and infinite stale time.
