@@ -1,0 +1,31 @@
+My Designs
+This page is the main workspace for design management. It should feel like a designer’s portfolio manager.
+Top area
+Big “Upload +” call-to-action button on the left and a search input on the right with filter chips below it (Status, Category, Date range). Filters collapse into an advanced filter modal on smaller screens.
+
+
+Content — two presentation modes
+Grid view (default): Masonry-like tiles (3 columns on desktop).
+Tile content: design thumbnail, title, short meta row (category, price), status badge (colored edge), bottom footer with small stat icons (views/downloads/purchases).
+Hover state: overlay reveals quick action icons: Preview, Edit (pencil), Delete (trash) — only enabled according to rules.
+Click opens a design detail panel (slide-over) with full detail + activity log + admin review comments (if rejected).
+
+
+List view: shows a table with quick sorting, searching, and bulk actions
+Layout & Behavior:
+Each row represents one design.
+ Columns include:
+ → Checkbox (for bulk actions) | Thumbnail | Title | Category | Status | Views | Downloads | Purchases | Uploaded Date | Actions (Edit/Delete/Menu).
+The header row is sticky at the top with clickable column titles for sorting (e.g., click “Views” to sort by most viewed).
+Bulk-select checkboxes allow selecting multiple designs at once to delete, change category, or download metadata in one go.
+Pagination controls (bottom-right) let users switch pages; page size can be adjusted.
+When hovering a row, the background slightly highlights for clarity.
+Edit/delete behavior
+If design.status == {PENDING, REJECTED} → Edit and Delete enabled.
+If design.status == APPROVED:
+If the design has been purchased / downloaded at least once, disable Delete. 
+If never purchased, show “Soft-Delete” toggle.
+Design detail slide-over
+Larger image preview with zoom and download (if allowed).
+Right side: metadata (upload id WD000xxxx), timestamps, tags, category, price, file versions, admin review comments (if any), and Activity log (edits, approvals).
+Buttons: Request Re-review (if rejected), Duplicate, Export (for designers to download originals within policy).

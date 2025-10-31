@@ -4,7 +4,17 @@ import { Bell, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-export default function DesignerTopBar() {
+interface DesignerTopBarProps {
+  title?: string;
+  subtitle?: string;
+  breadcrumb?: string;
+}
+
+export default function DesignerTopBar({ 
+  title = "Designer Console",
+  subtitle = "Manage your designs and track performance",
+  breadcrumb = "Console"
+}: DesignerTopBarProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   
@@ -18,15 +28,15 @@ export default function DesignerTopBar() {
     <header className="sticky top-0 z-50 h-16 border-b border-border bg-background/95 backdrop-blur">
       <div className="flex h-full items-center justify-between px-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="hover:text-foreground cursor-pointer">Dashboard</span>
+          <a href="/designer-console" className="hover:text-foreground cursor-pointer">Dashboard</a>
           <ChevronRight className="w-4 h-4" />
-          <span className="text-foreground font-medium">My Designs</span>
+          <span className="text-foreground font-medium">{breadcrumb}</span>
         </div>
 
         <div className="flex-1 flex justify-center">
           <div className="text-center">
-            <h1 className="text-xl font-bold">My Designs</h1>
-            <p className="text-xs text-muted-foreground">Manage your uploads, check review status, and view analytics</p>
+            <h1 className="text-xl font-bold">{title}</h1>
+            <p className="text-xs text-muted-foreground">{subtitle}</p>
           </div>
         </div>
 
