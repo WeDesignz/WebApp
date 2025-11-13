@@ -249,7 +249,7 @@ export default function AnalyticsContent() {
     queryFn: async () => {
       const analyticsPromises = designs.map(design =>
         apiClient.getDesignAnalytics(design.id).then(res => ({
-          ...res.data,
+          ...(res.data && typeof res.data === 'object' ? res.data : {}),
           design_id: design.id,
         }))
       );

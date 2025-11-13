@@ -53,9 +53,9 @@ async function apiRequest<T>(
       ? localStorage.getItem('wedesign_access_token') 
       : null;
 
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string> || {}),
     };
 
     if (token) {
@@ -231,15 +231,43 @@ export const catalogAPI = {
  */
 export const apiClient = {
   // Auth methods (these should already exist in your codebase)
-  login: async (emailOrUsername: string, password: string) => {
-    return apiRequest('/api/auth/login/', {
+  login: async (emailOrUsername: string, password: string): Promise<ApiResponse<{
+    user: any;
+    tokens: {
+      access: string;
+      refresh: string;
+    };
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      user: any;
+      tokens: {
+        access: string;
+        refresh: string;
+      };
+      [key: string]: any;
+    }>('/api/auth/login/', {
       method: 'POST',
       body: JSON.stringify({ username: emailOrUsername, password }),
     });
   },
   
-  signup: async (data: any) => {
-    return apiRequest('/api/auth/signup/', {
+  signup: async (data: any): Promise<ApiResponse<{
+    user: any;
+    tokens: {
+      access: string;
+      refresh: string;
+    };
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      user: any;
+      tokens: {
+        access: string;
+        refresh: string;
+      };
+      [key: string]: any;
+    }>('/api/auth/signup/', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -256,15 +284,31 @@ export const apiClient = {
     mobile_number?: string;
     bio?: string;
     date_of_birth?: string;
-  }) => {
-    return apiRequest('/api/auth/update-profile/', {
+  }): Promise<ApiResponse<{
+    message?: string;
+    user?: any;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      message?: string;
+      user?: any;
+      [key: string]: any;
+    }>('/api/auth/update-profile/', {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   },
 
-  refreshToken: async (refreshToken: string) => {
-    return apiRequest('/api/auth/refresh-token/', {
+  refreshToken: async (refreshToken: string): Promise<ApiResponse<{
+    access: string;
+    refresh: string;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      access: string;
+      refresh: string;
+      [key: string]: any;
+    }>('/api/auth/refresh-token/', {
       method: 'POST',
       body: JSON.stringify({ refresh: refreshToken }),
     });
@@ -298,8 +342,14 @@ export const apiClient = {
     });
   },
 
-  verifyEmail: async (email: string, otp: string) => {
-    return apiRequest('/api/auth/verify-email/', {
+  verifyEmail: async (email: string, otp: string): Promise<ApiResponse<{
+    user?: any;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      user?: any;
+      [key: string]: any;
+    }>('/api/auth/verify-email/', {
       method: 'POST',
       body: JSON.stringify({ email, otp }),
     });
@@ -323,8 +373,14 @@ export const apiClient = {
   ...catalogAPI,
 
   // Cart methods
-  getCart: async (): Promise<ApiResponse<Array<any>>> => {
-    return apiRequest<Array<any>>('/api/orders/cart/');
+  getCart: async (): Promise<ApiResponse<{
+    cart_items?: Array<any>;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      cart_items?: Array<any>;
+      [key: string]: any;
+    }>('/api/orders/cart/');
   },
 
   addToCart: async (data: { product_id: number; cart_type?: 'cart' | 'wishlist' }) => {
@@ -369,8 +425,14 @@ export const apiClient = {
     });
   },
 
-  getWishlist: async (): Promise<ApiResponse<Array<any>>> => {
-    return apiRequest<Array<any>>('/api/orders/wishlist/');
+  getWishlist: async (): Promise<ApiResponse<{
+    wishlist_items?: Array<any>;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      wishlist_items?: Array<any>;
+      [key: string]: any;
+    }>('/api/orders/wishlist/');
   },
 
   // Order methods
@@ -475,8 +537,14 @@ export const apiClient = {
     }>('/api/custom-requests/history/');
   },
 
-  getCustomRequestDetail: async (requestId: number) => {
-    return apiRequest(`/api/custom-requests/${requestId}/`);
+  getCustomRequestDetail: async (requestId: number): Promise<ApiResponse<{
+    custom_request?: any;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      custom_request?: any;
+      [key: string]: any;
+    }>(`/api/custom-requests/${requestId}/`);
   },
 
   // Razorpay Payment methods
@@ -822,9 +890,15 @@ export const apiClient = {
     return apiRequest<any>('/api/wallet/summary/');
   },
 
-  getRecentTransactions: async (limit?: number) => {
+  getRecentTransactions: async (limit?: number): Promise<ApiResponse<{
+    recent_transactions?: Array<any>;
+    [key: string]: any;
+  }>> => {
     const query = limit ? `?limit=${limit}` : '';
-    return apiRequest(`/api/wallet/recent-transactions${query}`);
+    return apiRequest<{
+      recent_transactions?: Array<any>;
+      [key: string]: any;
+    }>(`/api/wallet/recent-transactions${query}`);
   },
 
   getWalletTransactions: async (): Promise<ApiResponse<any>> => {
@@ -887,7 +961,10 @@ export const apiClient = {
     search?: string;
     date_from?: string;
     date_to?: string;
-  }) => {
+  }): Promise<ApiResponse<{
+    designs?: Array<any>;
+    [key: string]: any;
+  }>> => {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', String(params.page));
     if (params?.limit) query.append('limit', String(params.limit));
@@ -897,15 +974,24 @@ export const apiClient = {
     if (params?.date_from) query.append('date_from', params.date_from);
     if (params?.date_to) query.append('date_to', params.date_to);
     const queryString = query.toString();
-    return apiRequest(`/api/catalog/my-designs${queryString ? `?${queryString}` : ''}`);
+    return apiRequest<{
+      designs?: Array<any>;
+      [key: string]: any;
+    }>(`/api/catalog/my-designs${queryString ? `?${queryString}` : ''}`);
   },
 
-  getDesignDetail: async (designId: number) => {
-    return apiRequest(`/api/catalog/designs/${designId}/`);
+  getDesignDetail: async (designId: number): Promise<ApiResponse<{
+    design?: any;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      design?: any;
+      [key: string]: any;
+    }>(`/api/catalog/designs/${designId}/`);
   },
 
-  getDesignAnalytics: async (designId: number) => {
-    return apiRequest(`/api/catalog/design-analytics/${designId}/`);
+  getDesignAnalytics: async (designId: number): Promise<ApiResponse<any>> => {
+    return apiRequest<any>(`/api/catalog/design-analytics/${designId}/`);
   },
 
   updateDesign: async (designId: number, data: any) => {
@@ -1019,8 +1105,14 @@ export const apiClient = {
     return apiRequest<any>('/api/profiles/my-studios/');
   },
 
-  getStudioDetail: async (studioId: number) => {
-    return apiRequest(`/api/profiles/studios/${studioId}/`);
+  getStudioDetail: async (studioId: number): Promise<ApiResponse<{
+    studio?: any;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      studio?: any;
+      [key: string]: any;
+    }>(`/api/profiles/studios/${studioId}/`);
   },
 
   createStudio: async (studioData: any) => {
@@ -1037,8 +1129,14 @@ export const apiClient = {
     });
   },
 
-  getStudioBusinessDetails: async (studioId: number) => {
-    return apiRequest(`/api/profiles/studios/${studioId}/business-details/`);
+  getStudioBusinessDetails: async (studioId: number): Promise<ApiResponse<{
+    business_details?: any;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      business_details?: any;
+      [key: string]: any;
+    }>(`/api/profiles/studios/${studioId}/business-details/`);
   },
 
   updateStudioBusinessDetails: async (studioId: number, businessData: FormData | any) => {
@@ -1229,14 +1327,6 @@ export const apiClient = {
     }>(`/api/custom-requests/${query ? `?${query}` : ''}`);
   },
 
-  /**
-   * Get custom request detail
-   */
-  getCustomRequestDetail: async (requestId: number) => {
-    return apiRequest<{
-      custom_request: any;
-    }>(`/api/custom-requests/${requestId}/`);
-  },
 
   /**
    * Cancel custom request

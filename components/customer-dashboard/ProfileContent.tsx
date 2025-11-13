@@ -178,7 +178,8 @@ export default function ProfileContent() {
       }
 
       // Update local user state
-      if (response.data?.user && updateUser) {
+      const responseData = response.data as { user?: any; [key: string]: any } | undefined;
+      if (responseData?.user && updateUser) {
         updateUser({
           ...user!,
           firstName: formData.firstName,

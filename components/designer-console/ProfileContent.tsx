@@ -184,7 +184,7 @@ export default function ProfileContent() {
     setIsSaving(true);
     try {
       // Update user profile (firstName, lastName) via AuthContext if available
-      if (updateUser && (profileData.firstName !== user?.firstName || profileData.lastName !== user?.lastName)) {
+      if (typeof updateUser === 'function' && (profileData.firstName !== user?.firstName || profileData.lastName !== user?.lastName)) {
         // Note: Email and phone updates should go through separate verification flows
         // For now, we'll only update designer profile
       }
@@ -550,17 +550,17 @@ export default function ProfileContent() {
 
       {/* OTP Verification Modals */}
       <OTPVerificationModal
-        isOpen={showEmailOTP}
+        open={showEmailOTP}
         onClose={() => setShowEmailOTP(false)}
-        onVerify={handleEmailVerified}
+        onVerified={handleEmailVerified}
         type="email"
         value={profileData.email}
       />
 
       <OTPVerificationModal
-        isOpen={showPhoneOTP}
+        open={showPhoneOTP}
         onClose={() => setShowPhoneOTP(false)}
-        onVerify={handlePhoneVerified}
+        onVerified={handlePhoneVerified}
         type="phone"
         value={profileData.phone}
       />

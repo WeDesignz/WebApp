@@ -39,8 +39,8 @@ interface Transaction {
 
 interface WithdrawalRequest {
   id: number;
-  amount: number;
-  status: 'pending' | 'approved' | 'rejected';
+  amount: number | string;
+  status: 'pending' | 'approved' | 'rejected' | string;
   reason?: string;
   admin_remarks?: string;
   created_at: string;
@@ -159,7 +159,10 @@ export default function EarningsWalletContent() {
 
   const balance = balanceData?.balance || 0;
   const transactions: Transaction[] = transactionsData?.transactions || [];
-  const withdrawalRequests: WithdrawalRequest[] = withdrawalRequestsData?.withdrawal_requests || [];
+  const withdrawalRequests: WithdrawalRequest[] = (withdrawalRequestsData?.withdrawal_requests || []).map((req: any) => ({
+    ...req,
+    amount: typeof req.amount === 'string' ? parseFloat(req.amount) : req.amount,
+  }));
   const pendingWithdrawals = withdrawalRequests.filter(w => w.status === 'pending');
   const hasPendingWithdrawal = pendingWithdrawals.length > 0;
 
@@ -548,7 +551,7 @@ export default function EarningsWalletContent() {
                             {formatDate(request.created_at)}
                           </td>
                           <td className="p-4 text-sm font-medium">
-                            {formatCurrency(request.amount)}
+                            {formatCurrency(typeof request.amount === 'string' ? parseFloat(request.amount) : request.amount)}
                           </td>
                           <td className="p-4">
                             <Badge 

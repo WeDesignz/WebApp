@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import AuthHeader from '@/components/auth/AuthHeader';
 import SetPasswordForm from '@/components/auth/SetPasswordForm';
 
@@ -10,7 +11,9 @@ export default function SetPasswordPage() {
   return (
     <>
       <AuthHeader />
-      <SetPasswordForm />
+      <Suspense fallback={<div>Loading...</div>}>
+        <SetPasswordForm />
+      </Suspense>
     </>
   );
 }

@@ -94,9 +94,6 @@ export default function DashboardContent() {
       return response.data;
     },
     staleTime: 30 * 1000, // 30 seconds
-    onError: (error: Error) => {
-      toast.error('Failed to load dashboard', error.message);
-    },
   });
 
   // Fetch recent designs
@@ -115,9 +112,6 @@ export default function DashboardContent() {
       return response.data;
     },
     staleTime: 30 * 1000,
-    onError: (error: Error) => {
-      toast.error('Failed to load designs', error.message);
-    },
   });
 
   // Fetch recent transactions
@@ -136,9 +130,6 @@ export default function DashboardContent() {
       return response.data;
     },
     staleTime: 30 * 1000,
-    onError: (error: Error) => {
-      toast.error('Failed to load transactions', error.message);
-    },
   });
 
   const kpis = dashboardData?.kpis || {};

@@ -273,14 +273,14 @@ export const CartWishlistProvider = ({ children }: { children: ReactNode }) => {
         isPremium: item.price > 0,
     }];
 
+    // Update both queries optimistically
+    await queryClient.cancelQueries({ queryKey: ['cart'] });
+    await queryClient.cancelQueries({ queryKey: ['wishlist'] });
+
+    const previousCart = queryClient.getQueryData<CartItem[]>(['cart']);
+    const previousWishlist = queryClient.getQueryData<WishlistItem[]>(['wishlist']);
+
     try {
-      // Update both queries optimistically
-      await queryClient.cancelQueries({ queryKey: ['cart'] });
-      await queryClient.cancelQueries({ queryKey: ['wishlist'] });
-
-      const previousCart = queryClient.getQueryData<CartItem[]>(['cart']);
-      const previousWishlist = queryClient.getQueryData<WishlistItem[]>(['wishlist']);
-
       queryClient.setQueryData(['cart'], optimisticCart);
       queryClient.setQueryData(['wishlist'], optimisticWishlist);
 
@@ -431,13 +431,13 @@ export const CartWishlistProvider = ({ children }: { children: ReactNode }) => {
         license: 'Standard License',
     }];
 
+    await queryClient.cancelQueries({ queryKey: ['cart'] });
+    await queryClient.cancelQueries({ queryKey: ['wishlist'] });
+
+    const previousCart = queryClient.getQueryData<CartItem[]>(['cart']);
+    const previousWishlist = queryClient.getQueryData<WishlistItem[]>(['wishlist']);
+
     try {
-      await queryClient.cancelQueries({ queryKey: ['cart'] });
-      await queryClient.cancelQueries({ queryKey: ['wishlist'] });
-
-      const previousCart = queryClient.getQueryData<CartItem[]>(['cart']);
-      const previousWishlist = queryClient.getQueryData<WishlistItem[]>(['wishlist']);
-
       queryClient.setQueryData(['cart'], optimisticCart);
       queryClient.setQueryData(['wishlist'], optimisticWishlist);
 

@@ -203,9 +203,10 @@ export default function SettingsContent() {
       return response.data;
     },
     onSuccess: (data) => {
+      const responseData = data as { auto_generated_name?: string; sample_design_numbers?: { general_number?: string }; studio?: { id?: number }; [key: string]: any };
       toast({
         title: "Studio created successfully!",
-        description: `Auto-generated name: ${data.auto_generated_name}. Sample design numbers: ${data.sample_design_numbers?.general_number || 'N/A'}`,
+        description: `Auto-generated name: ${responseData.auto_generated_name || 'N/A'}. Sample design numbers: ${responseData.sample_design_numbers?.general_number || 'N/A'}`,
       });
       setShowCreateStudio(false);
       setStudioForm({
@@ -215,8 +216,8 @@ export default function SettingsContent() {
         remarks: "",
       });
       queryClient.invalidateQueries({ queryKey: ['myStudios'] });
-      if (data.studio?.id) {
-        setSelectedStudioId(data.studio.id);
+      if (responseData.studio?.id) {
+        setSelectedStudioId(responseData.studio.id);
       }
     },
     onError: (error: any) => {
@@ -257,8 +258,8 @@ export default function SettingsContent() {
   const updateBusinessDetailsMutation = useMutation({
     mutationFn: async ({ studioId, data }: { studioId: number; data: FormData | any }) => {
       const response = await apiClient.updateStudioBusinessDetails(studioId, data);
-      if (response.error) throw new Error(response.error);
-      return response.data;
+      if ('error' in response && response.error) throw new Error(response.error);
+      return 'data' in response ? response.data : response;
     },
     onSuccess: () => {
       toast({
@@ -314,7 +315,7 @@ export default function SettingsContent() {
 
     // Validate required fields
     if (!businessForm.studio_email.trim() || !businessForm.studio_mobile_number.trim() || 
-        !businessForm.legal_business_name.trim() || !businessForm.pan_number.trim()) {
+        !businessForm.legal_business_name.trim() || !businessForm.pan_number?.trim()) {
       toast({
         title: "Validation error",
         description: "Please fill all required fields",

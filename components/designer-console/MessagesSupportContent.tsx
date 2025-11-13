@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageSquare,
@@ -168,23 +168,27 @@ export default function MessagesSupportContent() {
 
   // Update selectedThread with fetched messages
   useEffect(() => {
-    if (threadMessagesData && selectedThread) {
+    if (threadMessagesData && selectedThread && threadsData) {
+      const threads = threadsData.threads || [];
       const thread = threads.find((t: any) => (t.id || t.thread_id) === selectedThread.id);
       if (thread) {
         setSelectedThread(transformThread(thread, threadMessagesData.messages || []));
       }
     }
-  }, [threadMessagesData, threads]);
+  }, [threadMessagesData, threadsData, selectedThread]);
 
   // Create support thread mutation
   const createThreadMutation = useMutation({
     mutationFn: async (data: {
       subject: string;
       message: string;
-      priority: string;
+      priority: "high" | "low" | "medium";
       category?: string;
     }) => {
-      return apiClient.createSupportThread(data);
+      return apiClient.createSupportThread({
+        ...data,
+        priority: data.priority as "high" | "low" | "medium",
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supportThreads'] });
@@ -514,7 +518,7 @@ export default function MessagesSupportContent() {
                                 <p className="text-sm font-medium truncate mb-1">{message.subject}</p>
                                 <p className="text-xs text-muted-foreground line-clamp-2">{message.preview}</p>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  {message.timestamp.toLocaleDateString()} {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  {new Date(message.timestamp).toLocaleDateString()} {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </p>
                               </div>
                             </div>

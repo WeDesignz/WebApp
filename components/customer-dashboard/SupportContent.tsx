@@ -109,10 +109,13 @@ export default function SupportContent() {
     mutationFn: async (data: {
       subject: string;
       message: string;
-      priority: string;
+      priority: "high" | "low" | "medium";
       category?: string;
     }) => {
-      return apiClient.createSupportThread(data);
+      return apiClient.createSupportThread({
+        ...data,
+        priority: data.priority as "high" | "low" | "medium",
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supportThreads'] });
