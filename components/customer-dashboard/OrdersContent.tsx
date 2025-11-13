@@ -28,9 +28,9 @@ interface Order {
   title?: string;
   order_number?: string;
   type?: "custom" | "product";
-  status: "pending" | "success" | "failed" | "processing" | "cancelled" | "in_progress" | "completed";
+  status: "pending" | "success" | "failed" | "processing" | "cancelled" | "in_progress" | "completed" | string;
   created_at: string;
-  total_amount?: number;
+  total_amount?: number | string;
   deliveryTime?: number;
   price?: number;
   budget?: number;
@@ -64,7 +64,14 @@ export default function OrdersContent() {
       if (response.error) {
         throw new Error(response.error);
       }
-      return response.data?.orders || [];
+      // Transform the data to match Order interface
+      const orders = response.data?.orders || [];
+      return orders.map((order: any) => ({
+        ...order,
+        total_amount: typeof order.total_amount === 'string' 
+          ? parseFloat(order.total_amount) 
+          : order.total_amount,
+      }));
     },
     staleTime: 30 * 1000, // 30 seconds
   });
