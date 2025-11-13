@@ -123,7 +123,13 @@ const Particles: React.FC<ParticlesProps> = ({
         return;
       }
 
-      container.appendChild(gl.canvas);
+      // Type guard: ensure canvas is HTMLCanvasElement (not OffscreenCanvas)
+      if (gl.canvas instanceof HTMLCanvasElement) {
+        container.appendChild(gl.canvas);
+      } else {
+        console.warn('Canvas is not an HTMLCanvasElement, cannot append to container');
+        return;
+      }
       gl.clearColor(0, 0, 0, 0);
     } catch (error) {
       console.warn('Failed to create WebGL context:', error);
@@ -233,7 +239,7 @@ const Particles: React.FC<ParticlesProps> = ({
         container.removeEventListener('mousemove', handleMouseMove);
       }
       cancelAnimationFrame(animationFrameId);
-      if (gl && gl.canvas && container.contains(gl.canvas)) {
+      if (gl && gl.canvas instanceof HTMLCanvasElement && container.contains(gl.canvas)) {
         container.removeChild(gl.canvas);
       }
     };
