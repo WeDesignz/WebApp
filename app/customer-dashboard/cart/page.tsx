@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiClient } from "@/lib/api";
-import { usePayment } from "@/lib/payment";
+import { initializeRazorpayCheckout } from "@/lib/payment";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -26,7 +26,6 @@ export default function CartPage() {
     subscription_plan?: string;
   } | null>(null);
   const { toast } = useToast();
-  const { processPayment } = usePayment();
   const { user } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -163,18 +162,34 @@ export default function CartPage() {
       const { razorpay_order_id, payment_id } = paymentOrderResponse.data;
 
       // Step 2: Initialize Razorpay checkout
-      const paymentResult = await processPayment(
-        finalAmount,
-        undefined, // Order ID will be created after payment
-        `Payment for ${cartItems.length} item(s)`,
-        process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
-      );
+      const paymentResult = await initializeRazorpayCheckout({
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
+        amount: finalAmount * 100, // Convert rupees to paise for Razorpay
+        currency: 'INR',
+        name: 'WeDesign',
+        description: `Payment for ${cartItems.length} item(s)`,
+        order_id: razorpay_order_id,
+        theme: {
+          color: '#8B5CF6',
+        },
+      });
 
       if (!paymentResult.success || !paymentResult.razorpay_payment_id) {
         throw new Error(paymentResult.error || 'Payment failed');
       }
 
-      // Step 3: Complete purchase
+      // Step 3: Capture payment
+      const captureResponse = await apiClient.capturePayment({
+        payment_id: payment_id,
+        razorpay_payment_id: paymentResult.razorpay_payment_id!,
+        amount: finalAmount,
+      });
+
+      if (captureResponse.error) {
+        throw new Error(captureResponse.error || 'Failed to capture payment');
+      }
+
+      // Step 4: Complete purchase
       const purchaseResponse = await apiClient.purchaseCart({
         payment_method: 'razorpay',
         address_id: 1, // TODO: Get from user profile or address selection
@@ -183,15 +198,6 @@ export default function CartPage() {
 
       if (purchaseResponse.error) {
         throw new Error(purchaseResponse.error);
-      }
-
-      // Step 4: Capture payment (if not already captured)
-      if (paymentResult.payment_id) {
-        await apiClient.capturePayment({
-          payment_id: paymentResult.payment_id,
-          razorpay_payment_id: paymentResult.razorpay_payment_id,
-          amount: finalAmount,
-        });
       }
 
       // Clear cart and refresh
