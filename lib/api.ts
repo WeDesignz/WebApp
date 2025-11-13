@@ -487,8 +487,30 @@ export const apiClient = {
   },
 
   // Download methods
-  getDownloads: async () => {
-    return apiRequest('/api/orders/downloads/');
+  getDownloads: async (): Promise<ApiResponse<{
+    downloads: Array<{
+      id: number;
+      cart_ids: string;
+      total_amount: string;
+      status: string;
+      created_at: string;
+      updated_at: string;
+      [key: string]: any;
+    }>;
+    total_downloads: number;
+  }>> => {
+    return apiRequest<{
+      downloads: Array<{
+        id: number;
+        cart_ids: string;
+        total_amount: string;
+        status: string;
+        created_at: string;
+        updated_at: string;
+        [key: string]: any;
+      }>;
+      total_downloads: number;
+    }>('/api/orders/downloads/');
   },
 
   // PDF Download methods
