@@ -343,8 +343,18 @@ export const apiClient = {
     });
   },
 
-  getCartSummary: async () => {
-    return apiRequest('/api/orders/cart/summary/');
+  getCartSummary: async (): Promise<ApiResponse<{
+    total_amount: number;
+    has_active_subscription: boolean;
+    will_be_free: boolean;
+    subscription_plan?: string;
+  }>> => {
+    return apiRequest<{
+      total_amount: number;
+      has_active_subscription: boolean;
+      will_be_free: boolean;
+      subscription_plan?: string;
+    }>('/api/orders/cart/summary/');
   },
 
   moveToWishlist: async (cartItemId: number) => {
