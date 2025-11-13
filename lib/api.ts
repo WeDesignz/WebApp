@@ -423,8 +423,14 @@ export const apiClient = {
     currency?: string;
     order_id?: string;
     description?: string;
-  }) => {
-    return apiRequest('/api/razorpay/create-order/', {
+  }): Promise<ApiResponse<{
+    razorpay_order_id: string;
+    payment_id: number;
+  }>> => {
+    return apiRequest<{
+      razorpay_order_id: string;
+      payment_id: number;
+    }>('/api/razorpay/create-order/', {
       method: 'POST',
       body: JSON.stringify({
         amount: data.amount,
