@@ -1,0 +1,38 @@
+Upload design — form + metadata
+Primary Form Layout
+At the top of the page, display a concise header:
+“Upload Your Design” — followed by a short helper text:
+“Provide the required details and files for your design submission. All uploaded designs will undergo a review before being published.”
+The form is divided into two main sections — Design Details and Files Upload — with a collapsible Metadata Panel at the end.
+1. Design Details Section
+This section captures the core attributes of the design:
+Title — Text input for the design’s name (required).
+Short Description — Multi-line text box (max 500 characters).
+Category / Subcategory — Two dropdowns with auto-suggestions and search; the subcategory list dynamically updates based on the chosen category.
+Tags — Chip-based input allowing multiple tags to improve discoverability.
+Price — A toggle for Free / Paid.
+If Free, the price input field remains hidden.
+If Paid, an amount input box appears immediately below the toggle, requiring a valid numeric price entry (₹).
+2. File Upload Section
+Designers must choose between two upload modes — Single Design Upload or Bulk Upload.
+A toggle or radio button at the top lets them select the upload type.
+Single Design Upload
+When the designer opts to upload a single design, they must upload exactly five files — one in each of the following formats:
+.eps
+.cdr
+.jpg
+.png
+.svg
+Each file input field is clearly labeled with the required format name and displays a checkmark once successfully uploaded.
+ The UI should not allow submission until all five file slots are filled.
+If a file with an incorrect format is uploaded, display an inline validation message like:
+ “Invalid file type. Please upload a valid .eps file.”
+Bulk Upload
+If the designer selects the Bulk Upload option, they must upload a single .zip file.
+ This zip file must contain multiple folders or zip files, and each of those must include the same five files (.eps, .cdr, .jpg, .png, .svg) corresponding to individual designs.
+Validation checks should confirm:
+File type = .zip
+Reasonable size limit (as defined by system constraints)
+If validation fails, show an inline error message such as:
+“Your bulk upload must be a .zip file containing subfolders, each with .eps, .cdr, .jpg, .png, and .svg files.”
+There should be a bulk download template available for reference for designers.

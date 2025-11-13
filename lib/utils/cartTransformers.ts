@@ -1,0 +1,109 @@
+/**
+ * Cart and Wishlist data transformation utilities
+ * Converts backend API responses to frontend component formats
+ */
+
+import { CartItem, WishlistItem } from '@/contexts/CartWishlistContext';
+
+/**
+ * Transform backend cart item to frontend CartItem format
+ */
+export function transformCartItem(apiCartItem: any): CartItem {
+  const product = apiCartItem.product || {};
+  
+  // Extract media URLs
+  const mediaUrls = (product.media || []).map((mediaItem: any) => {
+    if (typeof mediaItem === 'string') {
+      return mediaItem;
+    }
+    return mediaItem?.file?.url || mediaItem?.url || '';
+  }).filter((url: string) => url);
+
+  // Extract category name
+  const categoryName = product.category?.name || product.category || 'Uncategorized';
+  
+  // Extract tags
+  const tags = (product.tags || []).map((tag: any) => 
+    typeof tag === 'string' ? tag : tag.name || ''
+  ).filter(Boolean);
+
+  // Extract creator name
+  const designer = product.created_by?.username || 
+                   product.created_by?.first_name || 
+                   product.created_by || 
+                   'Unknown Designer';
+
+  return {
+    id: apiCartItem.id.toString(),
+    productId: product.id?.toString() || apiCartItem.product_id?.toString() || '',
+    title: product.title || 'Untitled Product',
+    designer,
+    category: categoryName,
+    price: parseFloat(product.price || 0),
+    image: mediaUrls[0] || '/generated_images/Brand_Identity_Design_67fa7e1f.png',
+    tags: tags.length > 0 ? tags : [categoryName],
+    license: 'Standard License', // Default license
+    subProductId: undefined, // Backend doesn't have sub-products in cart
+    color: product.color || undefined,
+  };
+}
+
+/**
+ * Transform backend cart item to frontend WishlistItem format
+ */
+export function transformWishlistItem(apiCartItem: any): WishlistItem {
+  const product = apiCartItem.product || {};
+  
+  // Extract media URLs
+  const mediaUrls = (product.media || []).map((mediaItem: any) => {
+    if (typeof mediaItem === 'string') {
+      return mediaItem;
+    }
+    return mediaItem?.file?.url || mediaItem?.url || '';
+  }).filter((url: string) => url);
+
+  // Extract category name
+  const categoryName = product.category?.name || product.category || 'Uncategorized';
+  
+  // Extract tags
+  const tags = (product.tags || []).map((tag: any) => 
+    typeof tag === 'string' ? tag : tag.name || ''
+  ).filter(Boolean);
+
+  // Extract creator name
+  const designer = product.created_by?.username || 
+                   product.created_by?.first_name || 
+                   product.created_by || 
+                   'Unknown Designer';
+
+  // Determine if premium
+  const isPremium = product.product_plan_type?.toLowerCase().includes('premium') || 
+                    parseFloat(product.price || 0) > 0;
+
+  return {
+    id: apiCartItem.id.toString(),
+    productId: product.id?.toString() || apiCartItem.product_id?.toString() || '',
+    title: product.title || 'Untitled Product',
+    designer,
+    category: categoryName,
+    price: parseFloat(product.price || 0),
+    image: mediaUrls[0] || '/generated_images/Brand_Identity_Design_67fa7e1f.png',
+    tags: tags.length > 0 ? tags : [categoryName],
+    isPremium,
+  };
+}
+
+/**
+ * Transform array of cart items
+ */
+export function transformCartItems(apiCartItems: any[]): CartItem[] {
+  return apiCartItems.map(transformCartItem);
+}
+
+/**
+ * Transform array of wishlist items
+ */
+export function transformWishlistItems(apiCartItems: any[]): WishlistItem[] {
+  return apiCartItems.map(transformWishlistItem);
+}
+

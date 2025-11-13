@@ -1,0 +1,72 @@
+modules = ["nodejs-20", "web"]
+[agent]
+expertMode = true
+
+[nix]
+channel = "stable-25_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "dev"
+
+[[workflows.workflow]]
+name = "dev"
+author = "agent"
+
+<<<<<<< HEAD
+[workflows.workflow.metadata]
+outputType = "webview"
+
+=======
+>>>>>>> 0b4980ae997493b4e66d931e29ebc509012a0276
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+<<<<<<< HEAD
+=======
+[workflows.workflow.metadata]
+outputType = "webview"
+
+>>>>>>> 0b4980ae997493b4e66d931e29ebc509012a0276
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+<<<<<<< HEAD
+localPort = 33469
+=======
+localPort = 33151
+>>>>>>> 0b4980ae997493b4e66d931e29ebc509012a0276
+externalPort = 3002
+
+[[ports]]
+localPort = 35643
+externalPort = 4200
+
+[[ports]]
+localPort = 40001
+externalPort = 3000
+
+[[ports]]
+localPort = 46791
+externalPort = 3003
+
+[[ports]]
+localPort = 46817
+externalPort = 3001
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["npm", "run", "start"]
+build = ["npm", "run", "build"]

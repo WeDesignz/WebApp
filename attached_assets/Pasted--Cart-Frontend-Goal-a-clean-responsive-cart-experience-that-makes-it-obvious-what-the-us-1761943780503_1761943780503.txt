@@ -1,0 +1,48 @@
+*** Cart — Frontend ***
+
+Goal: a clean, responsive cart experience that makes it obvious what the user will pay, what items they have, and how to act on them.
+
+Key screens / components
+
+Floating Cart Button: sticky icon in header with item count badge. Opens a slide-out Cart Drawer.
+
+Cart Drawer (slide from right): compact view with items, subtotal, coupon input (visual only), promo callout, and primary CTA (“View Cart / Checkout”).
+
+Cart Page (/cart): full-page cart with two-column layout on desktop: left = item list, right = order summary; stack vertically on mobile.
+
+Cart Item Card: thumbnail, title, designer name, small meta (tags, license), price, actions: “Remove”, “Save to Wishlist”.
+
+Empty State: friendly illustration, short copy (“Your cart is empty”), CTA to “Browse Designs”.
+
+Mini interactions: inline snackbars for actions (e.g., “Removed from cart”), and subtle animation on item removal.
+
+Interaction patterns
+
+Optimistic-feel UI: when user removes or moves-to-wishlist, animate the item sliding out
+Bulk actions: allow selecting multiple items to remove or move to wishlist.
+Coupon field (visual only): input + Apply button with success/error microcopy area under it.
+Checkout CTA: large, sticky button in drawer and page summary; secondary CTA “Continue shopping”.
+
+
+
+*** Wishlist — Frontend ***
+Create the Wishlist UI focusing only on how it should look and behave 
+
+Key screens / components
+Wishlist Page: grid/list of saved items with clear CTAs: “Add to Cart”, “Remove”, “Quick View”.
+Compact Wishlist Button: small heart icon in header with saved count. Clicking opens a compact overlay or navigates to wishlist.
+Item Card: thumbnail, title, short tags, designer, price, and two primary actions: heart/remove and “Add to Cart”. Include a small checkbox for multi-select.
+Quick View Modal: when previewing an item — show larger image, short description, tags, and primary actions.
+Empty State: positive illustration and copy (“No saved items yet — find designs to love”) with CTA to browse.
+
+
+Visual & layout
+Use a clean grid on desktop (4 columns min depending on breakpoint), single column on mobile.
+Heart icon state: filled (saved) vs outline (not saved); animate heart on toggle (scale + pop).
+
+
+Interaction patterns
+Single item actions: “Add to Cart” with subtle confirmation toast (“Added to cart”), “Remove” with undo snackbar.
+Bulk actions: select multiple items and bulk “Move to Cart” or “Remove”.
+Saved list reordering: drag-to-reorder for desktop (visual only), with handle and live preview.
+Preview: hover shows quick action overlay (on desktop).

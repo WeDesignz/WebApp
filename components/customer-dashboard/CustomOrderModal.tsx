@@ -1,0 +1,225 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Upload, X, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api";
+import { usePayment } from "@/lib/payment";
+import { useQueryClient } from "@tanstack/react-query";
+
+interface CustomOrderModalProps {
+  open: boolean;
+  onClose: () => void;
+  onOrderPlaced: (orderId: string) => void;
+}
+
+export default function CustomOrderModal({ open, onClose, onOrderPlaced }: CustomOrderModalProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+  const { processPayment } = usePayment();
+  const queryClient = useQueryClient();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFiles(Array.from(e.target.files));
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(files.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    if (!title.trim() || !description.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setIsProcessing(true);
+
+    try {
+      // Step 1: Submit custom request
+      const submitResponse = await apiClient.submitCustomRequest({
+        title: title.trim(),
+        description: description.trim(),
+        budget: 200, // Default budget
+      });
+
+      if (submitResponse.error || !submitResponse.data) {
+        throw new Error(submitResponse.error || 'Failed to submit custom request');
+      }
+
+      const customRequest = submitResponse.data.custom_request;
+      const amount = submitResponse.data.amount || 200;
+
+      // Step 2: Process payment
+      setIsProcessing(true);
+      const paymentResult = await processPayment(
+        amount,
+        customRequest.id?.toString(),
+        `Custom Order: ${title}`,
+        process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
+      );
+
+      if (paymentResult.success) {
+        // Refresh orders and custom requests
+        await queryClient.invalidateQueries({ queryKey: ['orders'] });
+        await queryClient.invalidateQueries({ queryKey: ['customRequests'] });
+
+        toast({
+          title: "Order placed successfully!",
+          description: "Your custom order has been placed and payment processed.",
+        });
+
+        onOrderPlaced(customRequest.id?.toString() || '');
+        resetForm();
+        onClose();
+      } else {
+        throw new Error(paymentResult.error || 'Payment failed');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to place order. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+      setIsProcessing(false);
+    }
+  };
+
+  const resetForm = () => {
+    setTitle("");
+    setDescription("");
+    setFiles([]);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Place Custom Order</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="title">Design Title *</Label>
+            <Input
+              id="title"
+              placeholder="e.g., Business Card Design"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="mt-1.5"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="description">Specifications *</Label>
+            <Textarea
+              id="description"
+              placeholder="Describe your design requirements in detail..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="mt-1.5 min-h-[120px]"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="files">Reference Files (Optional)</Label>
+            <div className="mt-1.5">
+              <label
+                htmlFor="files"
+                className="flex items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors"
+              >
+                <div className="text-center">
+                  <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    Click to upload reference files
+                  </p>
+                </div>
+                <input
+                  id="files"
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileChange}
+                  accept="image/*,.pdf,.ai,.psd"
+                />
+              </label>
+            </div>
+
+            {files.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {files.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-2 bg-muted rounded-lg"
+                  >
+                    <span className="text-sm truncate flex-1">{file.name}</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => removeFile(index)}
+                      className="h-auto p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-semibold">Order Price</span>
+              <span className="text-2xl font-bold">₹200</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Delivered within 1 hour • Unlimited revisions
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting || isProcessing}
+              className="flex-1"
+            >
+              {isSubmitting || isProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {isProcessing ? "Processing Payment..." : "Submitting..."}
+                </>
+              ) : (
+                "Place Order (₹200)"
+              )}
+            </Button>
+            <Button 
+              onClick={onClose} 
+              variant="outline"
+              disabled={isSubmitting || isProcessing}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

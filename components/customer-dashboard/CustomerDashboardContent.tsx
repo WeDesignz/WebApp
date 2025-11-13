@@ -1,0 +1,360 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
+import { Download, Crown, FileText, Loader2, Gift } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import ProductModal from "./ProductModal";
+import PDFDownloadModal, { PDFPurchase } from "./PDFDownloadModal";
+import { useAuth } from "@/contexts/AuthContext";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { catalogAPI } from "@/lib/api";
+import { transformProduct, transformProducts, type TransformedProduct } from "@/lib/utils/transformers";
+
+interface ContentProps {
+  searchQuery: string;
+  selectedCategory: string;
+}
+
+type Product = TransformedProduct;
+
+const categoryCards = [
+  { id: "jerseys", title: "Jerseys", icon: "👕", color: "from-blue-500/10 to-cyan-500/10" },
+  { id: "vectors", title: "Vectors", icon: "🎨", color: "from-purple-500/10 to-pink-500/10" },
+  { id: "psd", title: "PSD Files", icon: "📁", color: "from-orange-500/10 to-red-500/10" },
+  { id: "icons", title: "Icons", icon: "⭐", color: "from-yellow-500/10 to-amber-500/10" },
+  { id: "mockups", title: "Mockups", icon: "🖼️", color: "from-green-500/10 to-emerald-500/10" },
+  { id: "illustrations", title: "Illustrations", icon: "🎭", color: "from-indigo-500/10 to-violet-500/10" },
+  { id: "3d-models", title: "3D Models", icon: "🎲", color: "from-rose-500/10 to-pink-500/10" },
+];
+
+
+export default function CustomerDashboardContent({ searchQuery, selectedCategory }: ContentProps) {
+  const { user } = useAuth();
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [hasActivePlan, setHasActivePlan] = useState(false);
+  const [isPDFModalOpen, setIsPDFModalOpen] = useState(false);
+  const [freePDFUsed, setFreePDFUsed] = useState(false);
+  const [isClaimingFreePDF, setIsClaimingFreePDF] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const observerRef = useRef<HTMLDivElement>(null);
+
+  const isAuthenticated = !!user;
+
+  // Fetch products using infinite query for pagination
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    error,
+  } = useInfiniteQuery({
+    queryKey: ['homeFeed', searchQuery, selectedCategory],
+    queryFn: async ({ pageParam = 1 }) => {
+      // If there's a search query or category filter, use search endpoint
+      if (searchQuery || (selectedCategory && selectedCategory !== 'all')) {
+        const categoryId = selectedCategory && selectedCategory !== 'all' 
+          ? parseInt(selectedCategory) 
+          : undefined;
+        
+        const response = await catalogAPI.searchProducts({
+          q: searchQuery || undefined,
+          category: categoryId,
+          page: pageParam,
+        });
+
+        if (response.error) {
+          throw new Error(response.error);
+        }
+
+        return {
+          products: transformProducts(response.data?.results || []),
+          page: response.data?.current_page || pageParam,
+          hasNext: (response.data?.current_page || 0) < (response.data?.total_pages || 0),
+        };
+      } else {
+        // Use home feed endpoint
+        const response = await catalogAPI.getHomeFeed(pageParam);
+
+        if (response.error) {
+          throw new Error(response.error);
+        }
+
+        return {
+          products: transformProducts(response.data?.products || []),
+          page: response.data?.page || pageParam,
+          hasNext: response.data?.has_next || false,
+        };
+      }
+    },
+    getNextPageParam: (lastPage) => {
+      return lastPage.hasNext ? lastPage.page + 1 : undefined;
+    },
+    initialPageParam: 1,
+  });
+
+  // Flatten all pages into a single products array
+  const products = data?.pages.flatMap(page => page.products) || [];
+
+  useEffect(() => {
+    setIsMounted(true);
+    if (isAuthenticated) {
+      const used = localStorage.getItem("freePDFUsed") === "true";
+      setFreePDFUsed(used);
+    }
+  }, [isAuthenticated]);
+
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product);
+    setIsModalOpen(true);
+  };
+
+  const handlePDFPurchaseComplete = (purchase: PDFPurchase) => {
+    // Trigger a refresh or update in DownloadsContent
+    // This will be handled via localStorage
+    console.log("PDF Purchase completed:", purchase);
+    if (purchase.type === "free") {
+      setFreePDFUsed(true);
+    }
+  };
+
+  const handleFreePDFClaim = async () => {
+    setIsClaimingFreePDF(true);
+    
+    // Simulate processing
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const purchase: PDFPurchase = {
+      id: `PDF-FREE-${Date.now()}`,
+      type: "free",
+      quantity: 50,
+      selectionType: "firstN",
+      price: 0,
+      searchQuery,
+      category: selectedCategory,
+      purchasedAt: new Date().toISOString(),
+      downloaded: false,
+    };
+
+    // Mark free PDF as used
+    localStorage.setItem("freePDFUsed", "true");
+    setFreePDFUsed(true);
+
+    // Save purchase to localStorage
+    const existingPurchases = JSON.parse(
+      localStorage.getItem("pdfPurchases") || "[]"
+    );
+    existingPurchases.push(purchase);
+    localStorage.setItem("pdfPurchases", JSON.stringify(existingPurchases));
+
+    handlePDFPurchaseComplete(purchase);
+    setIsClaimingFreePDF(false);
+  };
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (observerRef.current) {
+      observer.observe(observerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  return (
+    <div className="p-4 md:p-6 pb-24 md:pb-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="overflow-x-auto pb-4 -mx-4 px-4">
+          <div className="flex gap-4 min-w-max">
+            {categoryCards.map((cat, idx) => (
+              <motion.div
+                key={cat.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
+              >
+                <Card className={`w-40 h-32 p-4 bg-gradient-to-br ${cat.color} border-primary/20 hover:scale-105 hover:border-primary/40 transition-all cursor-pointer`}>
+                  <div className="text-4xl mb-2">{cat.icon}</div>
+                  <h3 className="font-semibold text-sm">{cat.title}</h3>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        <Card className="p-6 bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 border-primary/20">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
+                <FileText className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <div>
+                {isMounted && isAuthenticated && !freePDFUsed ? (
+                  <>
+                    <h3 className="font-bold text-lg">Get Your First Mock Design PDF for Free!</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Claim your free PDF of 50 designs based on your current search
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="font-bold text-lg">Download Mock PDFs</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Download sample PDFs and mockups to preview design quality
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+            {isMounted && isAuthenticated && !freePDFUsed ? (
+              <Button 
+                size="lg" 
+                className="whitespace-nowrap bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                onClick={handleFreePDFClaim}
+                disabled={isClaimingFreePDF}
+              >
+                {isClaimingFreePDF ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Claiming...
+                  </>
+                ) : (
+                  <>
+                    <Gift className="w-5 h-5 mr-2" />
+                    Get Free PDF (50 Designs)
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Button 
+                size="lg" 
+                className="whitespace-nowrap"
+                onClick={() => setIsPDFModalOpen(true)}
+              >
+                <Download className="w-5 h-5 mr-2" />
+                Download PDFs
+              </Button>
+            )}
+          </div>
+        </Card>
+
+        <div>
+          <h2 className="text-2xl font-bold mb-4">Design Feed</h2>
+          
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+              {[...Array(10)].map((_, idx) => (
+                <div
+                  key={idx}
+                  className="aspect-[3/4] rounded-xl bg-muted animate-pulse"
+                />
+              ))}
+            </div>
+          ) : error ? (
+            <Card className="p-12 text-center">
+              <p className="text-destructive mb-2">Error loading products</p>
+              <p className="text-sm text-muted-foreground">
+                {error instanceof Error ? error.message : 'An unexpected error occurred'}
+              </p>
+            </Card>
+          ) : products.length === 0 ? (
+            <Card className="p-12 text-center">
+              <p className="text-muted-foreground mb-2">No products found</p>
+              <p className="text-sm text-muted-foreground">
+                {searchQuery 
+                  ? `No products match "${searchQuery}". Try a different search term.`
+                  : "No products available at the moment."
+                }
+              </p>
+            </Card>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                {products.map((product, idx) => (
+                  <motion.div
+                    key={`${product.id}-${idx}`}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: Math.min(idx * 0.02, 0.5) }}
+                    onClick={() => handleProductClick(product)}
+                    className="group relative aspect-[3/4] rounded-xl overflow-hidden bg-muted cursor-pointer"
+                  >
+                    <img
+                      src={product.media[0] || '/generated_images/Brand_Identity_Design_67fa7e1f.png'}
+                      alt={product.title}
+                      className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                      }}
+                    />
+                    
+                    {product.product_plan_type === "Premium" && (
+                      <div className="absolute top-3 right-3 bg-yellow-500 text-yellow-950 px-3 py-1 rounded-full flex items-center gap-1 text-xs font-bold">
+                        <Crown className="w-3 h-3" />
+                        Premium
+                      </div>
+                    )}
+
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                        <h3 className="text-white font-semibold mb-2">{product.title}</h3>
+                        <p className="text-white/80 text-xs mb-2 line-clamp-2">{product.description}</p>
+                        <div className="text-white/60 text-xs">
+                          Click to view details
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              <div
+                ref={observerRef}
+                className="flex justify-center items-center py-8"
+              >
+                {isFetchingNextPage && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Loading more designs...</span>
+                  </div>
+                )}
+                {!hasNextPage && products.length > 0 && (
+                  <p className="text-sm text-muted-foreground">No more products to load</p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {selectedProduct && (
+        <ProductModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          hasActivePlan={hasActivePlan}
+          product={selectedProduct}
+        />
+      )}
+
+      <PDFDownloadModal
+        isOpen={isPDFModalOpen}
+        onClose={() => setIsPDFModalOpen(false)}
+        searchQuery={searchQuery}
+        selectedCategory={selectedCategory}
+        totalResults={products.length}
+        onPurchaseComplete={handlePDFPurchaseComplete}
+      />
+    </div>
+  );
+}

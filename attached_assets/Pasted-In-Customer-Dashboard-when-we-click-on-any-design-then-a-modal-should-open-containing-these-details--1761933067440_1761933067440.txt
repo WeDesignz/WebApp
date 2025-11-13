@@ -1,0 +1,71 @@
+In Customer Dashboard when we click on any design then a modal should open containing these details
+
+Design Modal
+Create a responsive Product Modal component in Next.js + Tailwind CSS that displays product details, sub-products, and plan-based download or purchase actions which is called by clicking on design.
+Modal Layout
+Centered white card with rounded-2xl corners, shadow-xl, and smooth fade/scale animation using Framer Motion.
+Sections:
+Header:
+Product image on left (from product.media[0])
+Product title, category, and status on right
+Close (X) button on top-right
+
+
+Body:
+Product description
+Product Plan Type (Premium, Basic, etc.)
+Sub-products listed in a responsive table:
+ | Product # | Color | Price | Stock | Status |
+Each sub-product row can have a small “Add to Cart” button (for quick add).
+
+
+Footer:
+If user has an active plan:
+ Show:
+“Download Design” (primary button)
+“Add to Cart for Bulk Download” (secondary button)
+
+
+If user does NOT have an active plan:
+ Show:
+“Add to Cart”
+“Buy Now”
+“Purchase Plan” (highlighted button)
+All buttons should be rounded-full, Tailwind-styled, and have hover transitions.
+Below the buttons, show metadata:
+ Created By, Created At, Updated By, Updated At (small gray text).
+
+
+
+Props Example
+interface ProductModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  hasActivePlan: boolean;
+  product: {
+    id: number;
+    title: string;
+    description: string;
+    category_id: number;
+    status: "Active" | "Inactive" | "Draft" | "Deleted";
+    product_plan_type: string;
+    created_by: string;
+    created_at: string;
+    updated_by: string;
+    updated_at: string;
+    media: string[]; // image URLs
+    sub_products: {
+      id: number;
+      product_number: string;
+      color: string;
+      price: number;
+      stock: number;
+      status: "Show" | "Hide";
+    }[];
+  };
+}
+
+Functional Behavior
+Modal appears when isOpen is true (framer-motion fade-in/scale-up).
+Responsive for both desktop and mobile
+Background dimmed overlay with blur effect
