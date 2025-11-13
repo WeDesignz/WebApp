@@ -609,8 +609,24 @@ export const apiClient = {
   },
 
   // Email management methods
-  listEmailAddresses: async () => {
-    return apiRequest('/api/auth/emails/');
+  listEmailAddresses: async (): Promise<ApiResponse<{
+    emails: Array<{
+      id: number;
+      email: string;
+      is_verified: boolean;
+      is_primary: boolean;
+      created_at: string;
+    }>;
+  }>> => {
+    return apiRequest<{
+      emails: Array<{
+        id: number;
+        email: string;
+        is_verified: boolean;
+        is_primary: boolean;
+        created_at: string;
+      }>;
+    }>('/api/auth/emails/');
   },
 
   addEmailAddress: async (data: {
