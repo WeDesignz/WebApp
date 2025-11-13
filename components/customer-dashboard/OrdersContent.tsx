@@ -306,7 +306,7 @@ export default function OrdersContent() {
         <SupportChat
           open={chatOpen}
           onClose={() => setChatOpen(false)}
-          orderId={selectedOrder.id}
+          orderId={selectedOrder.id.toString()}
           orderTitle={selectedOrder.title}
         />
       )}
