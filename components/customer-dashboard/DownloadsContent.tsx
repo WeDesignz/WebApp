@@ -35,7 +35,7 @@ interface Download {
   type?: "free" | "paid" | "subscription";
   transactionId?: string;
   price?: number;
-  total_amount?: number;
+  total_amount?: number | string;
   cart_items?: any[];
 }
 
@@ -54,7 +54,14 @@ export default function DownloadsContent() {
       if (response.error) {
         throw new Error(response.error);
       }
-      return response.data?.downloads || [];
+      // Transform the data to match Download interface
+      const downloads = response.data?.downloads || [];
+      return downloads.map((download: any) => ({
+        ...download,
+        total_amount: typeof download.total_amount === 'string' 
+          ? parseFloat(download.total_amount) 
+          : download.total_amount,
+      }));
     },
     staleTime: 30 * 1000, // 30 seconds
   });
