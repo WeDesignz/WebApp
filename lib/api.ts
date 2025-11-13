@@ -245,8 +245,8 @@ export const apiClient = {
     });
   },
 
-  getUserProfile: async () => {
-    return apiRequest('/api/auth/profile/');
+  getUserProfile: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/api/auth/profile/');
   },
 
   updateProfile: async (data: {
@@ -323,8 +323,8 @@ export const apiClient = {
   ...catalogAPI,
 
   // Cart methods
-  getCart: async () => {
-    return apiRequest('/api/orders/cart/');
+  getCart: async (): Promise<ApiResponse<Array<any>>> => {
+    return apiRequest<Array<any>>('/api/orders/cart/');
   },
 
   addToCart: async (data: { product_id: number; cart_type?: 'cart' | 'wishlist' }) => {
@@ -369,8 +369,8 @@ export const apiClient = {
     });
   },
 
-  getWishlist: async () => {
-    return apiRequest('/api/orders/wishlist/');
+  getWishlist: async (): Promise<ApiResponse<Array<any>>> => {
+    return apiRequest<Array<any>>('/api/orders/wishlist/');
   },
 
   // Order methods
@@ -404,8 +404,8 @@ export const apiClient = {
     }>('/api/orders/orders/');
   },
 
-  getOrderDetail: async (orderId: number) => {
-    return apiRequest(`/api/orders/orders/${orderId}/`);
+  getOrderDetail: async (orderId: number): Promise<ApiResponse<any>> => {
+    return apiRequest<any>(`/api/orders/orders/${orderId}/`);
   },
 
   purchaseCart: async (data: {
@@ -465,8 +465,14 @@ export const apiClient = {
     });
   },
 
-  getCustomRequestHistory: async () => {
-    return apiRequest('/api/custom-requests/history/');
+  getCustomRequestHistory: async (): Promise<ApiResponse<{
+    custom_requests?: Array<any>;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      custom_requests?: Array<any>;
+      [key: string]: any;
+    }>('/api/custom-requests/history/');
   },
 
   getCustomRequestDetail: async (requestId: number) => {
@@ -540,8 +546,16 @@ export const apiClient = {
   },
 
   // PDF Download methods
-  checkPDFEligibility: async () => {
-    return apiRequest('/api/catalog/pdf/check-eligibility/');
+  checkPDFEligibility: async (): Promise<ApiResponse<{
+    is_eligible: boolean;
+    free_downloads_used?: number;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      is_eligible: boolean;
+      free_downloads_used?: number;
+      [key: string]: any;
+    }>('/api/catalog/pdf/check-eligibility/');
   },
 
   createPDFRequest: async (data: {
@@ -550,8 +564,18 @@ export const apiClient = {
     selection_type?: 'specific' | 'search_results';
     selected_products?: number[];
     search_filters?: any;
-  }) => {
-    return apiRequest('/api/catalog/pdf/create-request/', {
+  }): Promise<ApiResponse<{
+    download_id?: number;
+    id?: number;
+    pdf_download?: { id?: number; [key: string]: any };
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      download_id?: number;
+      id?: number;
+      pdf_download?: { id?: number; [key: string]: any };
+      [key: string]: any;
+    }>('/api/catalog/pdf/create-request/', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -595,8 +619,14 @@ export const apiClient = {
     }>(`/api/catalog/pdf/downloads/${queryString ? `?${queryString}` : ''}`);
   },
 
-  getPDFStatus: async (downloadId: number) => {
-    return apiRequest(`/api/catalog/pdf/status/${downloadId}/`);
+  getPDFStatus: async (downloadId: number): Promise<ApiResponse<{
+    status?: string;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      status?: string;
+      [key: string]: any;
+    }>(`/api/catalog/pdf/status/${downloadId}/`);
   },
 
   downloadPDF: async (downloadId: number) => {
@@ -666,8 +696,14 @@ export const apiClient = {
   },
 
   // Address methods
-  getAddresses: async () => {
-    return apiRequest('/api/profiles/addresses/');
+  getAddresses: async (): Promise<ApiResponse<{
+    addresses?: Array<any>;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      addresses?: Array<any>;
+      [key: string]: any;
+    }>('/api/profiles/addresses/');
   },
 
   createAddress: async (data: {
@@ -773,17 +809,17 @@ export const apiClient = {
   },
 
   // Designer Dashboard methods
-  getDesignerDashboard: async () => {
-    return apiRequest('/api/profiles/designer-dashboard/');
+  getDesignerDashboard: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/api/profiles/designer-dashboard/');
   },
 
   // Wallet methods
-  getWalletBalance: async () => {
-    return apiRequest('/api/wallet/balance/');
+  getWalletBalance: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/api/wallet/balance/');
   },
 
-  getWalletSummary: async () => {
-    return apiRequest('/api/wallet/summary/');
+  getWalletSummary: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/api/wallet/summary/');
   },
 
   getRecentTransactions: async (limit?: number) => {
@@ -791,16 +827,38 @@ export const apiClient = {
     return apiRequest(`/api/wallet/recent-transactions${query}`);
   },
 
-  getWalletTransactions: async () => {
-    return apiRequest('/api/wallet/transactions/');
+  getWalletTransactions: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/api/wallet/transactions/');
   },
 
-  getEarningsSummary: async () => {
-    return apiRequest('/api/wallet/earnings-summary/');
+  getEarningsSummary: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/api/wallet/earnings-summary/');
   },
 
-  getWithdrawalRequests: async () => {
-    return apiRequest('/api/wallet/withdrawal-requests/');
+  getWithdrawalRequests: async (): Promise<ApiResponse<{
+    withdrawal_requests?: Array<{
+      id: number;
+      amount: number | string;
+      status: string;
+      created_at: string;
+      reason?: string;
+      admin_remarks?: string;
+      [key: string]: any;
+    }>;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      withdrawal_requests?: Array<{
+        id: number;
+        amount: number | string;
+        status: string;
+        created_at: string;
+        reason?: string;
+        admin_remarks?: string;
+        [key: string]: any;
+      }>;
+      [key: string]: any;
+    }>('/api/wallet/withdrawal-requests/');
   },
 
   getWithdrawalRequestDetail: async (requestId: number) => {
@@ -926,8 +984,14 @@ export const apiClient = {
   },
 
   // Designer Profile
-  getDesignerProfile: async () => {
-    return apiRequest('/api/profiles/designer-profile/');
+  getDesignerProfile: async (): Promise<ApiResponse<{
+    designer_profile?: any;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      designer_profile?: any;
+      [key: string]: any;
+    }>('/api/profiles/designer-profile/');
   },
 
   updateDesignerProfile: async (profileData: any) => {
@@ -951,8 +1015,8 @@ export const apiClient = {
     return apiRequest(`/api/profiles/studios${queryString ? `?${queryString}` : ''}`);
   },
 
-  getMyStudios: async () => {
-    return apiRequest('/api/profiles/my-studios/');
+  getMyStudios: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/api/profiles/my-studios/');
   },
 
   getStudioDetail: async (studioId: number) => {

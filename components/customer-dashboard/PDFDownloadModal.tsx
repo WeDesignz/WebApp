@@ -18,7 +18,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiClient } from "@/lib/api";
-import { usePayment } from "@/lib/payment";
+import { initializeRazorpayCheckout } from "@/lib/payment";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -65,7 +65,6 @@ export default function PDFDownloadModal({
   const [pricingInfo, setPricingInfo] = useState<any>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
-  const { processPayment } = usePayment();
   const queryClient = useQueryClient();
 
   const isAuthenticated = !!user;
@@ -99,7 +98,7 @@ export default function PDFDownloadModal({
   const freeDownloadsUsed = eligibilityData?.free_downloads_used || 0;
 
   // Poll for PDF status when download is processing
-  const { data: pdfStatus } = useQuery({
+  const { data: pdfStatus } = useQuery<{ status?: string; [key: string]: any } | null>({
     queryKey: ['pdfStatus', currentDownloadId],
     queryFn: async () => {
       if (!currentDownloadId) return null;
@@ -107,13 +106,17 @@ export default function PDFDownloadModal({
       if (response.error) {
         throw new Error(response.error);
       }
-      return response.data;
+      return response.data as { status?: string; [key: string]: any } | null;
     },
     enabled: !!currentDownloadId && isOpen,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Poll every 3 seconds if status is pending or processing
-      if (data?.status === 'pending' || data?.status === 'processing') {
-        return 3000;
+      const data = query.state.data;
+      if (data && typeof data === 'object' && 'status' in data) {
+        const status = (data as { status?: string }).status;
+        if (status === 'pending' || status === 'processing') {
+          return 3000;
+        }
       }
       return false; // Stop polling when completed or failed
     },
@@ -231,15 +234,45 @@ export default function PDFDownloadModal({
 
       // Step 2: Handle payment if paid
       if (downloadType === "paid" && price > 0) {
-        const paymentResult = await processPayment(
-          price,
-          downloadId.toString(),
-          `PDF Download - ${quantity} designs`,
-          process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
-        );
+        // Create payment order
+        const paymentOrderResponse = await apiClient.createPaymentOrder({
+          amount: price,
+          currency: 'INR',
+          description: `PDF Download - ${quantity} designs`,
+        });
 
-        if (!paymentResult.success) {
+        if (paymentOrderResponse.error || !paymentOrderResponse.data) {
+          throw new Error(paymentOrderResponse.error || 'Failed to create payment order');
+        }
+
+        const { razorpay_order_id, payment_id } = paymentOrderResponse.data;
+
+        // Initialize Razorpay checkout
+        const paymentResult = await initializeRazorpayCheckout({
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
+          amount: price * 100, // Convert rupees to paise for Razorpay
+          currency: 'INR',
+          name: 'WeDesign',
+          description: `PDF Download - ${quantity} designs`,
+          order_id: razorpay_order_id,
+          theme: {
+            color: '#8B5CF6',
+          },
+        });
+
+        if (!paymentResult.success || !paymentResult.razorpay_payment_id) {
           throw new Error(paymentResult.error || 'Payment failed');
+        }
+
+        // Capture payment
+        const captureResponse = await apiClient.capturePayment({
+          payment_id: payment_id,
+          razorpay_payment_id: paymentResult.razorpay_payment_id!,
+          amount: price,
+        });
+
+        if (captureResponse.error) {
+          throw new Error(captureResponse.error || 'Failed to capture payment');
         }
       }
 
@@ -562,7 +595,7 @@ export default function PDFDownloadModal({
                 variant="outline"
                 onClick={onClose}
                 className="flex-1"
-                disabled={isProcessing || (currentDownloadId && pdfStatus?.status !== 'completed')}
+                disabled={isProcessing || !!(currentDownloadId && pdfStatus?.status !== 'completed')}
               >
                 {currentDownloadId && pdfStatus?.status === 'completed' ? 'Close' : 'Cancel'}
               </Button>

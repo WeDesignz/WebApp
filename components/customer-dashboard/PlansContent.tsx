@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
-import { usePayment } from "@/lib/payment";
+import { initializeRazorpayCheckout } from "@/lib/payment";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -71,7 +71,6 @@ const colorMap: Record<string, string> = {
 export default function PlansContent() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { processPayment } = usePayment();
   const queryClient = useQueryClient();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
@@ -218,26 +217,54 @@ export default function PlansContent() {
         throw new Error(subscribeResponse.error);
       }
 
-      // Step 2: Process payment
-      const paymentResult = await processPayment(
-        parseFloat(plan.price.toString()),
-        subscribeResponse.data?.subscription?.id?.toString() || plan.id.toString(),
-        `Subscription: ${plan.plan_name_display || plan.plan_name} - ${plan.plan_duration}`,
-        process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
-      );
+      // Step 2: Create payment order
+      const paymentOrderResponse = await apiClient.createPaymentOrder({
+        amount: parseFloat(plan.price.toString()),
+        currency: 'INR',
+        description: `Subscription: ${plan.plan_name_display || plan.plan_name} - ${plan.plan_duration}`,
+      });
 
-      if (paymentResult.success) {
-        await refetchSubscription();
-        await queryClient.invalidateQueries({ queryKey: ['plans'] });
-        toast({
-          title: "Subscription successful!",
-          description: "Your subscription is now active.",
-        });
-      } else {
-        // Payment failed, but subscription might have been created
-        // You may want to cancel the subscription or handle it differently
+      if (paymentOrderResponse.error || !paymentOrderResponse.data) {
+        throw new Error(paymentOrderResponse.error || 'Failed to create payment order');
+      }
+
+      const { razorpay_order_id, payment_id } = paymentOrderResponse.data;
+
+      // Step 3: Initialize Razorpay checkout
+      const paymentResult = await initializeRazorpayCheckout({
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
+        amount: parseFloat(plan.price.toString()) * 100, // Convert rupees to paise for Razorpay
+        currency: 'INR',
+        name: 'WeDesign',
+        description: `Subscription: ${plan.plan_name_display || plan.plan_name} - ${plan.plan_duration}`,
+        order_id: razorpay_order_id,
+        theme: {
+          color: '#8B5CF6',
+        },
+      });
+
+      if (!paymentResult.success || !paymentResult.razorpay_payment_id) {
         throw new Error(paymentResult.error || 'Payment failed');
       }
+
+      // Step 4: Capture payment
+      const captureResponse = await apiClient.capturePayment({
+        payment_id: payment_id,
+        razorpay_payment_id: paymentResult.razorpay_payment_id!,
+        amount: parseFloat(plan.price.toString()),
+      });
+
+      if (captureResponse.error) {
+        throw new Error(captureResponse.error || 'Failed to capture payment');
+      }
+
+      // Step 5: Success
+      await refetchSubscription();
+      await queryClient.invalidateQueries({ queryKey: ['plans'] });
+      toast({
+        title: "Subscription successful!",
+        description: "Your subscription is now active.",
+      });
     } catch (error: any) {
       toast({
         title: "Subscription failed",

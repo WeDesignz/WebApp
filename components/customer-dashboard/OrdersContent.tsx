@@ -307,7 +307,7 @@ export default function OrdersContent() {
           open={chatOpen}
           onClose={() => setChatOpen(false)}
           orderId={selectedOrder.id.toString()}
-          orderTitle={selectedOrder.title}
+          orderTitle={selectedOrder.title || 'Order'}
         />
       )}
 
