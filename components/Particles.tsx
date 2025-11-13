@@ -112,7 +112,7 @@ const Particles: React.FC<ParticlesProps> = ({
     if (!container) return;
 
     let renderer: Renderer;
-    let gl: WebGLRenderingContext;
+    let gl: any; // OGL's Renderer.gl type (OGLRenderingContext)
 
     try {
       renderer = new Renderer({ depth: false, alpha: true });
