@@ -398,8 +398,38 @@ export const apiClient = {
     title: string;
     description: string;
     budget?: number;
-  }) => {
-    return apiRequest('/api/custom-requests/submit/', {
+  }): Promise<ApiResponse<{
+    message: string;
+    custom_request: {
+      id: number;
+      title: string;
+      description: string;
+      status: string;
+      budget: number | null;
+      created_at: string;
+      updated_at: string;
+      media?: Array<any>;
+    };
+    payment_required: boolean;
+    amount: number;
+    payment_message: string;
+  }>> => {
+    return apiRequest<{
+      message: string;
+      custom_request: {
+        id: number;
+        title: string;
+        description: string;
+        status: string;
+        budget: number | null;
+        created_at: string;
+        updated_at: string;
+        media?: Array<any>;
+      };
+      payment_required: boolean;
+      amount: number;
+      payment_message: string;
+    }>('/api/custom-requests/submit/', {
       method: 'POST',
       body: JSON.stringify({
         title: data.title,
