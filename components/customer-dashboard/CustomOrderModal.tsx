@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Upload, X, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
-import { usePayment } from "@/lib/payment";
+import { initializeRazorpayCheckout } from "@/lib/payment";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface CustomOrderModalProps {
@@ -25,7 +25,6 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const { processPayment } = usePayment();
   const queryClient = useQueryClient();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,34 +62,80 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
         throw new Error(submitResponse.error || 'Failed to submit custom request');
       }
 
-      const customRequest = submitResponse.data.custom_request;
-      const amount = submitResponse.data.amount || 200;
+      // TypeScript type narrowing - after the check above, data is guaranteed to exist
+      const data = submitResponse.data as {
+        message: string;
+        custom_request: {
+          id: number;
+          title: string;
+          description: string;
+          status: string;
+          budget: number | null;
+          created_at: string;
+          updated_at: string;
+          media?: Array<any>;
+        };
+        payment_required: boolean;
+        amount: number;
+        payment_message: string;
+      };
+      const customRequest = data.custom_request;
+      const amount = data.amount || 200;
 
-      // Step 2: Process payment
+      // Step 2: Create payment order
       setIsProcessing(true);
-      const paymentResult = await processPayment(
-        amount,
-        customRequest.id?.toString(),
-        `Custom Order: ${title}`,
-        process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
-      );
+      const paymentOrderResponse = await apiClient.createPaymentOrder({
+        amount: amount,
+        currency: 'INR',
+        description: `Custom Order: ${title}`,
+      });
 
-      if (paymentResult.success) {
-        // Refresh orders and custom requests
-        await queryClient.invalidateQueries({ queryKey: ['orders'] });
-        await queryClient.invalidateQueries({ queryKey: ['customRequests'] });
+      if (paymentOrderResponse.error || !paymentOrderResponse.data) {
+        throw new Error(paymentOrderResponse.error || 'Failed to create payment order');
+      }
 
-        toast({
-          title: "Order placed successfully!",
-          description: "Your custom order has been placed and payment processed.",
-        });
+      const { razorpay_order_id, payment_id } = paymentOrderResponse.data;
 
-        onOrderPlaced(customRequest.id?.toString() || '');
-        resetForm();
-        onClose();
-      } else {
+      // Step 3: Initialize Razorpay checkout
+      const paymentResult = await initializeRazorpayCheckout({
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
+        amount: amount * 100, // Convert rupees to paise for Razorpay
+        currency: 'INR',
+        name: 'WeDesign',
+        description: `Custom Order: ${title}`,
+        order_id: razorpay_order_id,
+        theme: {
+          color: '#8B5CF6',
+        },
+      });
+
+      if (!paymentResult.success || !paymentResult.razorpay_payment_id) {
         throw new Error(paymentResult.error || 'Payment failed');
       }
+
+      // Step 4: Capture payment
+      const captureResponse = await apiClient.capturePayment({
+        payment_id: payment_id,
+        razorpay_payment_id: paymentResult.razorpay_payment_id!,
+        amount: amount,
+      });
+
+      if (captureResponse.error) {
+        throw new Error(captureResponse.error || 'Failed to capture payment');
+      }
+
+      // Step 5: Refresh orders and custom requests
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
+      await queryClient.invalidateQueries({ queryKey: ['customRequests'] });
+
+      toast({
+        title: "Order placed successfully!",
+        description: "Your custom order has been placed and payment processed.",
+      });
+
+      onOrderPlaced(customRequest.id?.toString() || '');
+      resetForm();
+      onClose();
     } catch (error: any) {
       toast({
         title: "Error",
