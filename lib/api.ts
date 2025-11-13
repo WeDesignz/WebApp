@@ -374,8 +374,34 @@ export const apiClient = {
   },
 
   // Order methods
-  getOrders: async () => {
-    return apiRequest('/api/orders/orders/');
+  getOrders: async (): Promise<ApiResponse<{
+    orders: Array<{
+      id: number;
+      cart_ids: string;
+      total_amount: string;
+      status: string;
+      created_at: string;
+      updated_at: string;
+      cart_items?: Array<any>;
+      transactions?: Array<any>;
+      [key: string]: any;
+    }>;
+    total_orders?: number;
+  }>> => {
+    return apiRequest<{
+      orders: Array<{
+        id: number;
+        cart_ids: string;
+        total_amount: string;
+        status: string;
+        created_at: string;
+        updated_at: string;
+        cart_items?: Array<any>;
+        transactions?: Array<any>;
+        [key: string]: any;
+      }>;
+      total_orders?: number;
+    }>('/api/orders/orders/');
   },
 
   getOrderDetail: async (orderId: number) => {
