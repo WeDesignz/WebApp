@@ -531,12 +531,42 @@ export const apiClient = {
     });
   },
 
-  getPDFDownloads: async (params?: { page?: number; page_size?: number }) => {
+  getPDFDownloads: async (params?: { page?: number; page_size?: number }): Promise<ApiResponse<{
+    downloads: Array<{
+      id: number;
+      download_id?: number;
+      download_type: 'free' | 'paid';
+      status: string;
+      total_pages: number;
+      total_amount: string | number;
+      payment_status?: string;
+      created_at: string;
+      updated_at?: string;
+      products_count?: number;
+      [key: string]: any;
+    }>;
+    total_downloads?: number;
+  }>> => {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', String(params.page));
     if (params?.page_size) query.append('page_size', String(params.page_size));
     const queryString = query.toString();
-    return apiRequest(`/api/catalog/pdf/downloads/${queryString ? `?${queryString}` : ''}`);
+    return apiRequest<{
+      downloads: Array<{
+        id: number;
+        download_id?: number;
+        download_type: 'free' | 'paid';
+        status: string;
+        total_pages: number;
+        total_amount: string | number;
+        payment_status?: string;
+        created_at: string;
+        updated_at?: string;
+        products_count?: number;
+        [key: string]: any;
+      }>;
+      total_downloads?: number;
+    }>(`/api/catalog/pdf/downloads/${queryString ? `?${queryString}` : ''}`);
   },
 
   getPDFStatus: async (downloadId: number) => {
