@@ -1,6 +1,7 @@
 "use client";
 
 import { DesignerVerificationProvider } from "@/contexts/DesignerVerificationContext";
+import DesignerConsoleGuard from "@/components/auth/DesignerConsoleGuard";
 
 export default function DesignerConsoleLayout({
   children,
@@ -8,9 +9,11 @@ export default function DesignerConsoleLayout({
   children: React.ReactNode;
 }) {
   return (
-    <DesignerVerificationProvider>
-      {children}
-    </DesignerVerificationProvider>
+    <DesignerConsoleGuard>
+      <DesignerVerificationProvider>
+        {children}
+      </DesignerVerificationProvider>
+    </DesignerConsoleGuard>
   );
 }
 

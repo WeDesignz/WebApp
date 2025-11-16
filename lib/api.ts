@@ -885,6 +885,236 @@ export const apiClient = {
     return apiRequest<any>('/api/profiles/designer-dashboard/');
   },
 
+  // Designer Onboarding methods
+  saveDesignerOnboardingStep1: async (data: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    is_individual: boolean;
+    profile_photo?: File;
+  }): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append('first_name', data.first_name);
+    formData.append('last_name', data.last_name);
+    formData.append('email', data.email);
+    formData.append('phone', data.phone);
+    formData.append('is_individual', String(data.is_individual));
+    if (data.profile_photo) {
+      formData.append('profile_photo', data.profile_photo);
+    }
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
+    
+    try {
+      const response = await fetch(`${baseUrl}/api/profiles/designer-onboarding-step1/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        return {
+          error: errorData.error || errorData.detail || 'Failed to save Step 1 data',
+          errorDetails: errorData,
+        };
+      }
+
+      const data = await response.json();
+      return { data };
+    } catch (error: any) {
+      return {
+        error: error.message || 'Network error occurred',
+        errorDetails: error,
+      };
+    }
+  },
+
+  saveDesignerOnboardingStep2: async (data: {
+    legal_business_name: string;
+    business_type: string;
+    business_model: string;
+    business_category: string;
+    business_sub_category: string;
+    street: string;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+    studio_email: string;
+    studio_mobile_number: string;
+    gst_number?: string;
+    msme_udyam_number?: string;
+    msme_certificate_annexure?: File;
+  }): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append('legal_business_name', data.legal_business_name);
+    formData.append('business_type', data.business_type);
+    formData.append('business_model', data.business_model);
+    formData.append('business_category', data.business_category);
+    formData.append('business_sub_category', data.business_sub_category);
+    formData.append('street', data.street);
+    formData.append('city', data.city);
+    formData.append('state', data.state);
+    formData.append('postal_code', data.postal_code);
+    formData.append('country', data.country);
+    formData.append('studio_email', data.studio_email);
+    formData.append('studio_mobile_number', data.studio_mobile_number);
+    if (data.gst_number) formData.append('gst_number', data.gst_number);
+    if (data.msme_udyam_number) formData.append('msme_udyam_number', data.msme_udyam_number);
+    if (data.msme_certificate_annexure) {
+      formData.append('msme_certificate_annexure', data.msme_certificate_annexure);
+    }
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
+    
+    try {
+      const response = await fetch(`${baseUrl}/api/profiles/designer-onboarding-step2/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        return {
+          error: errorData.error || errorData.detail || 'Failed to save Step 2 data',
+          errorDetails: errorData,
+        };
+      }
+
+      const responseData = await response.json();
+      return { data: responseData };
+    } catch (error: any) {
+      return {
+        error: error.message || 'Network error occurred',
+        errorDetails: error,
+      };
+    }
+  },
+
+  saveDesignerOnboardingStep3: async (data: {
+    pan_number: string;
+    pan_card?: File;
+  }): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append('pan_number', data.pan_number);
+    if (data.pan_card) {
+      formData.append('pan_card', data.pan_card);
+    }
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
+    
+    try {
+      const response = await fetch(`${baseUrl}/api/profiles/designer-onboarding-step3/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        return {
+          error: errorData.error || errorData.detail || 'Failed to save Step 3 data',
+          errorDetails: errorData,
+        };
+      }
+
+      const responseData = await response.json();
+      return { data: responseData };
+    } catch (error: any) {
+      return {
+        error: error.message || 'Network error occurred',
+        errorDetails: error,
+      };
+    }
+  },
+
+  saveDesignerOnboardingStep4: async (zipFile: File): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append('zip_file', zipFile);
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
+    
+    try {
+      const response = await fetch(`${baseUrl}/api/profiles/designer-onboarding-step4/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        return {
+          error: errorData.error || errorData.detail || 'Failed to upload zip file',
+          errorDetails: errorData,
+          validationErrors: errorData.validation_errors,
+        };
+      }
+
+      const responseData = await response.json();
+      return { data: responseData };
+    } catch (error: any) {
+      return {
+        error: error.message || 'Network error occurred',
+        errorDetails: error,
+      };
+    }
+  },
+
+  getDesignerOnboardingStep1: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/api/profiles/get-designer-onboarding-step1/');
+  },
+
+  getDesignerOnboardingStep2: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/api/profiles/get-designer-onboarding-step2/');
+  },
+
+  getDesignerOnboardingStep3: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/api/profiles/get-designer-onboarding-step3/');
+  },
+
+  getDesignerOnboardingStatus: async (): Promise<ApiResponse<{
+    onboarding_status: {
+      step1_completed: boolean;
+      step2_completed: boolean;
+      email_verified: boolean;
+      mobile_verified: boolean;
+      designer_profile_status: string;
+      studio_created: boolean;
+      business_details_completed: boolean;
+      razorpay_account_verified: boolean;
+    };
+    can_access_console: boolean;
+  }>> => {
+    return apiRequest<{
+      onboarding_status: {
+        step1_completed: boolean;
+        step2_completed: boolean;
+        email_verified: boolean;
+        mobile_verified: boolean;
+        designer_profile_status: string;
+        studio_created: boolean;
+        business_details_completed: boolean;
+        razorpay_account_verified: boolean;
+      };
+      can_access_console: boolean;
+    }>('/api/profiles/designer-onboarding-status/');
+  },
+
   // Wallet methods
   getWalletBalance: async (): Promise<ApiResponse<any>> => {
     return apiRequest<any>('/api/wallet/balance/');

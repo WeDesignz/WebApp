@@ -1,25 +1,26 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Upload, Eye, EyeOff, Camera, Check, AlertCircle } from 'lucide-react';
+import { Upload, Camera, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import OTPVerificationModal from './OTPVerificationModal';
-import PasswordStrengthMeter from './PasswordStrengthMeter';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiClient } from '@/lib/api';
 
 interface Step1Data {
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
-  password: string;
-  confirmPassword: string;
   profilePhoto: File | null;
+  profilePhotoUrl: string | null;
   emailVerified: boolean;
   phoneVerified: boolean;
+  isIndividual: boolean;
 }
 
 interface Step1BasicProfileProps {
@@ -28,14 +29,58 @@ interface Step1BasicProfileProps {
 }
 
 export default function Step1BasicProfile({ initialData, onComplete }: Step1BasicProfileProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState<Step1Data>(initialData);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(initialData.profilePhotoUrl || null);
   const [showEmailOTP, setShowEmailOTP] = useState(false);
   const [showPhoneOTP, setShowPhoneOTP] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isDragging, setIsDragging] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingSaved, setIsLoadingSaved] = useState(true);
+
+  // Prefill from auth context and load saved data on mount
+  useEffect(() => {
+    const loadData = async () => {
+      // First, prefill from auth context
+      if (user) {
+        setFormData(prev => ({
+          ...prev,
+          firstName: prev.firstName || user.firstName || '',
+          lastName: prev.lastName || user.lastName || '',
+          email: prev.email || user.email || '',
+          phone: prev.phone || user.mobileNumber || '',
+        }));
+      }
+
+      // Then, try to load saved data
+      try {
+        const response = await apiClient.getDesignerOnboardingStep1();
+        if (response.data?.data) {
+          const saved = response.data.data;
+          setFormData(prev => ({
+            ...prev,
+            firstName: saved.first_name || prev.firstName,
+            lastName: saved.last_name || prev.lastName,
+            email: saved.email || prev.email,
+            phone: saved.phone || prev.phone,
+            isIndividual: saved.is_individual !== undefined ? saved.is_individual : prev.isIndividual,
+            profilePhotoUrl: saved.profile_photo_url || null,
+          }));
+          if (saved.profile_photo_url) {
+            setPhotoPreview(saved.profile_photo_url);
+          }
+        }
+      } catch (error) {
+        // No saved data, that's okay
+        console.log('No saved Step 1 data found');
+      } finally {
+        setIsLoadingSaved(false);
+      }
+    };
+
+    loadData();
+  }, [user]);
 
   const validateEmail = (email: string) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -58,7 +103,7 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
       toast.error('Please upload an image file');
       return;
     }
-    setFormData({ ...formData, profilePhoto: file });
+    setFormData({ ...formData, profilePhoto: file, profilePhotoUrl: null });
     setPhotoPreview(URL.createObjectURL(file));
     const newErrors = { ...errors };
     delete newErrors.profilePhoto;
@@ -140,21 +185,54 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
     if (!validatePhone(formData.phone)) newErrors.phone = 'Invalid phone number';
     if (!formData.emailVerified) newErrors.emailVerified = 'Please verify your email';
     if (!formData.phoneVerified) newErrors.phoneVerified = 'Please verify your phone';
-    if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
-    if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
-    if (!formData.profilePhoto) newErrors.profilePhoto = 'Profile photo is required';
+    if (!formData.profilePhoto && !formData.profilePhotoUrl) newErrors.profilePhoto = 'Profile photo is required';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
-    if (validateForm()) {
-      onComplete(formData);
-    } else {
+  const handleNext = async () => {
+    if (!validateForm()) {
       toast.error('Please fix all errors before continuing');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Save Step 1 data to DB
+      const response = await apiClient.saveDesignerOnboardingStep1({
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        is_individual: formData.isIndividual,
+        profile_photo: formData.profilePhoto || undefined,
+      });
+
+      if (response.error) {
+        toast.error(response.error);
+        setIsLoading(false);
+        return;
+      }
+
+      toast.success('Step 1 data saved successfully');
+      onComplete(formData);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save Step 1 data');
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  if (isLoadingSaved) {
+    return (
+      <Card className="p-8">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <>
@@ -218,8 +296,8 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
               <ul className="space-y-1 text-xs text-muted-foreground">
                 <li>• Use a professional profile photo</li>
                 <li>• Verify both email and phone for payouts</li>
-                <li>• Use a strong, unique password</li>
-                <li>• Keep your business details accurate</li>
+                <li>• Select Individual if you're a freelancer, Company if you have a business</li>
+                <li>• Keep your details accurate</li>
               </ul>
             </div>
           </div>
@@ -310,7 +388,7 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Business Phone <span className="text-destructive">*</span></Label>
+              <Label htmlFor="phone">Mobile Number <span className="text-destructive">*</span></Label>
               <div className="flex gap-2">
                 <div className="flex-1">
                   <Input
@@ -360,56 +438,34 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password <span className="text-destructive">*</span></Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="Create a strong password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+              <Label htmlFor="isIndividual">Onboard as <span className="text-destructive">*</span></Label>
+              <div className="flex gap-4">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="isIndividual"
+                    checked={formData.isIndividual === true}
+                    onChange={() => setFormData({ ...formData, isIndividual: true })}
+                    className="w-4 h-4 text-primary"
+                  />
+                  <span>Individual</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="isIndividual"
+                    checked={formData.isIndividual === false}
+                    onChange={() => setFormData({ ...formData, isIndividual: false })}
+                    className="w-4 h-4 text-primary"
+                  />
+                  <span>Company</span>
+                </label>
               </div>
-              <PasswordStrengthMeter password={formData.password} />
-              {errors.password && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  {errors.password}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password <span className="text-destructive">*</span></Label>
-              <div className="relative">
-                <Input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  placeholder="Re-enter your password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {errors.confirmPassword && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  {errors.confirmPassword}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                {formData.isIndividual 
+                  ? 'You will skip business details and go directly to legal information.'
+                  : 'You will need to provide business details in the next step.'}
+              </p>
             </div>
 
             <div className="pt-4">
@@ -417,9 +473,16 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
                 onClick={handleNext}
                 className="w-full"
                 size="lg"
-                disabled={!formData.emailVerified || !formData.phoneVerified}
+                disabled={!formData.emailVerified || !formData.phoneVerified || isLoading}
               >
-                Next: Business Details →
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  `Next: ${formData.isIndividual ? 'Legal Info' : 'Business Details'} →`
+                )}
               </Button>
               {(!formData.emailVerified || !formData.phoneVerified) && (
                 <p className="text-xs text-muted-foreground text-center mt-2">

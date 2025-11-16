@@ -1,29 +1,69 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Step1BasicProfile from './Step1BasicProfile';
 import Step2BusinessDetails from './Step2BusinessDetails';
-import Step3BulkUpload from './Step3BulkUpload';
+import Step3LegalInfo from './Step3LegalInfo';
+import Step4BulkUpload from './Step4BulkUpload';
+
+interface Step1Data {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  profilePhoto: File | null;
+  profilePhotoUrl: string | null;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  isIndividual: boolean;
+}
+
+interface Step2Data {
+  businessEmail: string;
+  businessPhone: string;
+  businessEmailVerified: boolean;
+  businessPhoneVerified: boolean;
+  legalBusinessName: string;
+  businessType: string;
+  category: string;
+  subcategory: string;
+  businessModel: string;
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  gstNumber: string;
+  msmeNumber: string;
+  msmeAnnexure: File | null;
+  msmeAnnexureUrl: string | null;
+}
+
+interface Step3Data {
+  panNumber: string;
+  panCard: File | null;
+  panCardUrl: string | null;
+}
 
 export default function DesignerOnboardingWizard() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
-  const [step1Data, setStep1Data] = useState({
+  const [step1Data, setStep1Data] = useState<Step1Data>({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
-    password: '',
-    confirmPassword: '',
-    profilePhoto: null as File | null,
+    profilePhoto: null,
+    profilePhotoUrl: null,
     emailVerified: false,
     phoneVerified: false,
+    isIndividual: false,
   });
 
-  const [step2Data, setStep2Data] = useState({
+  const [step2Data, setStep2Data] = useState<Step2Data>({
     businessEmail: '',
     businessPhone: '',
     businessEmailVerified: false,
@@ -38,37 +78,81 @@ export default function DesignerOnboardingWizard() {
     state: '',
     postalCode: '',
     country: 'India',
-    panNumber: '',
-    panDocument: null as File | null,
     gstNumber: '',
     msmeNumber: '',
-    msmeAnnexure: null as File | null,
+    msmeAnnexure: null,
+    msmeAnnexureUrl: null,
   });
 
-  const [step3Data, setStep3Data] = useState<File | null>(null);
+  const [step3Data, setStep3Data] = useState<Step3Data>({
+    panNumber: '',
+    panCard: null,
+    panCardUrl: null,
+  });
 
-  const handleStep1Complete = (data: typeof step1Data) => {
+  // Determine which step to show based on isIndividual
+  const getNextStep = (fromStep: number, isIndividual: boolean) => {
+    if (fromStep === 1) {
+      return isIndividual ? 3 : 2; // Skip Step 2 if individual
+    }
+    return fromStep + 1;
+  };
+
+  const handleStep1Complete = (data: Step1Data) => {
     setStep1Data(data);
-    setCurrentStep(2);
+    const nextStep = getNextStep(1, data.isIndividual);
+    setCurrentStep(nextStep);
   };
 
   const handleStep2Back = () => {
     setCurrentStep(1);
   };
 
-  const handleStep2Complete = (data: typeof step2Data) => {
+  const handleStep2Complete = (data: Step2Data) => {
     setStep2Data(data);
     setCurrentStep(3);
   };
 
   const handleStep3Back = () => {
-    setCurrentStep(2);
+    // Go back to Step 2 if company, Step 1 if individual
+    if (step1Data.isIndividual) {
+      setCurrentStep(1);
+    } else {
+      setCurrentStep(2);
+    }
   };
 
-  const handleStep3Complete = (bulkFile: File) => {
-    setStep3Data(bulkFile);
+  const handleStep3Complete = (data: Step3Data) => {
+    setStep3Data(data);
+    setCurrentStep(4);
+  };
+
+  const handleStep4Back = () => {
+    setCurrentStep(3);
+  };
+
+  const handleStep4Complete = (bulkFile: File) => {
     router.push('/designer-console');
   };
+
+  // Calculate progress steps based on isIndividual
+  const getProgressSteps = () => {
+    if (step1Data.isIndividual) {
+      return [
+        { number: 1, label: 'Basic Profile', completed: currentStep > 1, stepValue: 1 },
+        { number: 2, label: 'Legal Info', completed: currentStep > 3, stepValue: 3 },
+        { number: 3, label: 'Upload Designs', completed: currentStep > 4, stepValue: 4 },
+      ];
+    }
+    return [
+      { number: 1, label: 'Basic Profile', completed: currentStep > 1, stepValue: 1 },
+      { number: 2, label: 'Business Details', completed: currentStep > 2, stepValue: 2 },
+      { number: 3, label: 'Legal Info', completed: currentStep > 3, stepValue: 3 },
+      { number: 4, label: 'Upload Designs', completed: currentStep > 4, stepValue: 4 },
+    ];
+  };
+
+  const progressSteps = getProgressSteps();
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
@@ -86,34 +170,25 @@ export default function DesignerOnboardingWizard() {
           <p className="text-muted-foreground">Let&apos;s get you set up to start earning</p>
           
           <div className="flex items-center justify-center gap-4 mt-6">
-            <div className={`flex items-center gap-2 ${currentStep >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
-              {currentStep > 1 ? (
-                <CheckCircle2 className="w-5 h-5" />
-              ) : (
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs ${currentStep === 1 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground'}`}>
-                  1
+            {progressSteps.map((step, index) => (
+              <div key={step.number} className="flex items-center">
+                <div className={`flex items-center gap-2 ${step.completed || currentStep === step.stepValue ? 'text-primary' : 'text-muted-foreground'}`}>
+                  {step.completed ? (
+                    <CheckCircle2 className="w-5 h-5" />
+                  ) : (
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs ${
+                      currentStep === step.stepValue ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground'
+                    }`}>
+                      {step.number}
+                    </div>
+                  )}
+                  <span className="text-sm font-medium">{step.label}</span>
                 </div>
-              )}
-              <span className="text-sm font-medium">Basic Profile</span>
-            </div>
-            <div className={`h-px w-12 ${currentStep > 1 ? 'bg-primary' : 'bg-border'}`} />
-            <div className={`flex items-center gap-2 ${currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
-              {currentStep > 2 ? (
-                <CheckCircle2 className="w-5 h-5" />
-              ) : (
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs ${currentStep === 2 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground'}`}>
-                  2
-                </div>
-              )}
-              <span className="text-sm font-medium">Business Details</span>
-            </div>
-            <div className={`h-px w-12 ${currentStep > 2 ? 'bg-primary' : 'bg-border'}`} />
-            <div className={`flex items-center gap-2 ${currentStep >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs ${currentStep === 3 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground'}`}>
-                3
+                {index < progressSteps.length - 1 && (
+                  <div className={`h-px w-12 mx-4 ${step.completed ? 'bg-primary' : 'bg-border'}`} />
+                )}
               </div>
-              <span className="text-sm font-medium">Upload Designs</span>
-            </div>
+            ))}
           </div>
         </div>
 
@@ -133,7 +208,7 @@ export default function DesignerOnboardingWizard() {
             </motion.div>
           )}
           
-          {currentStep === 2 && (
+          {currentStep === 2 && !step1Data.isIndividual && (
             <motion.div
               key="step2"
               initial={{ opacity: 0, x: -20 }}
@@ -157,9 +232,26 @@ export default function DesignerOnboardingWizard() {
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.3 }}
             >
-              <Step3BulkUpload
+              <Step3LegalInfo
+                initialData={step3Data}
                 onBack={handleStep3Back}
                 onComplete={handleStep3Complete}
+                isIndividual={step1Data.isIndividual}
+              />
+            </motion.div>
+          )}
+
+          {currentStep === 4 && (
+            <motion.div
+              key="step4"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Step4BulkUpload
+                onBack={handleStep4Back}
+                onComplete={handleStep4Complete}
               />
             </motion.div>
           )}
