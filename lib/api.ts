@@ -933,6 +933,14 @@ export const apiClient = {
       });
 
       if (!response.ok) {
+        // Handle 413 Payload Too Large specifically
+        if (response.status === 413) {
+          return {
+            error: 'File size is too large. Profile photo must be less than 5MB.',
+            errorDetails: { statusCode: 413, detail: 'Payload Too Large' },
+          };
+        }
+        
         const errorData = await response.json().catch(() => ({ detail: response.statusText }));
         return {
           error: errorData.error || errorData.detail || 'Failed to save Step 1 data',
@@ -943,6 +951,13 @@ export const apiClient = {
       const data = await response.json();
       return { data };
     } catch (error: any) {
+      // Handle network errors (including CORS and 413)
+      if (error.message?.includes('CORS') || error.message?.includes('Failed to fetch')) {
+        return {
+          error: 'Network error: Unable to connect to server. Please check your connection and try again.',
+          errorDetails: error,
+        };
+      }
       return {
         error: error.message || 'Network error occurred',
         errorDetails: error,
@@ -1004,6 +1019,14 @@ export const apiClient = {
       });
 
       if (!response.ok) {
+        // Handle 413 Payload Too Large specifically
+        if (response.status === 413) {
+          return {
+            error: 'File size is too large. MSME certificate must be less than 10MB.',
+            errorDetails: { statusCode: 413, detail: 'Payload Too Large' },
+          };
+        }
+        
         const errorData = await response.json().catch(() => ({ detail: response.statusText }));
         return {
           error: errorData.error || errorData.detail || 'Failed to save Step 2 data',
@@ -1049,6 +1072,14 @@ export const apiClient = {
       });
 
       if (!response.ok) {
+        // Handle 413 Payload Too Large specifically
+        if (response.status === 413) {
+          return {
+            error: 'File size is too large. PAN card document must be less than 10MB.',
+            errorDetails: { statusCode: 413, detail: 'Payload Too Large' },
+          };
+        }
+        
         const errorData = await response.json().catch(() => ({ detail: response.statusText }));
         return {
           error: errorData.error || errorData.detail || 'Failed to save Step 3 data',
