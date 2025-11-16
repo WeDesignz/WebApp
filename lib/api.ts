@@ -937,14 +937,14 @@ export const apiClient = {
         if (response.status === 413) {
           return {
             error: 'File size is too large. Profile photo must be less than 5MB.',
-            errorDetails: { statusCode: 413, detail: 'Payload Too Large' },
+            errorDetails: formatError({ detail: 'Payload Too Large' }, 413),
           };
         }
         
         const errorData = await response.json().catch(() => ({ detail: response.statusText }));
         return {
           error: errorData.error || errorData.detail || 'Failed to save Step 1 data',
-          errorDetails: errorData,
+          errorDetails: formatError(errorData, response.status),
         };
       }
 
@@ -1023,14 +1023,14 @@ export const apiClient = {
         if (response.status === 413) {
           return {
             error: 'File size is too large. MSME certificate must be less than 10MB.',
-            errorDetails: { statusCode: 413, detail: 'Payload Too Large' },
+            errorDetails: formatError({ detail: 'Payload Too Large' }, 413),
           };
         }
         
         const errorData = await response.json().catch(() => ({ detail: response.statusText }));
         return {
           error: errorData.error || errorData.detail || 'Failed to save Step 2 data',
-          errorDetails: errorData,
+          errorDetails: formatError(errorData, response.status),
         };
       }
 
@@ -1076,14 +1076,14 @@ export const apiClient = {
         if (response.status === 413) {
           return {
             error: 'File size is too large. PAN card document must be less than 10MB.',
-            errorDetails: { statusCode: 413, detail: 'Payload Too Large' },
+            errorDetails: formatError({ detail: 'Payload Too Large' }, 413),
           };
         }
         
         const errorData = await response.json().catch(() => ({ detail: response.statusText }));
         return {
           error: errorData.error || errorData.detail || 'Failed to save Step 3 data',
-          errorDetails: errorData,
+          errorDetails: formatError(errorData, response.status),
         };
       }
 
