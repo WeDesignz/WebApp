@@ -92,9 +92,19 @@ async function apiRequest<T>(
       const errorDetails = formatError(errorData, response.status);
       const userMessage = getUserFriendlyMessage(errorDetails);
       
-      // Log error for debugging
-      logError(errorDetails, `API Request: ${endpoint}`);
-
+      // Don't log 404 errors for GET endpoints that are expected to return 404 when no data exists
+      const isExpected404 = response.status === 404 && 
+        (options.method === 'GET' || !options.method) &&
+        (endpoint.includes('/get-designer-onboarding-step') || 
+         endpoint.includes('/get-designer-onboarding-step1') ||
+         endpoint.includes('/get-designer-onboarding-step2') ||
+         endpoint.includes('/get-designer-onboarding-step3'));
+      
+      // Log error for debugging (skip expected 404s)
+      if (!isExpected404) {
+        logError(errorDetails, `API Request: ${endpoint}`);
+      }
+      
       // Handle 401 Unauthorized
       if (response.status === 401) {
         await handleUnauthorized();
