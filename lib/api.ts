@@ -1,6 +1,9 @@
 /**
  * API Client for WeDesignz WebApp
  * Handles all API calls to the Django backend
+ * 
+ * API endpoint is configured via NEXT_PUBLIC_API_BASE_URL environment variable.
+ * Set it in .env.local file (see .env.local.example for template)
  */
 
 import {
@@ -11,7 +14,8 @@ import {
   ErrorDetails,
 } from './utils/errorHandler';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+// API base URL - can be overridden via NEXT_PUBLIC_API_BASE_URL in .env.local
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
 
 export interface ApiResponse<T> {
   data?: T;
@@ -699,7 +703,7 @@ export const apiClient = {
 
   downloadPDF: async (downloadId: number) => {
     // This will return a blob, so we need special handling
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
     const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
     
     try {
