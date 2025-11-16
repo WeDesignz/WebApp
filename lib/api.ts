@@ -1095,15 +1095,12 @@ export const apiClient = {
   },
 
   getDesignerOnboardingStep3: async (): Promise<ApiResponse<any>> => {
-    try {
-      return await apiRequest<any>('/api/profiles/get-designer-onboarding-step3/');
-    } catch (error: any) {
-      // Handle 404 gracefully - it means no saved data exists yet
-      if (error?.statusCode === 404 || error?.originalError?.status === 404) {
-        return { data: null, message: 'No Step 3 data found' };
-      }
-      throw error;
+    const response = await apiRequest<any>('/api/profiles/get-designer-onboarding-step3/');
+    // Handle 404 gracefully - it means no saved data exists yet (expected for new users)
+    if (response.error && response.errorDetails?.statusCode === 404) {
+      return { data: null, message: 'No Step 3 data found' };
     }
+    return response;
   },
 
   getDesignerOnboardingStatus: async (): Promise<ApiResponse<{
