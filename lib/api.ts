@@ -919,12 +919,17 @@ export const apiClient = {
     const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
     
     try {
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      // Don't set Content-Type for FormData - browser will set it automatically with boundary
+      
       const response = await fetch(`${baseUrl}/api/profiles/designer-onboarding-step1/`, {
         method: 'POST',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
+        headers,
         body: formData,
+        credentials: 'include', // Include credentials for CORS
       });
 
       if (!response.ok) {
@@ -985,12 +990,17 @@ export const apiClient = {
     const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
     
     try {
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      // Don't set Content-Type for FormData - browser will set it automatically with boundary
+      
       const response = await fetch(`${baseUrl}/api/profiles/designer-onboarding-step2/`, {
         method: 'POST',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
+        headers,
         body: formData,
+        credentials: 'include', // Include credentials for CORS
       });
 
       if (!response.ok) {
@@ -1025,12 +1035,17 @@ export const apiClient = {
     const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
     
     try {
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      // Don't set Content-Type for FormData - browser will set it automatically with boundary
+      
       const response = await fetch(`${baseUrl}/api/profiles/designer-onboarding-step3/`, {
         method: 'POST',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
+        headers,
         body: formData,
+        credentials: 'include', // Include credentials for CORS
       });
 
       if (!response.ok) {
@@ -1059,12 +1074,17 @@ export const apiClient = {
     const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
     
     try {
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      // Don't set Content-Type for FormData - browser will set it automatically with boundary
+      
       const response = await fetch(`${baseUrl}/api/profiles/designer-onboarding-step4/`, {
         method: 'POST',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
+        headers,
         body: formData,
+        credentials: 'include', // Include credentials for CORS
       });
 
       if (!response.ok) {
