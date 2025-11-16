@@ -23,6 +23,7 @@ export interface ApiResponse<T> {
   message?: string;
   errorDetails?: ErrorDetails;
   fieldErrors?: Record<string, string[]>;
+  validationErrors?: string[];
 }
 
 /**
