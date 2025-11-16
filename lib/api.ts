@@ -1077,15 +1077,33 @@ export const apiClient = {
   },
 
   getDesignerOnboardingStep1: async (): Promise<ApiResponse<any>> => {
-    return apiRequest<any>('/api/profiles/get-designer-onboarding-step1/');
+    const response = await apiRequest<any>('/api/profiles/get-designer-onboarding-step1/');
+    // Handle 404 gracefully - it means no saved data exists yet (expected for new users)
+    if (response.error && response.errorDetails?.statusCode === 404) {
+      return { data: null, message: 'No Step 1 data found' };
+    }
+    return response;
   },
 
   getDesignerOnboardingStep2: async (): Promise<ApiResponse<any>> => {
-    return apiRequest<any>('/api/profiles/get-designer-onboarding-step2/');
+    const response = await apiRequest<any>('/api/profiles/get-designer-onboarding-step2/');
+    // Handle 404 gracefully - it means no saved data exists yet (expected for new users)
+    if (response.error && response.errorDetails?.statusCode === 404) {
+      return { data: null, message: 'No Step 2 data found' };
+    }
+    return response;
   },
 
   getDesignerOnboardingStep3: async (): Promise<ApiResponse<any>> => {
-    return apiRequest<any>('/api/profiles/get-designer-onboarding-step3/');
+    try {
+      return await apiRequest<any>('/api/profiles/get-designer-onboarding-step3/');
+    } catch (error: any) {
+      // Handle 404 gracefully - it means no saved data exists yet
+      if (error?.statusCode === 404 || error?.originalError?.status === 404) {
+        return { data: null, message: 'No Step 3 data found' };
+      }
+      throw error;
+    }
   },
 
   getDesignerOnboardingStatus: async (): Promise<ApiResponse<{
