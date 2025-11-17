@@ -227,24 +227,132 @@ export default function ProfileContent() {
     setPhotoFile(null);
   };
 
-  const handleEmailVerified = () => {
-    setShowEmailOTP(false);
-    toast({
-      title: "Email verified",
-      description: "Your email has been verified successfully.",
-    });
-    // Refresh user data
-    queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+  const sendEmailOTP = async (): Promise<void> => {
+    try {
+      const response = await apiClient.resendOTP({
+        email: profileData.email,
+        otp_for: 'email_verification',
+      });
+      
+      if (response.error) {
+        toast({
+          title: "Failed to send OTP",
+          description: response.error || 'Failed to send OTP',
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Failed to send OTP",
+        description: error.message || 'Failed to send OTP',
+        variant: "destructive",
+      });
+    }
   };
 
-  const handlePhoneVerified = () => {
-    setShowPhoneOTP(false);
-    toast({
-      title: "Phone verified",
-      description: "Your phone number has been verified successfully.",
-    });
-    // Refresh user data
-    queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+  const sendPhoneOTP = async (): Promise<void> => {
+    try {
+      const response = await apiClient.resendOTP({
+        mobile_number: profileData.phone,
+        otp_for: 'mobile_verification',
+      });
+      
+      if (response.error) {
+        toast({
+          title: "Failed to send OTP",
+          description: response.error || 'Failed to send OTP',
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Failed to send OTP",
+        description: error.message || 'Failed to send OTP',
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEmailVerified = async (otp: string): Promise<boolean> => {
+    // For now, accept sample OTP 123456
+    if (otp === '123456') {
+      try {
+        const response = await apiClient.verifyEmail(profileData.email, otp);
+        
+        if (response.error) {
+          toast({
+            title: "Verification failed",
+            description: response.error || 'Failed to verify email',
+            variant: "destructive",
+          });
+          return false;
+        }
+        
+        setShowEmailOTP(false);
+        toast({
+          title: "Email verified",
+          description: "Your email has been verified successfully.",
+        });
+        // Refresh user data
+        queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+        return true;
+      } catch (error: any) {
+        toast({
+          title: "Verification failed",
+          description: error.message || 'Failed to verify email',
+          variant: "destructive",
+        });
+        return false;
+      }
+    } else {
+      toast({
+        title: "Invalid OTP",
+        description: "Please use 123456 for now.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const handlePhoneVerified = async (otp: string): Promise<boolean> => {
+    // For now, accept sample OTP 123456
+    if (otp === '123456') {
+      try {
+        const response = await apiClient.verifyMobileNumber(profileData.phone, otp);
+        
+        if (response.error) {
+          toast({
+            title: "Verification failed",
+            description: response.error || 'Failed to verify phone',
+            variant: "destructive",
+          });
+          return false;
+        }
+        
+        setShowPhoneOTP(false);
+        toast({
+          title: "Phone verified",
+          description: "Your phone number has been verified successfully.",
+        });
+        // Refresh user data
+        queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+        return true;
+      } catch (error: any) {
+        toast({
+          title: "Verification failed",
+          description: error.message || 'Failed to verify phone',
+          variant: "destructive",
+        });
+        return false;
+      }
+    } else {
+      toast({
+        title: "Invalid OTP",
+        description: "Please use 123456 for now.",
+        variant: "destructive",
+      });
+      return false;
+    }
   };
 
   const emailVerified = user?.emailVerified || false;
@@ -553,6 +661,7 @@ export default function ProfileContent() {
         open={showEmailOTP}
         onClose={() => setShowEmailOTP(false)}
         onVerified={handleEmailVerified}
+        onResend={sendEmailOTP}
         type="email"
         value={profileData.email}
       />
@@ -561,6 +670,7 @@ export default function ProfileContent() {
         open={showPhoneOTP}
         onClose={() => setShowPhoneOTP(false)}
         onVerified={handlePhoneVerified}
+        onResend={sendPhoneOTP}
         type="phone"
         value={profileData.phone}
       />
