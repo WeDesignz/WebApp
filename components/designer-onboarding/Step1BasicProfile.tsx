@@ -49,7 +49,11 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
           firstName: prev.firstName || user.firstName || '',
           lastName: prev.lastName || user.lastName || '',
           email: prev.email || user.email || '',
-          phone: prev.phone || user.mobileNumber || '',
+          // Prioritize user.mobileNumber if it exists, otherwise use prev.phone
+          phone: user.mobileNumber || prev.phone || '',
+          // Check if email/phone are already verified from auth context
+          emailVerified: prev.emailVerified || user.emailVerified || false,
+          phoneVerified: prev.phoneVerified || user.mobileVerified || false,
         }));
       }
 
@@ -60,20 +64,34 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
           const saved = response.data.data;
           setFormData(prev => ({
             ...prev,
-            firstName: saved.first_name || prev.firstName,
-            lastName: saved.last_name || prev.lastName,
-            email: saved.email || prev.email,
-            phone: saved.phone || prev.phone,
+            firstName: saved.first_name || prev.firstName || user?.firstName || '',
+            lastName: saved.last_name || prev.lastName || user?.lastName || '',
+            email: saved.email || prev.email || user?.email || '',
+            // Prioritize saved.phone, then user.mobileNumber, then prev.phone
+            phone: saved.phone || user?.mobileNumber || prev.phone || '',
             isIndividual: saved.is_individual !== undefined ? saved.is_individual : prev.isIndividual,
             profilePhotoUrl: saved.profile_photo_url || null,
+            // Use verification status from API if available, otherwise keep existing status
+            emailVerified: saved.email_verified !== undefined ? saved.email_verified : prev.emailVerified,
+            phoneVerified: saved.phone_verified !== undefined ? saved.phone_verified : prev.phoneVerified,
           }));
           if (saved.profile_photo_url) {
             setPhotoPreview(saved.profile_photo_url);
           }
         }
       } catch (error) {
-        // No saved data, that's okay
+        // No saved data, that's okay - use auth context data
         console.log('No saved Step 1 data found');
+        // Ensure we use user data if available
+        if (user) {
+          setFormData(prev => ({
+            ...prev,
+            firstName: prev.firstName || user.firstName || '',
+            lastName: prev.lastName || user.lastName || '',
+            email: prev.email || user.email || '',
+            phone: prev.phone || user.mobileNumber || '',
+          }));
+        }
       } finally {
         setIsLoadingSaved(false);
       }
@@ -151,8 +169,8 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
       setErrors({ ...errors, email: 'Please enter a valid email address' });
       return;
     }
+    // Just open the modal - OTP will be sent when modal opens
     setShowEmailOTP(true);
-    toast.success('OTP sent to your email');
   };
 
   const handleSendPhoneOTP = () => {
@@ -160,20 +178,100 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
       setErrors({ ...errors, phone: 'Please enter a valid 10-digit phone number' });
       return;
     }
+    // Just open the modal - OTP will be sent when modal opens
     setShowPhoneOTP(true);
-    toast.success('OTP sent to your phone');
   };
 
-  const handleEmailVerified = () => {
-    setFormData({ ...formData, emailVerified: true });
-    setShowEmailOTP(false);
-    toast.success('Email verified successfully!');
+  const sendEmailOTP = async () => {
+    try {
+      const response = await apiClient.resendOTP({
+        email: formData.email,
+        otp_for: 'email_verification',
+      });
+      
+      if (response.error) {
+        toast.error(response.error || 'Failed to send OTP');
+        return false;
+      }
+      
+      toast.success('OTP sent to your email');
+      return true;
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send OTP');
+      return false;
+    }
   };
 
-  const handlePhoneVerified = () => {
-    setFormData({ ...formData, phoneVerified: true });
-    setShowPhoneOTP(false);
-    toast.success('Phone verified successfully!');
+  const sendPhoneOTP = async () => {
+    try {
+      const response = await apiClient.resendOTP({
+        mobile_number: formData.phone,
+        otp_for: 'mobile_verification',
+      });
+      
+      if (response.error) {
+        toast.error(response.error || 'Failed to send OTP');
+        return false;
+      }
+      
+      toast.success('OTP sent to your phone');
+      return true;
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send OTP');
+      return false;
+    }
+  };
+
+  const handleEmailVerified = async (otp: string) => {
+    // For now, accept sample OTP 123456
+    if (otp === '123456') {
+      try {
+        const response = await apiClient.verifyEmail(formData.email, otp);
+        
+        if (response.error) {
+          toast.error(response.error || 'Failed to verify email');
+          return false;
+        }
+        
+        setFormData({ ...formData, emailVerified: true });
+        setShowEmailOTP(false);
+        toast.success('Email verified successfully!');
+        
+        return true;
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to verify email');
+        return false;
+      }
+    } else {
+      toast.error('Invalid OTP. Please use 123456 for now.');
+      return false;
+    }
+  };
+
+  const handlePhoneVerified = async (otp: string) => {
+    // For now, accept sample OTP 123456
+    if (otp === '123456') {
+      try {
+        const response = await apiClient.verifyMobileNumber(formData.phone, otp);
+        
+        if (response.error) {
+          toast.error(response.error || 'Failed to verify phone');
+          return false;
+        }
+        
+        setFormData({ ...formData, phoneVerified: true });
+        setShowPhoneOTP(false);
+        toast.success('Phone verified successfully!');
+        
+        return true;
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to verify phone');
+        return false;
+      }
+    } else {
+      toast.error('Invalid OTP. Please use 123456 for now.');
+      return false;
+    }
   };
 
   const validateForm = () => {
@@ -197,6 +295,11 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
       return;
     }
 
+    // Prevent multiple submissions
+    if (isLoading) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       // Save Step 1 data to DB
@@ -211,12 +314,14 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
 
       if (response.error) {
         toast.error(response.error);
-        setIsLoading(false);
         return;
       }
 
       toast.success('Step 1 data saved successfully');
-      onComplete(formData);
+      // Call onComplete after a small delay to ensure state is updated
+      setTimeout(() => {
+        onComplete(formData);
+      }, 100);
     } catch (error: any) {
       toast.error(error.message || 'Failed to save Step 1 data');
     } finally {
@@ -498,6 +603,7 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
         open={showEmailOTP}
         onClose={() => setShowEmailOTP(false)}
         onVerified={handleEmailVerified}
+        onResend={sendEmailOTP}
         type="email"
         value={formData.email}
       />
@@ -506,6 +612,7 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
         open={showPhoneOTP}
         onClose={() => setShowPhoneOTP(false)}
         onVerified={handlePhoneVerified}
+        onResend={sendPhoneOTP}
         type="phone"
         value={formData.phone}
       />

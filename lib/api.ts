@@ -383,7 +383,7 @@ export const apiClient = {
   verifyMobileNumber: async (mobile: string, otp: string) => {
     return apiRequest('/api/auth/verify-mobile-number/', {
       method: 'POST',
-      body: JSON.stringify({ mobile, otp }),
+      body: JSON.stringify({ mobile_number: mobile, otp }),
     });
   },
 

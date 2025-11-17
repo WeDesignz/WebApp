@@ -7,9 +7,8 @@ import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import OTPVerificationModal from '@/components/auth/OTPVerificationModal';
 import { toast } from 'sonner';
 
 export default function RegisterForm() {
@@ -25,16 +24,10 @@ export default function RegisterForm() {
     confirmPassword: '',
   });
 
-  const [emailVerified, setEmailVerified] = useState(false);
-  const [mobileVerified, setMobileVerified] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [otpModal, setOtpModal] = useState<{ type: 'email' | 'mobile'; isOpen: boolean }>({
-    type: 'email',
-    isOpen: false,
-  });
 
   const validateField = (name: string, value: string): string => {
     switch (name) {
@@ -63,62 +56,6 @@ export default function RegisterForm() {
     setFormData(prev => ({ ...prev, [name]: value }));
     const error = validateField(name, value);
     setErrors(prev => ({ ...prev, [name]: error }));
-
-    if (name === 'email') setEmailVerified(false);
-    if (name === 'mobileNumber') setMobileVerified(false);
-  };
-
-
-  const handleOTPVerify = async (otp: string): Promise<boolean> => {
-    if (otpModal.type === 'email') {
-      // Pass mobile number to verifyEmailOTP so it can be added after email verification
-      const verified = await verifyEmailOTP(formData.email, otp, formData.mobileNumber);
-      if (verified) {
-        setEmailVerified(true);
-        toast.success('Email verified successfully!');
-        
-        // After email verification, prompt for mobile verification if not done
-        if (!mobileVerified && formData.mobileNumber) {
-          setTimeout(() => {
-            toast.info('Please verify your mobile number');
-            setOtpModal({ type: 'mobile', isOpen: true });
-          }, 1000);
-        } else {
-          // Email verified, no mobile or mobile already verified, redirect to home
-          setTimeout(() => {
-            router.push('/');
-          }, 1500);
-        }
-      }
-      return verified;
-    } else {
-      const verified = await verifyMobileOTP(formData.mobileNumber, otp);
-      if (verified) {
-        setMobileVerified(true);
-        toast.success('Mobile number verified successfully!');
-        
-        // Both verified, redirect to home
-        if (emailVerified && mobileVerified) {
-          setTimeout(() => {
-            router.push('/');
-          }, 1500);
-        } else {
-          // Just mobile verified, redirect anyway
-          setTimeout(() => {
-            router.push('/');
-          }, 1500);
-        }
-      }
-      return verified;
-    }
-  };
-
-  const handleResendOTP = async () => {
-    if (otpModal.type === 'email') {
-      await sendEmailOTP(formData.email);
-    } else {
-      await sendMobileOTP(formData.mobileNumber);
-    }
   };
 
   const getPasswordStrength = () => {
@@ -154,7 +91,7 @@ export default function RegisterForm() {
 
     setIsSubmitting(true);
     try {
-      // Step 1: Register user (this automatically sends email OTP)
+      // Register user without verification (verification happens during onboarding)
       await register({
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -166,9 +103,11 @@ export default function RegisterForm() {
         mobileVerified: false,
       });
       
-      // Step 2: Email OTP is sent automatically after signup, show modal
-      toast.success('Account created! Please verify your email address.');
-      setOtpModal({ type: 'email', isOpen: true });
+      toast.success('Account created successfully! Welcome to WeDesign.');
+      // Redirect to home page after showing success message
+      setTimeout(() => {
+        router.push('/');
+      }, 1500);
     } catch (err: any) {
       console.error('Registration error:', err);
       const errorMessage = err?.message || err?.error || 'Registration failed. Please try again.';
@@ -243,17 +182,12 @@ export default function RegisterForm() {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="john@example.com"
-                  className={errors.email ? 'border-red-500' : emailVerified ? 'border-green-500' : ''}
+                  className={errors.email ? 'border-red-500' : ''}
                 />
                 {errors.email && (
                   <p className="text-xs text-red-500 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
                     {errors.email}
-                  </p>
-                )}
-                {!errors.email && formData.email && (
-                  <p className="text-xs text-muted-foreground">
-                    You'll receive a verification code after creating your account
                   </p>
                 )}
               </div>
@@ -267,17 +201,12 @@ export default function RegisterForm() {
                   value={formData.mobileNumber}
                   onChange={handleChange}
                   placeholder="+1 234 567 8900"
-                  className={errors.mobileNumber ? 'border-red-500' : mobileVerified ? 'border-green-500' : ''}
+                  className={errors.mobileNumber ? 'border-red-500' : ''}
                 />
                 {errors.mobileNumber && (
                   <p className="text-xs text-red-500 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
                     {errors.mobileNumber}
-                  </p>
-                )}
-                {!errors.mobileNumber && formData.mobileNumber && (
-                  <p className="text-xs text-muted-foreground">
-                    You'll receive a verification code after creating your account
                   </p>
                 )}
               </div>
@@ -365,23 +294,6 @@ export default function RegisterForm() {
                   'Create Account'
                 )}
               </Button>
-              
-              {(emailVerified || mobileVerified) && (
-                <div className="text-sm text-muted-foreground space-y-1">
-                  {emailVerified && (
-                    <p className="text-green-600 flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Email verified
-                    </p>
-                  )}
-                  {mobileVerified && (
-                    <p className="text-green-600 flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Mobile verified
-                    </p>
-                  )}
-                </div>
-              )}
             </form>
 
             <div className="mt-6 text-center text-sm">
@@ -393,15 +305,6 @@ export default function RegisterForm() {
           </div>
         </motion.div>
       </div>
-
-      <OTPVerificationModal
-        isOpen={otpModal.isOpen}
-        onClose={() => setOtpModal(prev => ({ ...prev, isOpen: false }))}
-        type={otpModal.type}
-        value={otpModal.type === 'email' ? formData.email : formData.mobileNumber}
-        onVerify={handleOTPVerify}
-        onResend={handleResendOTP}
-      />
     </>
   );
 }

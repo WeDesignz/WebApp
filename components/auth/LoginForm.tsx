@@ -40,8 +40,11 @@ export default function LoginForm() {
     setIsSubmitting(true);
     try {
       await login(formData.emailOrUsername, formData.password);
-      toast.success('Login successful!');
-      router.push('/');
+      toast.success('Login successful! Welcome back.');
+      // Small delay to ensure toast is visible before redirect
+      setTimeout(() => {
+        router.push('/');
+      }, 500);
     } catch (err: any) {
       console.error('Login error:', err);
       const errorMessage = err?.message || err?.error || 'Login failed. Please check your credentials.';

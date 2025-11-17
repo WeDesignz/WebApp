@@ -156,11 +156,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (data: RegisterData) => {
     try {
-      // First, signup with email and password
+      // Signup with email, mobile number, and password (no verification required)
       const signupResponse = await apiClient.signup({
         first_name: data.firstName,
         last_name: data.lastName,
         email: data.email,
+        mobile_number: data.mobileNumber,
         password: data.password,
         confirm_password: data.confirmPassword,
       });
@@ -180,9 +181,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setRefreshToken(tokens.refresh);
       localStorage.setItem('wedesign_access_token', tokens.access);
       localStorage.setItem('wedesign_refresh_token', tokens.refresh);
-
-      // Note: Mobile number will be added after email verification when user is active
-      // This prevents "User is inactive" errors
 
       // Transform and save user data
       const transformedUser = transformUserData(apiUser);

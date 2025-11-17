@@ -7,6 +7,9 @@ import Script from "next/script";
 export const metadata: Metadata = {
   title: "WeDesign",
   description: "WeDesign – Empowering Creative Collaboration",
+  other: {
+    "p:domain_verify": "7efb64ebb140ef75eb3643e0a9714d6b",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -10,15 +10,17 @@ import { Loader2, Mail, Smartphone } from 'lucide-react';
 interface OTPVerificationModalProps {
   open: boolean;
   onClose: () => void;
-  onVerified: () => void;
+  onVerified: (otp: string) => Promise<boolean> | boolean;
+  onResend?: () => Promise<void> | void;
   type: 'email' | 'phone';
   value: string;
 }
 
-export default function OTPVerificationModal({ open, onClose, onVerified, type, value }: OTPVerificationModalProps) {
+export default function OTPVerificationModal({ open, onClose, onVerified, onResend, type, value }: OTPVerificationModalProps) {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState(60);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isSendingOTP, setIsSendingOTP] = useState(false);
   const [canResend, setCanResend] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -28,8 +30,16 @@ export default function OTPVerificationModal({ open, onClose, onVerified, type, 
       setCanResend(false);
       setOtp(['', '', '', '', '', '']);
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
+      
+      // Send OTP when modal opens
+      if (onResend) {
+        setIsSendingOTP(true);
+        Promise.resolve(onResend()).finally(() => {
+          setIsSendingOTP(false);
+        });
+      }
     }
-  }, [open]);
+  }, [open, onResend]);
 
   useEffect(() => {
     if (countdown > 0 && open) {
@@ -83,23 +93,39 @@ export default function OTPVerificationModal({ open, onClose, onVerified, type, 
     }
 
     setIsVerifying(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    if (otpValue === '123456') {
-      onVerified();
-      onClose();
-    } else {
-      toast.error('Invalid OTP. Try 123456 for demo.');
+    try {
+      const result = await onVerified(otpValue);
+      if (result) {
+        onClose();
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Verification failed');
+    } finally {
+      setIsVerifying(false);
     }
-    setIsVerifying(false);
   };
 
-  const handleResend = () => {
-    setCountdown(60);
-    setCanResend(false);
-    setOtp(['', '', '', '', '', '']);
-    toast.success('OTP resent successfully');
-    inputRefs.current[0]?.focus();
+  const handleResend = async () => {
+    if (onResend) {
+      try {
+        setIsSendingOTP(true);
+        await Promise.resolve(onResend());
+        setCountdown(60);
+        setCanResend(false);
+        setOtp(['', '', '', '', '', '']);
+        inputRefs.current[0]?.focus();
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to resend OTP');
+      } finally {
+        setIsSendingOTP(false);
+      }
+    } else {
+      setCountdown(60);
+      setCanResend(false);
+      setOtp(['', '', '', '', '', '']);
+      toast.success('OTP resent successfully');
+      inputRefs.current[0]?.focus();
+    }
   };
 
   return (
@@ -115,8 +141,19 @@ export default function OTPVerificationModal({ open, onClose, onVerified, type, 
           </div>
           <DialogTitle className="text-center">Verify Your {type === 'email' ? 'Email' : 'Phone'}</DialogTitle>
           <DialogDescription className="text-center">
-            We&apos;ve sent a 6-digit code to<br />
-            <span className="font-semibold text-foreground">{value}</span>
+            {isSendingOTP ? (
+              <>
+                Sending OTP to<br />
+                <span className="font-semibold text-foreground">{value}</span>
+              </>
+            ) : (
+              <>
+                We&apos;ve sent a 6-digit code to<br />
+                <span className="font-semibold text-foreground">{value}</span>
+                <br />
+                <span className="text-xs text-muted-foreground mt-2 block">Use 123456 as OTP for now</span>
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -164,9 +201,6 @@ export default function OTPVerificationModal({ open, onClose, onVerified, type, 
             )}
           </Button>
 
-          <p className="text-xs text-center text-muted-foreground">
-            Demo: Use <span className="font-semibold">123456</span> as OTP
-          </p>
         </div>
       </DialogContent>
     </Dialog>
