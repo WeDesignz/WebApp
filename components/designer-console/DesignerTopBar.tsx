@@ -1,11 +1,9 @@
 "use client";
 
-import { Bell, ChevronDown, ChevronRight, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { useDesignerVerification } from "@/contexts/DesignerVerificationContext";
-import { Badge } from "@/components/ui/badge";
 import LogoutModal from "./LogoutModal";
 
 interface DesignerTopBarProps {
@@ -23,21 +21,12 @@ export default function DesignerTopBar({
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
-  const { verificationStatus, setVerificationStatus, isVerified } = useDesignerVerification();
   
   const notifications = [
     { id: 1, text: "Design 'Modern Logo' was approved", time: "2h ago" },
     { id: 2, text: "₹500 credited to your wallet", time: "5h ago" },
     { id: 3, text: "New message from support", time: "1d ago" },
   ];
-
-  const toggleVerification = () => {
-    if (verificationStatus === 'pending') {
-      setVerificationStatus('approved');
-    } else {
-      setVerificationStatus('pending');
-    }
-  };
 
   return (
     <header className="sticky top-0 z-50 h-16 border-b border-border bg-background/95 backdrop-blur">
@@ -56,27 +45,6 @@ export default function DesignerTopBar({
         </div>
 
         <div className="flex items-center gap-4">
-          <Button
-            onClick={toggleVerification}
-            variant={isVerified ? "default" : "outline"}
-            size="sm"
-            className="gap-2"
-          >
-            {isVerified ? (
-              <>
-                <ShieldCheck className="w-4 h-4" />
-                <span className="hidden md:inline">Verified</span>
-                <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">DEV</Badge>
-              </>
-            ) : (
-              <>
-                <ShieldAlert className="w-4 h-4" />
-                <span className="hidden md:inline">Pending</span>
-                <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">DEV</Badge>
-              </>
-            )}
-          </Button>
-
           <div className="relative">
             <button
               onClick={() => setNotificationsOpen(!notificationsOpen)}
