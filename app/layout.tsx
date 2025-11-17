@@ -16,12 +16,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="p:domain_verify" content="7efb64ebb140ef75eb3643e0a9714d6b" />
+      </head>
+      <body>
         <Script
           src="https://checkout.razorpay.com/v1/checkout.js"
           strategy="lazyOnload"
         />
-      </head>
-      <body>
         <Providers>{children}</Providers>
       </body>
     </html>
