@@ -118,7 +118,7 @@ export default function DesignerOnboardingWizard() {
     if (step1Data.isIndividual) {
       setCurrentStep(1);
     } else {
-      setCurrentStep(2);
+    setCurrentStep(2);
     }
   };
 
@@ -174,14 +174,14 @@ export default function DesignerOnboardingWizard() {
               <div key={step.number} className="flex items-center">
                 <div className={`flex items-center gap-2 ${step.completed || currentStep === step.stepValue ? 'text-primary' : 'text-muted-foreground'}`}>
                   {step.completed ? (
-                    <CheckCircle2 className="w-5 h-5" />
-                  ) : (
+                <CheckCircle2 className="w-5 h-5" />
+              ) : (
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs ${
                       currentStep === step.stepValue ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground'
                     }`}>
                       {step.number}
-                    </div>
-                  )}
+                </div>
+              )}
                   <span className="text-sm font-medium">{step.label}</span>
                 </div>
                 {index < progressSteps.length - 1 && (

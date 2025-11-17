@@ -10,9 +10,9 @@ export default function DesignerConsoleLayout({
 }) {
   return (
     <DesignerConsoleGuard>
-      <DesignerVerificationProvider>
-        {children}
-      </DesignerVerificationProvider>
+    <DesignerVerificationProvider>
+      {children}
+    </DesignerVerificationProvider>
     </DesignerConsoleGuard>
   );
 }

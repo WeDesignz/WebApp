@@ -27,6 +27,69 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
   const [designCount, setDesignCount] = useState<number>(0);
   const [isValidating, setIsValidating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
+
+  const downloadTemplate = async () => {
+    setIsGeneratingTemplate(true);
+    try {
+      const zip = new JSZip();
+      const rootFolder = 'designs';
+      
+      // Create sample design folders (3 examples)
+      const sampleFolders = ['Design_001', 'Design_002', 'Design_003'];
+      const requiredFiles = ['design.eps', 'design.cdr', 'design.jpg', 'design.png'];
+      
+      // Create dummy file content (empty or minimal content)
+      const dummyContent = new Uint8Array(0); // Empty file
+      
+      // Add sample design folders with required files
+      for (const folderName of sampleFolders) {
+        for (const fileName of requiredFiles) {
+          const filePath = `${rootFolder}/${folderName}/${fileName}`;
+          zip.file(filePath, dummyContent);
+        }
+      }
+      
+      // Create metadata.xlsx
+      const metadataData = [
+        ['folder_name', 'title', 'description', 'category', 'subcategory', 'Plan', 'color', 'price', 'Visible', 'Tags'],
+        ['Design_001', 'Sample Design 1', 'This is a sample design', 'ecommerce', 'residential', '0', 'Red', '100', '1', 'tag1,tag2'],
+        ['Design_002', 'Sample Design 2', 'This is a sample design', 'ecommerce', 'commercial', '1', 'Blue', '200', '1', 'tag3,tag4'],
+        ['Design_003', 'Sample Design 3', 'This is a sample design', 'other', 'other', '2', 'Green', '300', '1', 'tag5,tag6'],
+      ];
+      
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(metadataData);
+      XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+      
+      // Convert workbook to binary string
+      const excelBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+      
+      // Add metadata.xlsx to zip
+      zip.file(`${rootFolder}/metadata.xlsx`, excelBuffer);
+      
+      // Generate zip file
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      
+      // Create download link
+      const url = URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'designs-template.zip';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Template downloaded successfully!');
+    } catch (error: any) {
+      console.error('Error generating template:', error);
+      toast.error('Failed to generate template. Please try again.');
+    } finally {
+      setIsGeneratingTemplate(false);
+    }
+  };
 
   const validateZipFile = async (file: File): Promise<{ valid: boolean; errors: string[]; designCount: number }> => {
     const errors: string[] = [];
@@ -35,7 +98,8 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
     try {
       // Check file size
       if (file.size > MAX_FILE_SIZE) {
-        errors.push(`File size exceeds maximum limit of 1GB (1024 MB). Current size: ${(file.size / (1024 * 1024)).toFixed(2)} MB`);
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        errors.push(`❌ File too large: Your file is ${fileSizeMB} MB, but the maximum allowed size is 1GB (1024 MB). Please compress your files or split them into smaller zip files.`);
         return { valid: false, errors, designCount: 0 };
       }
 
@@ -56,7 +120,7 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
       }
 
       if (!metadataFile) {
-        errors.push('metadata.xlsx file not found in zip');
+        errors.push('❌ metadata.xlsx file not found: Your zip file must contain a file named "metadata.xlsx" at the root level (inside the main folder).');
         return { valid: false, errors, designCount: 0 };
       }
 
@@ -76,7 +140,7 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
         });
 
         if (folderNameColIndex === -1) {
-          errors.push('folder_name column not found in metadata.xlsx');
+          errors.push('❌ Missing required column: The metadata.xlsx file must have a column named "folder_name" (case-insensitive). This column should list all your design folder names.');
           return { valid: false, errors, designCount: 0 };
         }
 
@@ -92,7 +156,22 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
           }
         }
 
-        // Extract actual folders from zip
+        // System folders to ignore
+        const SYSTEM_FOLDERS = ['__macosx', '.ds_store', 'rar', '.rar', 'thumbs.db'];
+        
+        // Find root folder (first folder in path, e.g., "dummy" from "dummy/WD1/file.eps")
+        let rootFolder = '';
+        for (const fileName of allFiles) {
+          if (fileName.includes('/') && !fileName.endsWith('/')) {
+            const parts = fileName.split('/');
+            if (parts.length >= 2) {
+              rootFolder = parts[0];
+              break;
+            }
+          }
+        }
+
+        // Extract actual design folders from zip (skip root folder and system folders)
         const zipFolders = new Map<string, Set<string>>();
         for (const fileName of allFiles) {
           // Skip metadata.xlsx and directories
@@ -100,52 +179,81 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
             continue;
           }
 
-          // Extract folder name (everything before the last /)
+          // Extract folder structure
           if (fileName.includes('/')) {
             const parts = fileName.split('/');
-            const folderName = parts[0];
+            
+            // Skip if not enough parts (should have at least root/folder/file)
+            if (parts.length < 3) {
+              continue;
+            }
+
+            const rootFolderName = parts[0].toLowerCase();
+            const folderName = parts[1];
             const fileNameOnly = parts[parts.length - 1];
             const ext = fileNameOnly.substring(fileNameOnly.lastIndexOf('.')).toLowerCase();
 
-            if (!zipFolders.has(folderName)) {
-              zipFolders.set(folderName, new Set());
+            // Skip system folders
+            if (SYSTEM_FOLDERS.includes(rootFolderName) || SYSTEM_FOLDERS.includes(folderName.toLowerCase())) {
+              continue;
             }
-            zipFolders.get(folderName)!.add(ext);
+
+            // Only process files in design folders (second level, e.g., dummy/WD1/file.eps)
+            if (parts.length === 3 && REQUIRED_FILES.includes(ext)) {
+              if (!zipFolders.has(folderName)) {
+                zipFolders.set(folderName, new Set());
+              }
+              zipFolders.get(folderName)!.add(ext);
+            }
           }
         }
 
-        designCount = zipFolders.size;
+        // Filter folders that have all required files
+        const validDesignFolders = new Map<string, Set<string>>();
+        for (const [folderName, files] of zipFolders.entries()) {
+          const hasAllRequired = REQUIRED_FILES.every(ext => files.has(ext));
+          if (hasAllRequired) {
+            validDesignFolders.set(folderName, files);
+          }
+        }
+
+        designCount = validDesignFolders.size;
 
         // Validate folder count
         if (designCount < MIN_DESIGNS) {
-          errors.push(`Minimum ${MIN_DESIGNS} design folders required. Found: ${designCount}`);
+          errors.push(`❌ Insufficient design folders: You have ${designCount} design folders, but a minimum of ${MIN_DESIGNS} is required. Please add ${MIN_DESIGNS - designCount} more design folders.`);
         }
 
         // Validate folder_name mapping
-        const zipFolderNames = new Set(zipFolders.keys());
+        const zipFolderNames = new Set(validDesignFolders.keys());
         const missingInZip = Array.from(excelFolders).filter(f => !zipFolderNames.has(f));
         const missingInExcel = Array.from(zipFolderNames).filter(f => !excelFolders.has(f));
 
         if (missingInZip.length > 0) {
-          errors.push(`Folders in metadata.xlsx not found in zip: ${missingInZip.slice(0, 10).join(', ')}${missingInZip.length > 10 ? ` (and ${missingInZip.length - 10} more)` : ''}`);
+          const missingList = missingInZip.slice(0, 10);
+          const moreCount = missingInZip.length > 10 ? missingInZip.length - 10 : 0;
+          errors.push(`❌ Folders listed in metadata.xlsx but not found in zip file: ${missingList.join(', ')}${moreCount > 0 ? ` (and ${moreCount} more)` : ''}. Please ensure these folders exist in your zip file.`);
         }
 
         if (missingInExcel.length > 0) {
-          errors.push(`Folders in zip not found in metadata.xlsx: ${missingInExcel.slice(0, 10).join(', ')}${missingInExcel.length > 10 ? ` (and ${missingInExcel.length - 10} more)` : ''}`);
+          const missingList = missingInExcel.slice(0, 10);
+          const moreCount = missingInExcel.length > 10 ? missingInExcel.length - 10 : 0;
+          errors.push(`❌ Folders found in zip file but not listed in metadata.xlsx: ${missingList.join(', ')}${moreCount > 0 ? ` (and ${moreCount} more)` : ''}. Please add these folders to the "folder_name" column in your metadata.xlsx file.`);
         }
 
-        // Validate each design folder has required files
+        // Validate each design folder has required files (should already be filtered, but double-check)
         const invalidFolders: string[] = [];
-        for (const [folderName, files] of zipFolders.entries()) {
+        for (const [folderName, files] of validDesignFolders.entries()) {
           const missingFiles = REQUIRED_FILES.filter(ext => !files.has(ext));
           if (missingFiles.length > 0) {
-            invalidFolders.push(`${folderName}: missing ${missingFiles.join(', ')}`);
+            invalidFolders.push(`${folderName} (missing: ${missingFiles.join(', ')})`);
             if (invalidFolders.length >= 10) break; // Limit to first 10 errors
           }
         }
 
         if (invalidFolders.length > 0) {
-          errors.push(`Folders with missing required files: ${invalidFolders.join('; ')}${invalidFolders.length >= 10 ? ' (showing first 10)' : ''}`);
+          const moreCount = invalidFolders.length >= 10 ? invalidFolders.length - 10 : 0;
+          errors.push(`❌ Some design folders are missing required files. Each folder must contain all 4 file types (.eps, .cdr, .jpg, .png). Affected folders: ${invalidFolders.join('; ')}${moreCount > 0 ? ` (and ${moreCount} more)` : ''}`);
         }
 
         return {
@@ -154,11 +262,11 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
           designCount,
         };
       } catch (excelError: any) {
-        errors.push(`Error reading metadata.xlsx: ${excelError.message || 'Invalid Excel file format'}`);
+        errors.push(`❌ Error reading metadata.xlsx: ${excelError.message || 'The Excel file appears to be corrupted or in an invalid format. Please ensure it\'s a valid .xlsx file.'}`);
         return { valid: false, errors, designCount: 0 };
       }
     } catch (zipError: any) {
-      errors.push(`Error reading zip file: ${zipError.message || 'Invalid zip file format'}`);
+      errors.push(`❌ Error reading zip file: ${zipError.message || 'The zip file appears to be corrupted or in an invalid format. Please ensure it\'s a valid .zip file and try again.'}`);
       return { valid: false, errors, designCount: 0 };
     }
   };
@@ -167,7 +275,7 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
     const extension = file.name.split('.').pop()?.toLowerCase();
     
     if (extension !== 'zip') {
-      setError('File must be a .zip file');
+      setError('❌ Invalid file type: Please upload a .zip file. The file you selected is not a zip archive.');
       setBulkFile(null);
       setDesignCount(0);
       setValidationErrors([]);
@@ -176,7 +284,8 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
 
     // Check file size first
     if (file.size > MAX_FILE_SIZE) {
-      setError(`File size exceeds maximum limit of 1GB (1024 MB). Current size: ${(file.size / (1024 * 1024)).toFixed(2)} MB`);
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      setError(`❌ File too large: Your file is ${fileSizeMB} MB, but the maximum allowed size is 1GB (1024 MB). Please compress your files or split them into smaller zip files.`);
       setBulkFile(null);
       setDesignCount(0);
       setValidationErrors([]);
@@ -200,8 +309,7 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
         setBulkFile(null);
         setDesignCount(0);
         setValidationErrors(validation.errors);
-        const errorMessage = validation.errors.join('. ');
-        setError(`Validation failed: ${errorMessage}`);
+        setError(''); // Don't show duplicate error message
         toast.error('Zip file validation failed. Please check the errors below.');
       }
     } catch (error: any) {
@@ -308,8 +416,24 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
                   <p className="text-xs text-muted-foreground mb-2">
                     Get our folder structure template to organize your designs correctly
                   </p>
-                  <Button variant="outline" size="sm" className="text-xs">
-                    Download Template.zip
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-xs"
+                    onClick={downloadTemplate}
+                    disabled={isGeneratingTemplate}
+                  >
+                    {isGeneratingTemplate ? (
+                      <>
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3 h-3 mr-1" />
+                        Download Template.zip
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -416,26 +540,23 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
                   )}
                 </div>
 
-                {error && (
+                {(error || validationErrors.length > 0) && (
                   <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                     <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                      <p className="text-sm text-destructive font-medium mb-1">Validation Error</p>
-                      <p className="text-sm text-destructive">{error}</p>
-                    </div>
-                  </div>
-                )}
-
-                {validationErrors.length > 0 && (
-                  <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                    <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm text-destructive font-medium mb-2">Validation Errors:</p>
-                      <ul className="list-disc list-inside space-y-1">
-                        {validationErrors.map((err, idx) => (
-                          <li key={idx} className="text-sm text-destructive">{err}</li>
-                        ))}
-                      </ul>
+                      <p className="text-sm text-destructive font-medium mb-2">
+                        {validationErrors.length > 0 ? 'Validation Errors:' : 'Error:'}
+                      </p>
+                      {error && validationErrors.length === 0 && (
+                        <p className="text-sm text-destructive">{error}</p>
+                      )}
+                      {validationErrors.length > 0 && (
+                        <ul className="list-disc list-inside space-y-2">
+                          {validationErrors.map((err, idx) => (
+                            <li key={idx} className="text-sm text-destructive">{err}</li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   </div>
                 )}
