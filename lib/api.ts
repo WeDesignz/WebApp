@@ -1223,6 +1223,77 @@ export const apiClient = {
     }
   },
 
+  getDesignProcessingProgress: async (taskId: number): Promise<ApiResponse<any>> => {
+    const baseUrl = getApiBaseUrl();
+    if (!baseUrl) {
+      return {
+        error: 'API base URL is not configured',
+        errorDetails: {
+          type: ErrorType.NETWORK,
+          message: 'API base URL is not configured',
+          statusCode: 500,
+        },
+      };
+    }
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(`${baseUrl}/api/profiles/design-processing-progress/?task_id=${taskId}`, {
+        method: 'GET',
+        headers,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        return {
+          error: errorData.error || errorData.detail || 'Failed to get processing progress',
+          errorDetails: formatError(errorData, response.status),
+        };
+      }
+
+      const responseData = await response.json();
+      return { data: responseData };
+    } catch (error: any) {
+      return {
+        error: error.message || 'Network error occurred',
+        errorDetails: error,
+      };
+    }
+  },
+
+  getDesignProcessingStatus: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/api/profiles/design-processing-status/');
+  },
+
+  streamDesignProcessingProgress: (taskId: number): EventSource | null => {
+    const baseUrl = getApiBaseUrl();
+    if (!baseUrl || typeof window === 'undefined') {
+      return null;
+    }
+
+    const token = localStorage.getItem('wedesign_access_token');
+    if (!token) {
+      return null;
+    }
+
+    // Create EventSource for SSE
+    // Note: EventSource doesn't support custom headers, so we pass token as query parameter
+    const url = `${baseUrl}/api/profiles/design-processing-stream/?task_id=${taskId}&token=${encodeURIComponent(token)}`;
+    const eventSource = new EventSource(url, {
+      withCredentials: true,
+    });
+
+    return eventSource;
+  },
+
   getDesignerOnboardingStep1: async (): Promise<ApiResponse<any>> => {
     const response = await apiRequest<any>('/api/profiles/get-designer-onboarding-step1/');
     // Handle 404 gracefully - it means no saved data exists yet (expected for new users)
@@ -1260,6 +1331,14 @@ export const apiClient = {
       studio_created: boolean;
       business_details_completed: boolean;
       razorpay_account_verified: boolean;
+      design_processing_status?: {
+        task_id: number;
+        status: string;
+        total_designs: number;
+        processed_designs: number;
+        failed_designs: number;
+        progress_percentage: number;
+      } | null;
     };
     can_access_console: boolean;
   }>> => {
@@ -1273,6 +1352,14 @@ export const apiClient = {
         studio_created: boolean;
         business_details_completed: boolean;
         razorpay_account_verified: boolean;
+        design_processing_status?: {
+          task_id: number;
+          status: string;
+          total_designs: number;
+          processed_designs: number;
+          failed_designs: number;
+          progress_percentage: number;
+        } | null;
       };
       can_access_console: boolean;
     }>('/api/profiles/designer-onboarding-status/');

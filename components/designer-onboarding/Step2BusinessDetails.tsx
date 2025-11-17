@@ -202,7 +202,7 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
         return;
       }
       
-      toast.success('OTP sent to your business phone');
+    toast.success('OTP sent to your business phone');
     } catch (error: any) {
       toast.error(error.message || 'Failed to send OTP');
     }
@@ -219,9 +219,9 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
           return false;
         }
         
-        setFormData({ ...formData, businessEmailVerified: true });
-        setShowEmailOTP(false);
-        toast.success('Business email verified successfully!');
+    setFormData({ ...formData, businessEmailVerified: true });
+    setShowEmailOTP(false);
+    toast.success('Business email verified successfully!');
         return true;
       } catch (error: any) {
         toast.error(error.message || 'Failed to verify business email');
@@ -244,9 +244,9 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
           return false;
         }
         
-        setFormData({ ...formData, businessPhoneVerified: true });
-        setShowPhoneOTP(false);
-        toast.success('Business phone verified successfully!');
+    setFormData({ ...formData, businessPhoneVerified: true });
+    setShowPhoneOTP(false);
+    toast.success('Business phone verified successfully!');
         return true;
       } catch (error: any) {
         toast.error(error.message || 'Failed to verify business phone');
@@ -350,7 +350,7 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
         </div>
       </Card>
     );
-  }
+    }
 
   return (
     <>
@@ -461,82 +461,82 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
                     </SelectContent>
                   </Select>
                 </div>
+                </div>
               </div>
-            </div>
 
             {/* Address */}
             <div className="space-y-4">
               <h3 className="font-semibold">Business Address</h3>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="street">Street Address <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="street"
-                    value={formData.street}
-                    onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                    placeholder="123 Design Street"
-                  />
-                  {errors.street && (
-                    <p className="text-xs text-destructive flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {errors.street}
-                    </p>
-                  )}
-                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="street">Street Address <span className="text-destructive">*</span></Label>
+                    <Input
+                      id="street"
+                      value={formData.street}
+                      onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                      placeholder="123 Design Street"
+                    />
+                    {errors.street && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {errors.street}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="city">City <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="city"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    placeholder="Mumbai"
-                  />
-                  {errors.city && (
-                    <p className="text-xs text-destructive flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {errors.city}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="city">City <span className="text-destructive">*</span></Label>
+                    <Input
+                      id="city"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      placeholder="Mumbai"
+                    />
+                    {errors.city && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {errors.city}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="state">State <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="state"
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    placeholder="Maharashtra"
-                  />
-                  {errors.state && (
-                    <p className="text-xs text-destructive flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {errors.state}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="state">State <span className="text-destructive">*</span></Label>
+                    <Input
+                      id="state"
+                      value={formData.state}
+                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      placeholder="Maharashtra"
+                    />
+                    {errors.state && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {errors.state}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="postalCode">Postal Code <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="postalCode"
-                    value={formData.postalCode}
-                    onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                    placeholder="400001"
-                  />
-                  {errors.postalCode && (
-                    <p className="text-xs text-destructive flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {errors.postalCode}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="postalCode">Postal Code <span className="text-destructive">*</span></Label>
+                    <Input
+                      id="postalCode"
+                      value={formData.postalCode}
+                      onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                      placeholder="400001"
+                    />
+                    {errors.postalCode && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {errors.postalCode}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="country">Country</Label>
-                  <Input
-                    id="country"
-                    value={formData.country}
+                  <div className="space-y-2">
+                    <Label htmlFor="country">Country</Label>
+                    <Input
+                      id="country"
+                      value={formData.country}
                     onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                     placeholder="India"
                   />
@@ -599,14 +599,14 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
                   </p>
                 )}
                 {errors.businessEmailVerified && !formData.businessEmailVerified && (
-                  <p className="text-xs text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
                     {errors.businessEmailVerified}
-                  </p>
-                )}
-              </div>
+                    </p>
+                  )}
+                </div>
 
-              <div className="space-y-2">
+                <div className="space-y-2">
                 <Label htmlFor="businessPhone">Business Mobile Number <span className="text-destructive">*</span></Label>
                 <div className="flex gap-2">
                   <div className="flex-1">
@@ -650,21 +650,21 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
                       'Verify'
                     )}
                   </Button>
-                </div>
+                  </div>
                 {errors.businessPhone && (
                   <p className="text-xs text-destructive flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
                     {errors.businessPhone}
-                  </p>
-                )}
+                    </p>
+                  )}
                 {errors.businessPhoneVerified && !formData.businessPhoneVerified && (
-                  <p className="text-xs text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
                     {errors.businessPhoneVerified}
-                  </p>
-                )}
+                    </p>
+                  )}
               </div>
-            </div>
+                </div>
 
             {/* MSME and GST */}
             <div className="space-y-4">
@@ -745,16 +745,16 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
                 )}
               </div>
             </div>
-          </div>
+              </div>
 
           <div className="border-t pt-6 flex items-center justify-between">
             <Button variant="outline" onClick={onBack}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
-            <Button
+              <Button
               onClick={handleNext}
-              size="lg"
+                size="lg"
               disabled={!formData.businessEmailVerified || !formData.businessPhoneVerified || isLoading}
             >
               {isLoading ? (
@@ -765,14 +765,14 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
               ) : (
                 'Next: Legal Info →'
               )}
-            </Button>
-          </div>
+                      </Button>
+                </div>
 
           {(!formData.businessEmailVerified || !formData.businessPhoneVerified) && (
             <p className="text-xs text-muted-foreground text-center">
               Please verify business email and phone to continue
-            </p>
-          )}
+              </p>
+            )}
         </div>
       </Card>
 

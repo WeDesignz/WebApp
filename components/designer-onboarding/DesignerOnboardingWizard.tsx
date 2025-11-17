@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import Step1BasicProfile from './Step1BasicProfile';
 import Step2BusinessDetails from './Step2BusinessDetails';
 import Step3LegalInfo from './Step3LegalInfo';
@@ -132,7 +133,11 @@ export default function DesignerOnboardingWizard() {
   };
 
   const handleStep4Complete = (bulkFile: File) => {
-    router.push('/designer-console');
+    // Toast is already shown in Step4BulkUpload component
+    // Just redirect after a short delay to ensure toast is visible
+    setTimeout(() => {
+      router.push('/designer-console');
+    }, 1500);
   };
 
   // Calculate progress steps based on isIndividual

@@ -330,12 +330,19 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
     }
 
     setIsUploading(true);
+    setError(''); // Clear previous errors
+    setValidationErrors([]); // Clear previous validation errors
+    
     try {
+      console.log('Starting upload of zip file...');
       const response = await apiClient.saveDesignerOnboardingStep4(bulkFile);
+      console.log('Upload response received:', response);
 
       if (response.error) {
         const errorMsg = response.error;
         const validationErrs = response.validationErrors || [];
+        
+        console.error('Upload error:', errorMsg, validationErrs);
         
         if (validationErrs.length > 0) {
           setValidationErrors(validationErrs);
@@ -347,12 +354,32 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
         return;
       }
 
-      toast.success('Designs uploaded successfully!');
+      // Check if we have data (response.data contains the backend response)
+      // Backend returns: { message: '...', data: {...} }
+      // API client wraps it: { data: { message: '...', data: {...} } }
+      if (!response.data) {
+        console.error('No data in response:', response);
+        toast.error('Upload completed but no data was returned. Please check your designer console.');
+        setIsUploading(false);
+        return;
+      }
+
+      console.log('Upload successful:', response.data);
+      // Backend now returns immediately with task_id
+      // Processing happens in background, redirect immediately
+      // Show success toast and redirect
+      toast.success('🎉 Onboarding completed successfully! Your designs are being processed in the background. You can track progress in the Designer Console.', {
+        duration: 5000,
+      });
+      // Call onComplete which will handle redirect
       onComplete(bulkFile);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to upload zip file');
-    } finally {
+      console.error('Upload exception:', error);
+      toast.error(error.message || 'Failed to upload zip file. Please try again.');
       setIsUploading(false);
+    } finally {
+      // Only set loading to false if we haven't called onComplete (which will navigate away)
+      // The onComplete will navigate away, so we don't need to reset loading state
     }
   };
 

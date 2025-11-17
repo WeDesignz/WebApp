@@ -40,6 +40,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SkeletonKPICard, SkeletonLoader } from "@/components/common/SkeletonLoader";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { toast } from "@/lib/utils/toast";
+import DesignProcessingProgress from "./DesignProcessingProgress";
 
 // Helper function to format numbers
 const formatNumber = (num: number): string => {
@@ -71,12 +72,30 @@ const getTimeAgo = (date: string): string => {
 };
 
 export default function DashboardContent() {
-  const { isVerified } = useDesignerVerification();
+  const { isVerified, verificationStatus } = useDesignerVerification();
   const { user } = useAuth();
   const today = new Date();
   const currentDay = today.getDate();
   const isSettlementWindow = currentDay >= 5 && currentDay <= 10;
   const nextSettlementDate = currentDay > 10 ? new Date(today.getFullYear(), today.getMonth() + 1, 5) : new Date(today.getFullYear(), today.getMonth(), 5);
+
+  // Fetch onboarding status to get design processing task
+  const { data: onboardingStatusData } = useQuery({
+    queryKey: ['designerOnboardingStatus'],
+    queryFn: async () => {
+      const response = await apiClient.getDesignerOnboardingStatus();
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    staleTime: 30 * 1000,
+  });
+
+  const designProcessingStatus = onboardingStatusData?.onboarding_status?.design_processing_status;
+  const taskId = designProcessingStatus?.task_id || null;
+  const isProcessing = designProcessingStatus && 
+    (designProcessingStatus.status === 'pending' || designProcessingStatus.status === 'processing');
 
   // Fetch dashboard data
   const { 
@@ -197,6 +216,11 @@ export default function DashboardContent() {
       <div className="p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
+            {/* Show design processing progress if processing */}
+            {isProcessing && taskId && (
+              <DesignProcessingProgress taskId={taskId} />
+            )}
+            
             <Card className="border-amber-500/50 bg-gradient-to-br from-amber-500/10 to-orange-500/10">
               <CardContent className="p-8 text-center">
                 <div className="flex justify-center mb-4">
@@ -259,6 +283,30 @@ export default function DashboardContent() {
     <div className="p-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {/* Show design processing progress if processing */}
+          {isProcessing && taskId && (
+            <DesignProcessingProgress taskId={taskId} />
+          )}
+          
+          {/* Show locked features banner if pending */}
+          {verificationStatus === 'pending' && (
+            <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <Shield className="h-5 w-5 text-amber-600 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-medium text-amber-900 dark:text-amber-100">
+                      Account Pending Admin Approval
+                    </p>
+                    <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                      Your account is pending admin approval. Some features are locked until your account is verified.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
           <Card className="bg-gradient-to-br from-primary/10 via-background to-purple-500/10 border-primary/20">
             <CardContent className="p-6">
               {isLoadingDashboard ? (

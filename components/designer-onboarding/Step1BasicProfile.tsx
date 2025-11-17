@@ -215,7 +215,7 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
         return;
       }
       
-      toast.success('OTP sent to your phone');
+    toast.success('OTP sent to your phone');
     } catch (error: any) {
       toast.error(error.message || 'Failed to send OTP');
     }
@@ -232,9 +232,9 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
           return false;
         }
         
-        setFormData({ ...formData, emailVerified: true });
-        setShowEmailOTP(false);
-        toast.success('Email verified successfully!');
+    setFormData({ ...formData, emailVerified: true });
+    setShowEmailOTP(false);
+    toast.success('Email verified successfully!');
         
         return true;
       } catch (error: any) {
@@ -258,9 +258,9 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
           return false;
         }
         
-        setFormData({ ...formData, phoneVerified: true });
-        setShowPhoneOTP(false);
-        toast.success('Phone verified successfully!');
+    setFormData({ ...formData, phoneVerified: true });
+    setShowPhoneOTP(false);
+    toast.success('Phone verified successfully!');
         
         return true;
       } catch (error: any) {
@@ -569,7 +569,7 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
                 {formData.isIndividual 
                   ? 'You will skip business details and go directly to legal information.'
                   : 'You will need to provide business details in the next step.'}
-              </p>
+                </p>
             </div>
 
             <div className="pt-4">
