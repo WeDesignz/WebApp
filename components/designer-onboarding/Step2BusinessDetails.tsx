@@ -118,8 +118,8 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
       setErrors({ ...errors, businessEmail: 'Please enter a valid email address' });
       return;
     }
+    // Just open the modal - OTP will be sent when modal opens
     setShowEmailOTP(true);
-    toast.success('OTP sent to your business email');
   };
 
   const handleSendPhoneOTP = () => {
@@ -127,20 +127,94 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
       setErrors({ ...errors, businessPhone: 'Please enter a valid 10-digit phone number' });
       return;
     }
+    // Just open the modal - OTP will be sent when modal opens
     setShowPhoneOTP(true);
-    toast.success('OTP sent to your business phone');
   };
 
-  const handleEmailVerified = () => {
-    setFormData({ ...formData, businessEmailVerified: true });
-    setShowEmailOTP(false);
-    toast.success('Business email verified successfully!');
+  const sendEmailOTP = async (): Promise<void> => {
+    try {
+      const response = await apiClient.resendOTP({
+        email: formData.businessEmail,
+        otp_for: 'email_verification',
+      });
+      
+      if (response.error) {
+        toast.error(response.error || 'Failed to send OTP');
+        return;
+      }
+      
+      toast.success('OTP sent to your business email');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send OTP');
+    }
   };
 
-  const handlePhoneVerified = () => {
-    setFormData({ ...formData, businessPhoneVerified: true });
-    setShowPhoneOTP(false);
-    toast.success('Business phone verified successfully!');
+  const sendPhoneOTP = async (): Promise<void> => {
+    try {
+      const response = await apiClient.resendOTP({
+        mobile_number: formData.businessPhone,
+        otp_for: 'mobile_verification',
+      });
+      
+      if (response.error) {
+        toast.error(response.error || 'Failed to send OTP');
+        return;
+      }
+      
+      toast.success('OTP sent to your business phone');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send OTP');
+    }
+  };
+
+  const handleEmailVerified = async (otp: string): Promise<boolean> => {
+    // For now, accept sample OTP 123456
+    if (otp === '123456') {
+      try {
+        const response = await apiClient.verifyEmail(formData.businessEmail, otp);
+        
+        if (response.error) {
+          toast.error(response.error || 'Failed to verify business email');
+          return false;
+        }
+        
+        setFormData({ ...formData, businessEmailVerified: true });
+        setShowEmailOTP(false);
+        toast.success('Business email verified successfully!');
+        return true;
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to verify business email');
+        return false;
+      }
+    } else {
+      toast.error('Invalid OTP. Please use 123456 for now.');
+      return false;
+    }
+  };
+
+  const handlePhoneVerified = async (otp: string): Promise<boolean> => {
+    // For now, accept sample OTP 123456
+    if (otp === '123456') {
+      try {
+        const response = await apiClient.verifyMobileNumber(formData.businessPhone, otp);
+        
+        if (response.error) {
+          toast.error(response.error || 'Failed to verify business phone');
+          return false;
+        }
+        
+        setFormData({ ...formData, businessPhoneVerified: true });
+        setShowPhoneOTP(false);
+        toast.success('Business phone verified successfully!');
+        return true;
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to verify business phone');
+        return false;
+      }
+    } else {
+      toast.error('Invalid OTP. Please use 123456 for now.');
+      return false;
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -640,6 +714,7 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
         open={showEmailOTP}
         onClose={() => setShowEmailOTP(false)}
         onVerified={handleEmailVerified}
+        onResend={sendEmailOTP}
         type="email"
         value={formData.businessEmail}
       />
@@ -648,6 +723,7 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
         open={showPhoneOTP}
         onClose={() => setShowPhoneOTP(false)}
         onVerified={handlePhoneVerified}
+        onResend={sendPhoneOTP}
         type="phone"
         value={formData.businessPhone}
       />
