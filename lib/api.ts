@@ -18,13 +18,27 @@ import {
 } from './utils/errorHandler';
 
 // API base URL - must be set in .env.local
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+// During build time, use a placeholder to avoid build errors
+// At runtime, this will be validated when API calls are made
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
-if (!API_BASE_URL) {
-  throw new Error(
-    'NEXT_PUBLIC_API_BASE_URL is not set. Please configure it in .env.local file.\n' +
-    'Example: NEXT_PUBLIC_API_BASE_URL=http://localhost:8000'
-  );
+// Helper function to get API base URL with validation
+function getApiBaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_API_BASE_URL;
+  // During build time (SSR/prerendering), return empty string to avoid errors
+  // At runtime in browser, validate and throw error if not set
+  if (!url) {
+    if (typeof window !== 'undefined') {
+      // Only throw error in browser (runtime), not during build/SSR
+      throw new Error(
+        'NEXT_PUBLIC_API_BASE_URL is not set. Please configure it in .env.local file.\n' +
+        'Example: NEXT_PUBLIC_API_BASE_URL=http://localhost:8000'
+      );
+    }
+    // During build/SSR, return empty string (will be handled gracefully in apiRequest)
+    return '';
+  }
+  return url;
 }
 
 export interface ApiResponse<T> {
@@ -77,7 +91,19 @@ async function apiRequest<T>(
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const baseUrl = getApiBaseUrl();
+    if (!baseUrl) {
+      return {
+        error: 'API base URL is not configured. Please set NEXT_PUBLIC_API_BASE_URL environment variable.',
+        errorDetails: {
+          type: ErrorType.NETWORK,
+          message: 'API base URL is not configured',
+          statusCode: 500,
+        },
+      };
+    }
+
+    const response = await fetch(`${baseUrl}${endpoint}`, {
       ...options,
       headers,
     });
@@ -724,7 +750,17 @@ export const apiClient = {
 
   downloadPDF: async (downloadId: number) => {
     // This will return a blob, so we need special handling
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
+    const baseUrl = getApiBaseUrl();
+    if (!baseUrl) {
+      return {
+        error: 'API base URL is not configured. Please set NEXT_PUBLIC_API_BASE_URL environment variable.',
+        errorDetails: {
+          type: ErrorType.NETWORK,
+          message: 'API base URL is not configured',
+          statusCode: 500,
+        },
+      };
+    }
     const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
     
     try {
@@ -926,7 +962,17 @@ export const apiClient = {
     }
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
+    const baseUrl = getApiBaseUrl();
+    if (!baseUrl) {
+      return {
+        error: 'API base URL is not configured. Please set NEXT_PUBLIC_API_BASE_URL environment variable.',
+        errorDetails: {
+          type: ErrorType.NETWORK,
+          message: 'API base URL is not configured',
+          statusCode: 500,
+        },
+      };
+    }
     
     try {
       const headers: Record<string, string> = {};
@@ -1012,7 +1058,17 @@ export const apiClient = {
     }
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
+    const baseUrl = getApiBaseUrl();
+    if (!baseUrl) {
+      return {
+        error: 'API base URL is not configured. Please set NEXT_PUBLIC_API_BASE_URL environment variable.',
+        errorDetails: {
+          type: ErrorType.NETWORK,
+          message: 'API base URL is not configured',
+          statusCode: 500,
+        },
+      };
+    }
     
     try {
       const headers: Record<string, string> = {};
@@ -1065,7 +1121,17 @@ export const apiClient = {
     }
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
+    const baseUrl = getApiBaseUrl();
+    if (!baseUrl) {
+      return {
+        error: 'API base URL is not configured. Please set NEXT_PUBLIC_API_BASE_URL environment variable.',
+        errorDetails: {
+          type: ErrorType.NETWORK,
+          message: 'API base URL is not configured',
+          statusCode: 500,
+        },
+      };
+    }
     
     try {
       const headers: Record<string, string> = {};
@@ -1112,7 +1178,17 @@ export const apiClient = {
     formData.append('zip_file', zipFile);
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
+    const baseUrl = getApiBaseUrl();
+    if (!baseUrl) {
+      return {
+        error: 'API base URL is not configured. Please set NEXT_PUBLIC_API_BASE_URL environment variable.',
+        errorDetails: {
+          type: ErrorType.NETWORK,
+          message: 'API base URL is not configured',
+          statusCode: 500,
+        },
+      };
+    }
     
     try {
       const headers: Record<string, string> = {};
@@ -1342,7 +1418,19 @@ export const apiClient = {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/catalog/upload-design/`, {
+      const baseUrl = getApiBaseUrl();
+      if (!baseUrl) {
+        return {
+          error: 'API base URL is not configured. Please set NEXT_PUBLIC_API_BASE_URL environment variable.',
+          errorDetails: {
+            type: ErrorType.NETWORK,
+            message: 'API base URL is not configured',
+            statusCode: 500,
+          },
+        };
+      }
+
+      const response = await fetch(`${baseUrl}/api/catalog/upload-design/`, {
         method: 'POST',
         headers,
         body: formData,
@@ -1473,7 +1561,19 @@ export const apiClient = {
           headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${API_BASE_URL}/api/profiles/studios/${studioId}/business-details/`, {
+        const baseUrl = getApiBaseUrl();
+        if (!baseUrl) {
+          return {
+            error: 'API base URL is not configured. Please set NEXT_PUBLIC_API_BASE_URL environment variable.',
+            errorDetails: {
+              type: ErrorType.NETWORK,
+              message: 'API base URL is not configured',
+              statusCode: 500,
+            },
+          };
+        }
+
+        const response = await fetch(`${baseUrl}/api/profiles/studios/${studioId}/business-details/`, {
           method: 'POST',
           headers,
           body: businessData,
