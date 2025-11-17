@@ -182,7 +182,7 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
     setShowPhoneOTP(true);
   };
 
-  const sendEmailOTP = async () => {
+  const sendEmailOTP = async (): Promise<void> => {
     try {
       const response = await apiClient.resendOTP({
         email: formData.email,
@@ -191,18 +191,16 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
       
       if (response.error) {
         toast.error(response.error || 'Failed to send OTP');
-        return false;
+        return;
       }
       
       toast.success('OTP sent to your email');
-      return true;
     } catch (error: any) {
       toast.error(error.message || 'Failed to send OTP');
-      return false;
     }
   };
 
-  const sendPhoneOTP = async () => {
+  const sendPhoneOTP = async (): Promise<void> => {
     try {
       const response = await apiClient.resendOTP({
         mobile_number: formData.phone,
@@ -211,14 +209,12 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
       
       if (response.error) {
         toast.error(response.error || 'Failed to send OTP');
-        return false;
+        return;
       }
       
       toast.success('OTP sent to your phone');
-      return true;
     } catch (error: any) {
       toast.error(error.message || 'Failed to send OTP');
-      return false;
     }
   };
 
