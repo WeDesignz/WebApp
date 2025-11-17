@@ -75,8 +75,11 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
             emailVerified: saved.email_verified !== undefined ? saved.email_verified : prev.emailVerified,
             phoneVerified: saved.phone_verified !== undefined ? saved.phone_verified : prev.phoneVerified,
           }));
+          // Set photo preview if profile photo URL exists
           if (saved.profile_photo_url) {
             setPhotoPreview(saved.profile_photo_url);
+          } else {
+            setPhotoPreview(null);
           }
         }
       } catch (error) {

@@ -57,6 +57,25 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
         const response = await apiClient.getDesignerOnboardingStep2();
         if (response.data?.data) {
           const saved = response.data.data;
+          
+          // Check if studio email/phone matches personal email/phone
+          const isPersonalEmail = saved.studio_email && user?.email && saved.studio_email === user.email;
+          const isPersonalPhone = saved.studio_mobile_number && user?.mobileNumber && saved.studio_mobile_number === user.mobileNumber;
+          
+          // Set verification status based on backend response or personal verification status
+          let emailVerified = saved.studio_email_verified || false;
+          let phoneVerified = saved.studio_mobile_verified || false;
+          
+          // If using personal email/phone, check user's verification status
+          if (isPersonalEmail && user?.emailVerified) {
+            emailVerified = true;
+            setUsePersonalEmail(true);
+          }
+          if (isPersonalPhone && user?.mobileVerified) {
+            phoneVerified = true;
+            setUsePersonalPhone(true);
+          }
+          
           setFormData(prev => ({
             ...prev,
             legalBusinessName: saved.legal_business_name || prev.legalBusinessName,
@@ -71,6 +90,8 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
             country: saved.country || prev.country,
             businessEmail: saved.studio_email || prev.businessEmail,
             businessPhone: saved.studio_mobile_number || prev.businessPhone,
+            businessEmailVerified: emailVerified,
+            businessPhoneVerified: phoneVerified,
             gstNumber: saved.gst_number || prev.gstNumber,
             msmeNumber: saved.msme_udyam_number || prev.msmeNumber,
             msmeAnnexureUrl: saved.msme_certificate_annexure_url || null,
@@ -85,7 +106,7 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
     };
 
     loadData();
-  }, []);
+  }, [user]);
 
   const validateEmail = (email: string) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -99,17 +120,37 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
 
   const handleUsePersonalEmail = () => {
     if (user?.email) {
-      setFormData({ ...formData, businessEmail: user.email, businessEmailVerified: false });
+      // Check if personal email is already verified
+      const isEmailVerified = user.emailVerified || false;
+      setFormData({ 
+        ...formData, 
+        businessEmail: user.email, 
+        businessEmailVerified: isEmailVerified 
+      });
       setUsePersonalEmail(true);
-      toast.success('Personal email filled');
+      if (isEmailVerified) {
+        toast.success('Personal email filled (already verified)');
+      } else {
+        toast.success('Personal email filled');
+      }
     }
   };
 
   const handleUsePersonalPhone = () => {
     if (user?.mobileNumber) {
-      setFormData({ ...formData, businessPhone: user.mobileNumber, businessPhoneVerified: false });
+      // Check if personal phone is already verified
+      const isPhoneVerified = user.mobileVerified || false;
+      setFormData({ 
+        ...formData, 
+        businessPhone: user.mobileNumber, 
+        businessPhoneVerified: isPhoneVerified 
+      });
       setUsePersonalPhone(true);
-      toast.success('Personal phone filled');
+      if (isPhoneVerified) {
+        toast.success('Personal phone filled (already verified)');
+      } else {
+        toast.success('Personal phone filled');
+      }
     }
   };
 
@@ -652,6 +693,26 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
                 {formData.msmeNumber && (
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="msmeAnnexure">MSME Certificate Annexure</Label>
+                    {formData.msmeAnnexureUrl && !formData.msmeAnnexure && (
+                      <div className="mb-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+                        <div className="flex items-center gap-2">
+                          <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                          <p className="text-sm text-green-700 dark:text-green-300">
+                            MSME certificate already uploaded. Upload a new file to replace it.
+                          </p>
+                        </div>
+                        {formData.msmeAnnexureUrl && (
+                          <a 
+                            href={formData.msmeAnnexureUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs text-green-600 dark:text-green-400 hover:underline mt-1 inline-block"
+                          >
+                            View uploaded MSME certificate
+                          </a>
+                        )}
+                      </div>
+                    )}
                     <div className="relative">
                       <Input
                         id="msmeAnnexure"
@@ -660,13 +721,18 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
                         onChange={handleFileUpload}
                         className="cursor-pointer"
                       />
-                      {formData.msmeAnnexure && (
+                      {(formData.msmeAnnexure || formData.msmeAnnexureUrl) && (
                         <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
                       )}
                     </div>
                     {formData.msmeAnnexure && (
                       <p className="text-xs text-green-600 dark:text-green-400">
                         {formData.msmeAnnexure.name}
+                      </p>
+                    )}
+                    {formData.msmeAnnexureUrl && !formData.msmeAnnexure && (
+                      <p className="text-xs text-muted-foreground">
+                        Previously uploaded certificate is saved
                       </p>
                     )}
                     {errors.msmeAnnexure && (

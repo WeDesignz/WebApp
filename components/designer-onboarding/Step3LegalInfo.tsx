@@ -176,6 +176,26 @@ export default function Step3LegalInfo({ initialData, onBack, onComplete, isIndi
             <Label htmlFor="panCard">
               {isIndividual ? 'Personal' : 'Business'} PAN Card Document <span className="text-destructive">*</span>
             </Label>
+            {formData.panCardUrl && !formData.panCard && (
+              <div className="mb-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    PAN card already uploaded. Upload a new file to replace it.
+                  </p>
+                </div>
+                {formData.panCardUrl && (
+                  <a 
+                    href={formData.panCardUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-xs text-green-600 dark:text-green-400 hover:underline mt-1 inline-block"
+                  >
+                    View uploaded PAN card
+                  </a>
+                )}
+              </div>
+            )}
             <div className="relative">
               <Input
                 id="panCard"
@@ -184,7 +204,7 @@ export default function Step3LegalInfo({ initialData, onBack, onComplete, isIndi
                 onChange={handleFileUpload}
                 className="cursor-pointer"
               />
-              {formData.panCard && (
+              {(formData.panCard || formData.panCardUrl) && (
                 <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
               )}
             </div>
