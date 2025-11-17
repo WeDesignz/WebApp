@@ -2,8 +2,11 @@
  * API Client for WeDesignz WebApp
  * Handles all API calls to the Django backend
  * 
- * API endpoint is configured via NEXT_PUBLIC_API_BASE_URL environment variable.
- * Set it in .env.local file (see .env.local.example for template)
+ * API endpoint must be configured via NEXT_PUBLIC_API_BASE_URL environment variable in .env.local
+ * 
+ * Examples:
+ * - Development: NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+ * - Production: NEXT_PUBLIC_API_BASE_URL=https://devapi.wedesignz.com
  */
 
 import {
@@ -14,8 +17,15 @@ import {
   ErrorDetails,
 } from './utils/errorHandler';
 
-// API base URL - can be overridden via NEXT_PUBLIC_API_BASE_URL in .env.local
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://devapi.wedesignz.com';
+// API base URL - must be set in .env.local
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+if (!API_BASE_URL) {
+  throw new Error(
+    'NEXT_PUBLIC_API_BASE_URL is not set. Please configure it in .env.local file.\n' +
+    'Example: NEXT_PUBLIC_API_BASE_URL=http://localhost:8000'
+  );
+}
 
 export interface ApiResponse<T> {
   data?: T;
