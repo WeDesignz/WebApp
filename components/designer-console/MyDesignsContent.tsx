@@ -623,7 +623,7 @@ export default function MyDesignsContent() {
                             `${design.parent_category_name} / ${design.category_name || '—'}` : 
                             (design.category_name || (design.category && typeof design.category === 'object' ? design.category.name : null) || 'Uncategorized')}
                         </span>
-                        <span className="font-semibold text-foreground">{formatCurrency(design.price)}</span>
+                      <span className="font-semibold text-foreground">{formatCurrency(design.price)}</span>
                       </div>
                     </div>
                     <Badge
@@ -658,9 +658,9 @@ export default function MyDesignsContent() {
           {sortedDesigns.length > 0 && (
             <div className="flex items-center justify-between mt-6 p-4 border-t border-border">
               <div className="flex items-center gap-3">
-                <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground">
                   Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} designs
-                </div>
+              </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">Rows per page:</span>
                   <Select value={String(itemsPerPage)} onValueChange={(value) => setItemsPerPage(Number(value))}>
@@ -677,26 +677,26 @@ export default function MyDesignsContent() {
                 </div>
               </div>
               {totalPages > 1 && (
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Previous
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  >
-                    Next
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Previous
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
               )}
             </div>
           )}
@@ -883,9 +883,9 @@ export default function MyDesignsContent() {
           {/* Pagination */}
           <div className="flex items-center justify-between p-4 border-t border-border">
             <div className="flex items-center gap-3">
-              <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
                 Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} designs
-              </div>
+            </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Rows per page:</span>
                 <Select value={String(itemsPerPage)} onValueChange={(value) => setItemsPerPage(Number(value))}>
@@ -902,26 +902,26 @@ export default function MyDesignsContent() {
               </div>
             </div>
             {totalPages > 1 && (
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Previous
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Previous
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              >
+                Next
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
             )}
           </div>
         </div>

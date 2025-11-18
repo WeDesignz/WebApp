@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +47,12 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const isInitializedRef = useRef(false);
+
+  // Reset initialization when designId changes
+  useEffect(() => {
+    isInitializedRef.current = false;
+  }, [designId]);
 
   // Fetch design details
   const { data: designData, isLoading: isLoadingDesign, error: designError } = useQuery({
@@ -90,17 +96,62 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
   const categories: Category[] = categoriesData || [];
   const tags: Tag[] = tagsData || [];
 
-  // Get parent categories (categories with no parent)
-  const parentCategories = categories.filter(cat => !cat.parent && !cat.parent_id);
+  // Create a flattened categories array that includes both parent categories and all subcategories
+  const allCategories = useMemo(() => {
+    const flat: Category[] = [];
+    categories.forEach(cat => {
+      flat.push(cat); // Add parent category
+      if (cat.subcategories && Array.isArray(cat.subcategories)) {
+        flat.push(...cat.subcategories); // Add all subcategories
+      }
+    });
+    return flat;
+  }, [categories]);
+
+  // Get parent categories (categories with no parent) - memoize to prevent infinite loops
+  const parentCategories = useMemo(() => 
+    categories.filter(cat => !cat.parent && !cat.parent_id),
+    [categories]
+  );
   
   // Get subcategories for selected parent category
-  const availableSubcategories = parentCategoryId 
-    ? categories.find(cat => cat.id === parentCategoryId)?.subcategories || []
-    : [];
+  // Search through all categories to find those whose parent matches the selected parent category
+  const availableSubcategories = useMemo(() => {
+    if (!parentCategoryId) return [];
+    
+    // Find the parent category to get its ID and name
+    const parentCategory = parentCategories.find(p => p.id === parentCategoryId);
+    if (!parentCategory) return [];
+    
+    // First, check if the parent category has nested subcategories
+    if (parentCategory.subcategories && Array.isArray(parentCategory.subcategories) && parentCategory.subcategories.length > 0) {
+      return parentCategory.subcategories;
+    }
+    
+    // If not found in nested structure, search through all categories (flattened) to find subcategories
+    const foundSubcategories = allCategories.filter(cat => {
+      // Skip if this is the parent category itself
+      if (cat.id === parentCategoryId) return false;
+      
+      // Check parent_id field
+      if (cat.parent_id === parentCategoryId) return true;
+      
+      // Check parent field (can be string, number, or object)
+      if (cat.parent) {
+        if (typeof cat.parent === 'number' && cat.parent === parentCategoryId) return true;
+        if (typeof cat.parent === 'string' && cat.parent === parentCategory.name) return true;
+        if (typeof cat.parent === 'object' && (cat.parent.id === parentCategoryId || cat.parent.name === parentCategory.name)) return true;
+      }
+      
+      return false;
+    });
+    
+    return foundSubcategories;
+  }, [parentCategoryId, allCategories, parentCategories]);
 
-  // Populate form when design data loads
+  // Populate form when design data loads (only once)
   useEffect(() => {
-    if (designData && categories.length > 0) {
+    if (designData && categories.length > 0 && !isInitializedRef.current) {
       setTitle(designData.title || "");
       setDescription(designData.description || "");
       
@@ -172,6 +223,9 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
         const tagIds = designData.tags.map((tag: any) => tag.id || tag).filter(Boolean);
         setSelectedTagIds(tagIds);
       }
+      
+      // Mark as initialized
+      isInitializedRef.current = true;
     }
   }, [designData, categories, parentCategories]);
 
@@ -391,58 +445,78 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
             )}
           </div>
 
-          {/* Parent Category */}
-          <div>
-            <Label htmlFor="parentCategory">Category *</Label>
-            <Select
-              value={parentCategoryId ? String(parentCategoryId) : ""}
-              onValueChange={(value) => {
-                setParentCategoryId(parseInt(value));
-                setSubcategoryId(null); // Reset subcategory when parent changes
-              }}
-            >
-              <SelectTrigger id="parentCategory" className={validationErrors.category ? "border-destructive" : ""}>
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                {isLoadingCategories ? (
-                  <div className="p-2 text-center text-sm text-muted-foreground">Loading categories...</div>
-                ) : (
-                  parentCategories.map((category) => (
-                    <SelectItem key={category.id} value={String(category.id)}>
-                      {category.name}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-            {validationErrors.category && (
-              <p className="text-sm text-destructive mt-1">{validationErrors.category}</p>
-            )}
-          </div>
+          {/* Category and Subcategory - Side by Side */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Parent Category */}
+            <div>
+              <Label htmlFor="parentCategory">Category *</Label>
+              <Select
+                value={parentCategoryId ? String(parentCategoryId) : ""}
+                onValueChange={(value) => {
+                  setParentCategoryId(parseInt(value));
+                  setSubcategoryId(null); // Reset subcategory when parent changes
+                }}
+              >
+                <SelectTrigger id="parentCategory" className={validationErrors.category ? "border-destructive" : ""}>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {isLoadingCategories ? (
+                    <div className="p-2 text-center text-sm text-muted-foreground">Loading categories...</div>
+                  ) : (
+                    parentCategories.map((category) => (
+                      <SelectItem key={category.id} value={String(category.id)}>
+                        {category.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {validationErrors.category && (
+                <p className="text-sm text-destructive mt-1">{validationErrors.category}</p>
+              )}
+            </div>
 
-          {/* Subcategory */}
-          {parentCategoryId && availableSubcategories.length > 0 && (
+            {/* Subcategory */}
             <div>
               <Label htmlFor="subcategory">Subcategory (Optional)</Label>
               <Select
-                value={subcategoryId ? String(subcategoryId) : ""}
-                onValueChange={(value) => setSubcategoryId(value ? parseInt(value) : null)}
+                value={subcategoryId ? String(subcategoryId) : "none"}
+                onValueChange={(value) => {
+                  if (value === "none") {
+                    setSubcategoryId(null);
+                  } else {
+                    setSubcategoryId(parseInt(value));
+                  }
+                }}
+                disabled={!parentCategoryId}
               >
-                <SelectTrigger id="subcategory">
-                  <SelectValue placeholder="Select a subcategory (optional)" />
+                <SelectTrigger id="subcategory" disabled={!parentCategoryId}>
+                  <SelectValue placeholder={
+                    !parentCategoryId 
+                      ? "Select category first" 
+                      : availableSubcategories.length === 0
+                      ? "No subcategories available"
+                      : "Select a subcategory (optional)"
+                  } />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None (Use parent category)</SelectItem>
-                  {availableSubcategories.map((subcategory) => (
-                    <SelectItem key={subcategory.id} value={String(subcategory.id)}>
-                      {subcategory.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="none">None (Use parent category)</SelectItem>
+                  {availableSubcategories.length > 0 ? (
+                    availableSubcategories.map((subcategory) => (
+                      <SelectItem key={subcategory.id} value={String(subcategory.id)}>
+                        {subcategory.name}
+                      </SelectItem>
+                    ))
+                  ) : parentCategoryId ? (
+                    <div className="p-2 text-center text-sm text-muted-foreground">
+                      No subcategories available for this category
+                    </div>
+                  ) : null}
                 </SelectContent>
               </Select>
             </div>
-          )}
+          </div>
 
           {/* Pricing Type */}
           <div>
@@ -601,4 +675,5 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
     </div>
   );
 }
+
 

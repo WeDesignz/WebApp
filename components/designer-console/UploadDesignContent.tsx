@@ -342,7 +342,7 @@ export default function UploadDesignContent() {
           const hasAllRequired = REQUIRED_FILES.every(ext => files.has(ext));
           if (hasAllRequired) {
             validDesignFolders.set(folderName, files);
-          }
+    }
         }
 
         designCount = validDesignFolders.size;
@@ -948,8 +948,8 @@ export default function UploadDesignContent() {
                   </>
                 ) : (
                   <>
-                    <Download className="w-4 h-4 mr-2" />
-                    Download Bulk Upload Template
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Bulk Upload Template
                   </>
                 )}
               </Button>
@@ -1040,8 +1040,8 @@ export default function UploadDesignContent() {
                       >
                         Change File
                       </Button>
-                    </div>
-                  ) : (
+                      </div>
+                    ) : (
                     <div className="space-y-3">
                       <div className="flex justify-center">
                         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -1057,8 +1057,8 @@ export default function UploadDesignContent() {
                       <p className="text-xs text-muted-foreground">
                         Maximum file size: 1GB (1024 MB)
                       </p>
-                    </div>
-                  )}
+                      </div>
+                    )}
                 </div>
 
                 {(fileErrors.bulk || bulkValidationErrors.length > 0) && (
