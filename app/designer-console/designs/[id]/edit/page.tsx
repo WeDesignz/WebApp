@@ -5,19 +5,17 @@ import DesignerTopBar from "@/components/designer-console/DesignerTopBar";
 import DesignerSidebar from "@/components/designer-console/DesignerSidebar";
 import EditDesignContent from "@/components/designer-console/EditDesignContent";
 
-export default function EditDesignPage({ params }: { params: Promise<{ id: string }> | { id: string } }) {
+export default function EditDesignPage({ params }: { params: Promise<{ id: string }> }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [designId, setDesignId] = useState<number | null>(null);
 
   useEffect(() => {
-    // Handle both Promise and direct params (for Next.js 13+ compatibility)
-    if (params instanceof Promise) {
-      params.then((resolvedParams) => {
-        setDesignId(parseInt(resolvedParams.id));
-      });
-    } else {
-      setDesignId(parseInt(params.id));
-    }
+    // Next.js 15: params is always a Promise
+    params.then((resolvedParams) => {
+      setDesignId(parseInt(resolvedParams.id));
+    }).catch((error) => {
+      console.error('Error resolving params:', error);
+    });
   }, [params]);
 
   if (!designId) {
