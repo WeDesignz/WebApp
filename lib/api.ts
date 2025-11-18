@@ -2153,14 +2153,20 @@ export const apiClient = {
     if (response.data?.data) {
       return {
         data: response.data.data,
+        error: response.error,
+        message: response.message,
+        errorDetails: response.errorDetails,
+        fieldErrors: response.fieldErrors,
+        validationErrors: response.validationErrors,
       };
     }
-    return response as ApiResponse<{
-      commission_rate: number;
-      gst_percentage: number;
-      custom_order_time_slot_hours: number;
-      minimum_required_designs_onboard: number;
-    }>;
+    // If no data, return error response
+    return {
+      error: response.error || 'Failed to fetch business configuration',
+      errorDetails: response.errorDetails,
+      fieldErrors: response.fieldErrors,
+      validationErrors: response.validationErrors,
+    };
   },
 };
 
