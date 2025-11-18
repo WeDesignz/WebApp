@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { 
-  Upload, 
   Search, 
   Grid3x3, 
   List, 
@@ -18,6 +17,7 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -59,6 +66,7 @@ interface Design {
   description?: string;
   category?: number;
   category_name?: string;
+  parent_category_name?: string;
   price?: number;
   status: "pending" | "approved" | "rejected" | "active" | "draft";
   views?: number;
@@ -68,7 +76,14 @@ interface Design {
   updated_at?: string;
   product_number?: string;
   thumbnail?: string;
-  media_files?: any[];
+  media?: Array<{
+    id: number;
+    file?: string;
+    file_url?: string;
+    media_type?: string;
+    [key: string]: any;
+  }>;
+  media_files?: any[]; // Keep for backward compatibility
   tags?: any[];
   rejection_reason?: string;
 }
@@ -107,13 +122,83 @@ const getTimeAgo = (date: string): string => {
   return `${Math.floor(diffInSeconds / 2592000)} months ago`;
 };
 
+// Helper function to get image URL from design, prioritizing JPG images
+const getDesignImageUrl = (design: Design): string | null => {
+  // Use media array (from ProductSerializer) or fallback to media_files
+  const mediaArray = design.media || design.media_files || [];
+  
+  if (mediaArray.length === 0) {
+    // Fallback to thumbnail if available
+    if (design.thumbnail) {
+      return makeAbsoluteUrl(design.thumbnail);
+    }
+    return null;
+  }
+
+  // First pass: Look for JPG/JPEG images
+  for (const media of mediaArray) {
+    if (media.media_type === 'image' || !media.media_type) {
+      const url = media.file_url || media.file;
+      if (url) {
+        const urlLower = url.toLowerCase();
+        // Check if it's a JPG/JPEG file
+        if (urlLower.includes('.jpg') || urlLower.includes('.jpeg')) {
+          return makeAbsoluteUrl(url);
+        }
+      }
+    }
+  }
+
+  // Second pass: Get first image (any format)
+  for (const media of mediaArray) {
+    if (media.media_type === 'image' || !media.media_type) {
+      const url = media.file_url || media.file;
+      if (url) {
+        return makeAbsoluteUrl(url);
+      }
+    }
+  }
+
+  // Fallback to thumbnail
+  if (design.thumbnail) {
+    return makeAbsoluteUrl(design.thumbnail);
+  }
+
+  return null;
+};
+
+// Helper function to make relative URLs absolute
+const makeAbsoluteUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  
+  // If already absolute, return as is
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  // If relative, prepend API base URL
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+  if (apiBaseUrl && url.startsWith('/')) {
+    return `${apiBaseUrl}${url}`;
+  }
+  
+  // If relative without leading slash, add it
+  if (apiBaseUrl && !url.startsWith('/')) {
+    return `${apiBaseUrl}/${url}`;
+  }
+  
+  // If no API base URL configured, return as is (might work if same origin)
+  return url;
+};
+
 export default function MyDesignsContent() {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedDesign, setSelectedDesign] = useState<Design | null>(null);
   const [selectedDesigns, setSelectedDesigns] = useState<Set<number>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -132,6 +217,11 @@ export default function MyDesignsContent() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Reset to first page when items per page changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [itemsPerPage]);
+
   // Fetch categories
   const { data: categoriesData } = useQuery({
     queryKey: ['categories'],
@@ -149,11 +239,11 @@ export default function MyDesignsContent() {
 
   // Fetch designs
   const { data: designsData, isLoading, error } = useQuery({
-    queryKey: ['myDesigns', currentPage, debouncedSearch, statusFilter, categoryFilter],
+    queryKey: ['myDesigns', currentPage, itemsPerPage, debouncedSearch, statusFilter, categoryFilter],
     queryFn: async () => {
       const response = await apiClient.getMyDesigns({
         page: currentPage,
-        limit: 20,
+        limit: itemsPerPage,
         status: statusFilter || undefined,
         category_id: categoryFilter || undefined,
         search: debouncedSearch || undefined,
@@ -322,14 +412,7 @@ export default function MyDesignsContent() {
     <div className="p-6">
       {/* Top Area */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <Link href="/designer-console/designs/upload">
-            <Button className="gap-2">
-              <Upload className="w-4 h-4" />
-              Upload Design
-            </Button>
-          </Link>
-
+        <div className="flex items-center justify-end mb-4">
           <div className="flex items-center gap-3">
             <div className="relative w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -343,15 +426,6 @@ export default function MyDesignsContent() {
             
             <div className="flex gap-1 border border-border rounded-lg p-1">
               <Button
-                variant={viewMode === "grid" ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("grid")}
-                className="gap-2"
-              >
-                <Grid3x3 className="w-4 h-4" />
-                Grid
-              </Button>
-              <Button
                 variant={viewMode === "list" ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => setViewMode("list")}
@@ -359,6 +433,15 @@ export default function MyDesignsContent() {
               >
                 <List className="w-4 h-4" />
                 List
+              </Button>
+              <Button
+                variant={viewMode === "grid" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("grid")}
+                className="gap-2"
+              >
+                <Grid3x3 className="w-4 h-4" />
+                Grid
               </Button>
             </div>
           </div>
@@ -452,16 +535,8 @@ export default function MyDesignsContent() {
           <p className="text-muted-foreground mb-4">
             {searchQuery || statusFilter || categoryFilter
               ? "Try adjusting your filters"
-              : "Upload your first design to get started"}
+              : "No designs found. Use the navigation menu to upload your first design."}
           </p>
-          {!searchQuery && !statusFilter && !categoryFilter && (
-            <Link href="/designer-console/designs/upload">
-              <Button>
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Design
-              </Button>
-            </Link>
-          )}
         </Card>
       )}
 
@@ -470,7 +545,7 @@ export default function MyDesignsContent() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {sortedDesigns.map((design) => {
-              const thumbnail = design.media_files?.[0]?.file || design.thumbnail;
+              const imageUrl = getDesignImageUrl(design);
               return (
                 <Card
                   key={design.id}
@@ -487,8 +562,24 @@ export default function MyDesignsContent() {
                     
                     {/* Thumbnail */}
                     <div className="aspect-[4/3] bg-gradient-to-br from-primary/20 to-purple-500/20 relative">
-                      {thumbnail ? (
-                        <img src={thumbnail} alt={design.title} className="w-full h-full object-cover" />
+                      {imageUrl ? (
+                        <img 
+                          src={imageUrl} 
+                          alt={design.title} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Fallback to placeholder if image fails to load
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const parent = target.parentElement;
+                            if (parent && !parent.querySelector('.placeholder')) {
+                              const placeholder = document.createElement('div');
+                              placeholder.className = 'placeholder w-full h-full flex items-center justify-center';
+                              placeholder.innerHTML = '<svg class="w-12 h-12 text-muted-foreground/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>';
+                              parent.appendChild(placeholder);
+                            }
+                          }}
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Upload className="w-12 h-12 text-muted-foreground/30" />
@@ -525,9 +616,15 @@ export default function MyDesignsContent() {
 
                   <CardContent className="p-4">
                     <h3 className="font-semibold mb-2 line-clamp-1">{design.title}</h3>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground mb-3">
-                      <span>{design.category_name || 'Uncategorized'}</span>
-                      <span className="font-semibold text-foreground">{formatCurrency(design.price)}</span>
+                    <div className="flex flex-col gap-1 text-sm text-muted-foreground mb-3">
+                      <div className="flex items-center justify-between">
+                        <span>
+                          {design.parent_category_name ? 
+                            `${design.parent_category_name} / ${design.category_name || '—'}` : 
+                            (design.category_name || (design.category && typeof design.category === 'object' ? design.category.name : null) || 'Uncategorized')}
+                        </span>
+                        <span className="font-semibold text-foreground">{formatCurrency(design.price)}</span>
+                      </div>
                     </div>
                     <Badge
                       variant={design.status === "approved" || design.status === "active" ? "default" : design.status === "pending" ? "secondary" : "destructive"}
@@ -558,31 +655,49 @@ export default function MyDesignsContent() {
           </div>
 
           {/* Pagination for Grid View */}
-          {totalPages > 1 && (
+          {sortedDesigns.length > 0 && (
             <div className="flex items-center justify-between mt-6 p-4 border-t border-border">
-              <div className="text-sm text-muted-foreground">
-                Showing {((currentPage - 1) * 20) + 1}-{Math.min(currentPage * 20, totalCount)} of {totalCount} designs
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} designs
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Rows per page:</span>
+                  <Select value={String(itemsPerPage)} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                    <SelectTrigger className="w-20 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Previous
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
+              {totalPages > 1 && (
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Previous
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </>
@@ -601,8 +716,10 @@ export default function MyDesignsContent() {
                       onCheckedChange={toggleSelectAll}
                     />
                   </th>
+                  <th className="p-3 w-16 text-center">Sr No</th>
                   <th className="p-3">Design</th>
                   <th className="p-3">Category</th>
+                  <th className="p-3">Subcategory</th>
                   <th className="p-3 cursor-pointer hover:text-primary" onClick={() => handleSort("status")}>
                     Status {sortColumn === "status" && (sortDirection === "asc" ? "↑" : "↓")}
                   </th>
@@ -622,8 +739,9 @@ export default function MyDesignsContent() {
                 </tr>
               </thead>
               <tbody>
-                {sortedDesigns.map((design) => {
-                  const thumbnail = design.media_files?.[0]?.file || design.thumbnail;
+                {sortedDesigns.map((design, index) => {
+                  const imageUrl = getDesignImageUrl(design);
+                  const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
                   return (
                     <tr
                       key={design.id}
@@ -636,11 +754,29 @@ export default function MyDesignsContent() {
                           onCheckedChange={() => toggleSelectDesign(design.id)}
                         />
                       </td>
+                      <td className="p-3 text-center text-sm text-muted-foreground font-medium">
+                        {serialNumber}
+                      </td>
                       <td className="p-3">
                         <div className="flex items-center gap-3">
                           <div className="w-16 h-12 rounded bg-gradient-to-br from-primary/20 to-purple-500/20 flex-shrink-0 overflow-hidden">
-                            {thumbnail ? (
-                              <img src={thumbnail} alt={design.title} className="w-full h-full object-cover" />
+                            {imageUrl ? (
+                              <img 
+                                src={imageUrl} 
+                                alt={design.title} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  const parent = target.parentElement;
+                                  if (parent && !parent.querySelector('.placeholder')) {
+                                    const placeholder = document.createElement('div');
+                                    placeholder.className = 'placeholder w-full h-full flex items-center justify-center';
+                                    placeholder.innerHTML = '<svg class="w-6 h-6 text-muted-foreground/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>';
+                                    parent.appendChild(placeholder);
+                                  }
+                                }}
+                              />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
                                 <Upload className="w-6 h-6 text-muted-foreground/30" />
@@ -653,7 +789,40 @@ export default function MyDesignsContent() {
                           </div>
                         </div>
                       </td>
-                      <td className="p-3 text-sm">{design.category_name || 'Uncategorized'}</td>
+                      <td className="p-3 text-sm">
+                        {(() => {
+                          // If parent_category_name exists, it's a subcategory - show parent as category
+                          if (design.parent_category_name) {
+                            return design.parent_category_name;
+                          }
+                          // Otherwise, show category_name as the category
+                          if (design.category_name) {
+                            return design.category_name;
+                          }
+                          // Fallback to nested category object
+                          if (design.category && typeof design.category === 'object') {
+                            // If category has a parent (string), it's a subcategory
+                            if (design.category.parent) {
+                              return design.category.parent;
+                            }
+                            return design.category.name;
+                          }
+                          return 'Uncategorized';
+                        })()}
+                      </td>
+                      <td className="p-3 text-sm">
+                        {(() => {
+                          // If parent_category_name exists, show category_name as subcategory
+                          if (design.parent_category_name) {
+                            return design.category_name || '—';
+                          }
+                          // If category object has a parent, show category name as subcategory
+                          if (design.category && typeof design.category === 'object' && design.category.parent) {
+                            return design.category.name || '—';
+                          }
+                          return '—';
+                        })()}
+                      </td>
                       <td className="p-3">
                         <Badge
                           variant={design.status === "approved" || design.status === "active" ? "default" : design.status === "pending" ? "secondary" : "destructive"}
@@ -713,29 +882,47 @@ export default function MyDesignsContent() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between p-4 border-t border-border">
-            <div className="text-sm text-muted-foreground">
-              Showing {((currentPage - 1) * 20) + 1}-{Math.min(currentPage * 20, totalCount)} of {totalCount} designs
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-muted-foreground">
+                Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} designs
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Rows per page:</span>
+                <Select value={String(itemsPerPage)} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                  <SelectTrigger className="w-20 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              >
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                Previous
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              >
-                Next
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
+            {totalPages > 1 && (
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Previous
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -781,11 +968,22 @@ export default function MyDesignsContent() {
 
               {/* Image Preview */}
               <div className="aspect-video bg-gradient-to-br from-primary/20 to-purple-500/20 rounded-lg mb-6 overflow-hidden">
-                {((designDetail || selectedDesign).media_files?.[0]?.file || (designDetail || selectedDesign).thumbnail) ? (
+                {getDesignImageUrl(designDetail || selectedDesign) ? (
                   <img 
-                    src={(designDetail || selectedDesign).media_files?.[0]?.file || (designDetail || selectedDesign).thumbnail} 
+                    src={getDesignImageUrl(designDetail || selectedDesign) || ''} 
                     alt={(designDetail || selectedDesign).title}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent && !parent.querySelector('.placeholder')) {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'placeholder w-full h-full flex items-center justify-center';
+                        placeholder.innerHTML = '<svg class="w-16 h-16 text-muted-foreground/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>';
+                        parent.appendChild(placeholder);
+                      }
+                    }}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -801,8 +999,23 @@ export default function MyDesignsContent() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Category:</span>
-                      <span className="ml-2 font-medium">{(designDetail || selectedDesign).category_name || 'Uncategorized'}</span>
+                      <span className="ml-2 font-medium">
+                        {(designDetail || selectedDesign).parent_category_name || 
+                         ((designDetail || selectedDesign).category_name && !(designDetail || selectedDesign).parent_category_name ? (designDetail || selectedDesign).category_name : null) ||
+                         (((designDetail || selectedDesign).category && typeof (designDetail || selectedDesign).category === 'object' && !(designDetail || selectedDesign).category.parent) ? (designDetail || selectedDesign).category.name : null) ||
+                         'Uncategorized'}
+                      </span>
                     </div>
+                    {(designDetail || selectedDesign).parent_category_name && (
+                      <div>
+                        <span className="text-muted-foreground">Subcategory:</span>
+                        <span className="ml-2 font-medium">
+                          {(designDetail || selectedDesign).category_name || 
+                           ((designDetail || selectedDesign).category && typeof (designDetail || selectedDesign).category === 'object' ? (designDetail || selectedDesign).category.name : null) ||
+                           '—'}
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <span className="text-muted-foreground">Price:</span>
                       <span className="ml-2 font-medium">{formatCurrency((designDetail || selectedDesign).price)}</span>
@@ -813,7 +1026,7 @@ export default function MyDesignsContent() {
                     </div>
                     <div>
                       <span className="text-muted-foreground">File Versions:</span>
-                      <span className="ml-2">{(designDetail || selectedDesign).media_files?.length || 0}</span>
+                      <span className="ml-2">{((designDetail || selectedDesign).media || (designDetail || selectedDesign).media_files)?.length || 0}</span>
                     </div>
                   </div>
                 </div>
