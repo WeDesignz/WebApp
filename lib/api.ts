@@ -243,6 +243,15 @@ export const catalogAPI = {
     return apiRequest('/api/catalog/categories/');
   },
 
+  /**
+   * Get subcategories for a specific category
+   */
+  async getCategorySubcategories(categoryId: number): Promise<ApiResponse<{
+    subcategories: any[];
+  }>> {
+    return apiRequest(`/api/catalog/categories/${categoryId}/subcategories/`);
+  },
+
   async getTags(): Promise<ApiResponse<{
     tags: any[];
   }>> {

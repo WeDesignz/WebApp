@@ -80,6 +80,21 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
     staleTime: 5 * 60 * 1000,
   });
 
+  // Fetch subcategories for selected parent category
+  const { data: subcategoriesData, isLoading: isLoadingSubcategories } = useQuery({
+    queryKey: ['subcategories', parentCategoryId],
+    queryFn: async () => {
+      if (!parentCategoryId) return [];
+      const response = await apiClient.getCategorySubcategories(parentCategoryId);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data?.subcategories || [];
+    },
+    enabled: !!parentCategoryId,
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Fetch tags
   const { data: tagsData, isLoading: isLoadingTags } = useQuery({
     queryKey: ['tags'],
@@ -96,58 +111,14 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
   const categories: Category[] = categoriesData || [];
   const tags: Tag[] = tagsData || [];
 
-  // Create a flattened categories array that includes both parent categories and all subcategories
-  const allCategories = useMemo(() => {
-    const flat: Category[] = [];
-    categories.forEach(cat => {
-      flat.push(cat); // Add parent category
-      if (cat.subcategories && Array.isArray(cat.subcategories)) {
-        flat.push(...cat.subcategories); // Add all subcategories
-      }
-    });
-    return flat;
-  }, [categories]);
-
   // Get parent categories (categories with no parent) - memoize to prevent infinite loops
   const parentCategories = useMemo(() => 
     categories.filter(cat => !cat.parent && !cat.parent_id),
     [categories]
   );
   
-  // Get subcategories for selected parent category
-  // Search through all categories to find those whose parent matches the selected parent category
-  const availableSubcategories = useMemo(() => {
-    if (!parentCategoryId) return [];
-    
-    // Find the parent category to get its ID and name
-    const parentCategory = parentCategories.find(p => p.id === parentCategoryId);
-    if (!parentCategory) return [];
-    
-    // First, check if the parent category has nested subcategories
-    if (parentCategory.subcategories && Array.isArray(parentCategory.subcategories) && parentCategory.subcategories.length > 0) {
-      return parentCategory.subcategories;
-    }
-    
-    // If not found in nested structure, search through all categories (flattened) to find subcategories
-    const foundSubcategories = allCategories.filter(cat => {
-      // Skip if this is the parent category itself
-      if (cat.id === parentCategoryId) return false;
-      
-      // Check parent_id field
-      if (cat.parent_id === parentCategoryId) return true;
-      
-      // Check parent field (can be string, number, or object)
-      if (cat.parent) {
-        if (typeof cat.parent === 'number' && cat.parent === parentCategoryId) return true;
-        if (typeof cat.parent === 'string' && cat.parent === parentCategory.name) return true;
-        if (typeof cat.parent === 'object' && (cat.parent.id === parentCategoryId || cat.parent.name === parentCategory.name)) return true;
-      }
-      
-      return false;
-    });
-    
-    return foundSubcategories;
-  }, [parentCategoryId, allCategories, parentCategories]);
+  // Get subcategories from API response
+  const availableSubcategories = subcategoriesData || [];
 
   // Populate form when design data loads (only once)
   useEffect(() => {
@@ -228,6 +199,31 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
       isInitializedRef.current = true;
     }
   }, [designData, categories, parentCategories]);
+
+  // Ensure subcategory is set once subcategories are loaded (for cases where subcategories load after initialization)
+  useEffect(() => {
+    if (subcategoriesData && subcategoriesData.length > 0 && designData && isInitializedRef.current) {
+      // Extract category information
+      let currentCategoryId = null;
+      if (designData.category_id) {
+        currentCategoryId = designData.category_id;
+      } else if (designData.category) {
+        currentCategoryId = typeof designData.category === 'object' ? designData.category.id : designData.category;
+      }
+
+      // If we have a current category ID, parent category is set, but subcategory is not set yet
+      if (currentCategoryId && parentCategoryId && !subcategoryId) {
+        const isParentCategory = parentCategories.some(cat => cat.id === currentCategoryId);
+        if (!isParentCategory) {
+          // Check if current category ID exists in the loaded subcategories
+          const subcategoryExists = subcategoriesData.some(sub => sub.id === currentCategoryId);
+          if (subcategoryExists) {
+            setSubcategoryId(currentCategoryId);
+          }
+        }
+      }
+    }
+  }, [subcategoriesData, designData, parentCategoryId, subcategoryId, parentCategories]);
 
   const handleAddTag = (tagId: number) => {
     if (!selectedTagIds.includes(tagId)) {
@@ -481,13 +477,9 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
             <div>
               <Label htmlFor="subcategory">Subcategory (Optional)</Label>
               <Select
-                value={subcategoryId ? String(subcategoryId) : "none"}
+                value={subcategoryId ? String(subcategoryId) : ""}
                 onValueChange={(value) => {
-                  if (value === "none") {
-                    setSubcategoryId(null);
-                  } else {
-                    setSubcategoryId(parseInt(value));
-                  }
+                  setSubcategoryId(value ? parseInt(value) : null);
                 }}
                 disabled={!parentCategoryId}
               >
@@ -497,12 +489,13 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                       ? "Select category first" 
                       : availableSubcategories.length === 0
                       ? "No subcategories available"
-                      : "Select a subcategory (optional)"
+                      : "Select a subcategory"
                   } />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None (Use parent category)</SelectItem>
-                  {availableSubcategories.length > 0 ? (
+                  {isLoadingSubcategories ? (
+                    <div className="p-2 text-center text-sm text-muted-foreground">Loading subcategories...</div>
+                  ) : availableSubcategories.length > 0 ? (
                     availableSubcategories.map((subcategory) => (
                       <SelectItem key={subcategory.id} value={String(subcategory.id)}>
                         {subcategory.name}
