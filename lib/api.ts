@@ -106,10 +106,54 @@ async function apiRequest<T>(
       };
     }
 
-    const response = await fetch(`${baseUrl}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    // Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    let response: Response;
+    try {
+      response = await fetch(`${baseUrl}${endpoint}`, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      
+      // Handle timeout
+      if (fetchError.name === 'AbortError') {
+        const timeoutError = {
+          type: ErrorType.NETWORK,
+          message: 'Request timeout. The server took too long to respond.',
+          statusCode: 408,
+        };
+        logError(timeoutError, `API Request Timeout: ${endpoint}`);
+        return {
+          error: 'Request timeout. Please check if the server is running and try again.',
+          errorDetails: timeoutError,
+        };
+      }
+      
+      // Handle network errors (server not reachable, CORS, etc.)
+      const networkError = formatError(fetchError, undefined);
+      const userMessage = getUserFriendlyMessage(networkError);
+      
+      // Provide more helpful error message
+      let helpfulMessage = userMessage;
+      if (fetchError.message?.includes('Failed to fetch') || 
+          fetchError.message?.includes('NetworkError') ||
+          fetchError.name === 'TypeError') {
+        helpfulMessage = `Unable to connect to the server at ${baseUrl}. Please ensure the API server is running and the API base URL is correct.`;
+      }
+      
+      logError(networkError, `API Request Failed: ${endpoint}`);
+      
+      return {
+        error: helpfulMessage,
+        errorDetails: networkError,
+      };
+    }
 
     if (!response.ok) {
       let errorData: any = {};
@@ -259,6 +303,48 @@ export const catalogAPI = {
     tags: any[];
   }>> {
     return apiRequest('/api/catalog/tags/');
+  },
+
+  /**
+   * Create a new tag
+   */
+  async createTag(name: string): Promise<ApiResponse<{
+    tag: any;
+  }>> {
+    return apiRequest('/api/catalog/tags/', {
+      method: 'POST',
+      body: JSON.stringify({ name: name.trim() }),
+    });
+  },
+
+  /**
+   * Create a new category
+   */
+  async createCategory(name: string, description?: string): Promise<ApiResponse<{
+    category: any;
+  }>> {
+    return apiRequest('/api/catalog/categories/', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        name: name.trim(),
+        description: description?.trim() || '',
+      }),
+    });
+  },
+
+  /**
+   * Create a new subcategory
+   */
+  async createSubcategory(categoryId: number, name: string, description?: string): Promise<ApiResponse<{
+    subcategory: any;
+  }>> {
+    return apiRequest(`/api/catalog/categories/${categoryId}/subcategories/`, {
+      method: 'POST',
+      body: JSON.stringify({ 
+        name: name.trim(),
+        description: description?.trim() || '',
+      }),
+    });
   },
 
   /**
@@ -1508,74 +1594,78 @@ export const apiClient = {
 
   // Upload Design
   uploadDesign: async (formData: FormData) => {
+    const token = typeof window !== 'undefined' 
+      ? localStorage.getItem('wedesign_access_token') 
+      : null;
+
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const baseUrl = getApiBaseUrl();
+    if (!baseUrl) {
+      return {
+        error: 'API base URL is not configured',
+        errorDetails: {
+          type: ErrorType.NETWORK,
+          message: 'API base URL is not configured',
+          statusCode: 500,
+        },
+      };
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 minutes
+    
     try {
-      const token = typeof window !== 'undefined' 
-        ? localStorage.getItem('wedesign_access_token') 
-        : null;
-
-      const headers: HeadersInit = {};
-      // Don't set Content-Type for FormData - browser will set it with boundary
-
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const baseUrl = getApiBaseUrl();
-      if (!baseUrl) {
-        return {
-          error: 'API base URL is not configured. Please set NEXT_PUBLIC_API_BASE_URL environment variable.',
-          errorDetails: {
-            type: ErrorType.NETWORK,
-            message: 'API base URL is not configured',
-            statusCode: 500,
-          },
-        };
-      }
-
       const response = await fetch(`${baseUrl}/api/catalog/upload-design/`, {
         method: 'POST',
         headers,
         body: formData,
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         let errorData: any = {};
         try {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            errorData = await response.json();
-          } else {
-            errorData = { detail: response.statusText || 'Upload failed' };
-          }
-        } catch (parseError) {
-          errorData = { detail: response.statusText || 'Upload failed' };
+          errorData = await response.json();
+        } catch {
+          errorData = { error: response.statusText || 'Upload failed' };
         }
-
-        const errorDetails = formatError(errorData, response.status);
-        const userMessage = getUserFriendlyMessage(errorDetails);
-        logError(errorDetails, 'Upload Design');
 
         if (response.status === 401) {
           await handleUnauthorized();
         }
 
         return {
-          error: userMessage,
-          errorDetails,
-          fieldErrors: errorDetails.fieldErrors,
+          error: errorData.error || errorData.detail || 'Upload failed',
+          errorDetails: formatError(errorData, response.status),
         };
       }
 
       const data = await response.json();
       return { data };
+      
     } catch (error: any) {
-      const errorDetails = formatError(error, undefined);
-      const userMessage = getUserFriendlyMessage(errorDetails);
-      logError(errorDetails, 'Upload Design');
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        return {
+          error: 'Upload timeout. Please try again with smaller files.',
+          errorDetails: {
+            type: ErrorType.NETWORK,
+            message: 'Upload timeout',
+            statusCode: 408,
+          },
+        };
+      }
 
       return {
-        error: userMessage,
-        errorDetails,
+        error: 'Failed to upload design. Please check your connection and try again.',
+        errorDetails: formatError(error, undefined),
       };
     }
   },

@@ -14,7 +14,6 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { Progress } from "@/components/ui/progress";
 import JSZip from "jszip";
 import * as XLSX from "xlsx";
 
@@ -53,10 +52,16 @@ export default function UploadDesignContent() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
   const [price, setPrice] = useState("");
   const [color, setColor] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]); // Store tag names for chip display
   const [tagInput, setTagInput] = useState("");
+  const [showCreateCategory, setShowCreateCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [showCreateSubcategory, setShowCreateSubcategory] = useState(false);
+  const [newSubcategoryName, setNewSubcategoryName] = useState("");
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [files, setFiles] = useState<FileUploadStatus>({
     eps: null,
@@ -67,54 +72,218 @@ export default function UploadDesignContent() {
   });
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [bulkValidationErrors, setBulkValidationErrors] = useState<string[]>([]);
   const [isValidatingBulk, setIsValidatingBulk] = useState(false);
   const [bulkDesignCount, setBulkDesignCount] = useState<number>(0);
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
 
-  // Fetch categories
-  const { data: categoriesData, isLoading: isLoadingCategories } = useQuery({
+  // Fetch categories - Categories List API returns only parent categories
+  const { data: categoriesData, isLoading: isLoadingCategories, refetch: refetchCategories } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
       const response = await apiClient.getCategories();
       if (response.error) {
+        console.error('Error fetching categories:', response.error);
         throw new Error(response.error);
       }
+      
+      // Backend returns: { categories: [...] }
+      // apiRequest wraps it: { data: { categories: [...] } }
       return response.data?.categories || [];
     },
     staleTime: 5 * 60 * 1000,
   });
 
+  // Fetch subcategories when category is selected - Get Subcategories by Category ID API
+  const { data: subcategoriesData, isLoading: isLoadingSubcategories } = useQuery({
+    queryKey: ['subcategories', categoryId],
+    queryFn: async () => {
+      if (!categoryId) return [];
+      const response = await apiClient.getCategorySubcategories(categoryId);
+      if (response.error) {
+        console.error('Error fetching subcategories:', response.error);
+        throw new Error(response.error);
+      }
+      
+      // Backend returns: { subcategories: [...] }
+      // apiRequest wraps it: { data: { subcategories: [...] } }
+      return response.data?.subcategories || [];
+    },
+    enabled: !!categoryId,
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Fetch tags
-  const { data: tagsData, isLoading: isLoadingTags } = useQuery({
+  const { data: tagsData, isLoading: isLoadingTags, refetch: refetchTags } = useQuery({
     queryKey: ['tags'],
     queryFn: async () => {
       const response = await apiClient.getTags();
       if (response.error) {
         throw new Error(response.error);
       }
+      // Backend returns: { tags: [...] }
+      // apiRequest wraps it: { data: { tags: [...] } }
       return response.data?.tags || [];
     },
     staleTime: 5 * 60 * 1000,
   });
 
+  // Categories are already filtered to only parent categories in the query
   const categories: Category[] = categoriesData || [];
+  const subcategories: Category[] = subcategoriesData || [];
   const tags: Tag[] = tagsData || [];
 
-  const handleAddTag = (tagId: number) => {
-    if (!selectedTagIds.includes(tagId)) {
-      setSelectedTagIds([...selectedTagIds, tagId]);
+  // Handle tag input - create chip on Enter or comma
+  const handleTagInputKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const tagName = tagInput.trim();
+      if (tagName && !selectedTags.includes(tagName)) {
+        // Check if tag exists
+        const existingTag = tags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
+        
+        if (existingTag) {
+          // Use existing tag
+          if (!selectedTagIds.includes(existingTag.id)) {
+            setSelectedTagIds([...selectedTagIds, existingTag.id]);
+            setSelectedTags([...selectedTags, tagName]);
+          }
+        } else {
+          // Create new tag
+          try {
+            const response = await apiClient.createTag(tagName);
+            if (response.error) {
+              toast({
+                title: "Error",
+                description: response.error || "Failed to create tag",
+                variant: "destructive",
+              });
+              return;
+            }
+            
+            if (response.data?.tag) {
+              const newTag = response.data.tag;
+              setSelectedTagIds([...selectedTagIds, newTag.id]);
+              setSelectedTags([...selectedTags, tagName]);
+              refetchTags(); // Refresh tags list
+            }
+          } catch (error: any) {
+            toast({
+              title: "Error",
+              description: error.message || "Failed to create tag",
+              variant: "destructive",
+            });
+          }
+        }
+        setTagInput("");
+      }
     }
   };
 
-  const handleRemoveTag = (tagIdToRemove: number) => {
-    setSelectedTagIds(selectedTagIds.filter(id => id !== tagIdToRemove));
+  const handleRemoveTag = (tagNameToRemove: string) => {
+    const tagIndex = selectedTags.indexOf(tagNameToRemove);
+    if (tagIndex !== -1) {
+      const newTags = [...selectedTags];
+      const newTagIds = [...selectedTagIds];
+      newTags.splice(tagIndex, 1);
+      newTagIds.splice(tagIndex, 1);
+      setSelectedTags(newTags);
+      setSelectedTagIds(newTagIds);
+    }
   };
 
-  const handleSearchTag = (searchTerm: string) => {
-    setTagInput(searchTerm);
+  // Handle creating new category
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a category name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const response = await apiClient.createCategory(newCategoryName.trim());
+      if (response.error) {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to create category",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (response.data?.category) {
+        const newCategory = response.data.category;
+        setCategoryId(newCategory.id);
+        setShowCreateCategory(false);
+        setNewCategoryName("");
+        // Refetch categories to include the newly created one
+        await refetchCategories();
+        toast({
+          title: "Success",
+          description: "Category created successfully",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create category",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle creating new subcategory
+  const handleCreateSubcategory = async () => {
+    if (!newSubcategoryName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a subcategory name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!categoryId) {
+      toast({
+        title: "Error",
+        description: "Please select a category first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const response = await apiClient.createSubcategory(categoryId, newSubcategoryName.trim());
+      if (response.error) {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to create subcategory",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (response.data?.subcategory) {
+        const newSubcategory = response.data.subcategory;
+        setSubcategoryId(newSubcategory.id);
+        setShowCreateSubcategory(false);
+        setNewSubcategoryName("");
+        toast({
+          title: "Success",
+          description: "Subcategory created successfully",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create subcategory",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleFileUpload = (fileType: keyof FileUploadStatus, file: File) => {
@@ -496,7 +665,6 @@ export default function UploadDesignContent() {
     }
 
     setIsUploading(true);
-    setUploadProgress(0);
 
     try {
       const formData = new FormData();
@@ -504,9 +672,12 @@ export default function UploadDesignContent() {
       // Add text fields
       formData.append('title', title.trim());
       formData.append('description', description.trim());
-      formData.append('category_id', String(categoryId));
-      // Map pricing type: 'free' -> 'basic', 'paid' -> 'prime'
-      formData.append('product_plan_type', pricingType === "free" ? "basic" : "prime");
+      const finalCategoryId = subcategoryId || categoryId;
+      if (!finalCategoryId) {
+        throw new Error('Category is required');
+      }
+      formData.append('category_id', String(finalCategoryId));
+      formData.append('product_plan_type', pricingType === "free" ? "free" : "basic");
 
       if (pricingType === "paid" && price) {
         formData.append('price', price);
@@ -518,7 +689,6 @@ export default function UploadDesignContent() {
 
       // Add design files
       if (uploadMode === "single") {
-        // Add required files (eps, cdr, jpg, png) and optional mockup
         Object.entries(files).forEach(([fileType, file]) => {
           if (file) {
             formData.append('design_files', file);
@@ -533,32 +703,36 @@ export default function UploadDesignContent() {
         formData.append('tags', String(tagId));
       });
 
-      // Simulate progress (since we can't track actual upload progress easily)
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90));
-      }, 200);
-
+      // Upload - returns immediately, files processed in background
       const response = await apiClient.uploadDesign(formData);
-
-      clearInterval(progressInterval);
-      setUploadProgress(100);
 
       if (response.error) {
         throw new Error(response.error);
       }
 
+      if (!response.data) {
+        throw new Error('Upload failed - no response from server');
+      }
+
+      const productId = response.data.product_id;
+      const platformId = response.data.platform_id;
+
+      // Show success toast immediately
       toast({
-        title: "Design uploaded successfully!",
-        description: `Your design has been submitted for review. Product ID: ${response.data?.product_id}, Platform ID: ${response.data?.platform_id}`,
+        title: "Design submitted successfully!",
+        description: `Your design has been submitted for review. Files are being processed in the background. Product ID: ${productId}, Platform ID: ${platformId}`,
       });
 
       // Reset form
       setTitle("");
       setDescription("");
       setCategoryId(null);
+      setSubcategoryId(null);
       setPrice("");
       setColor("");
       setSelectedTagIds([]);
+      setSelectedTags([]);
+      setTagInput("");
       setFiles({
         eps: null,
         cdr: null,
@@ -572,20 +746,21 @@ export default function UploadDesignContent() {
       setValidationErrors({});
       setFileErrors({});
 
-      // Optionally redirect to My Designs after a delay
+      // Redirect to My Designs
       setTimeout(() => {
         router.push('/designer-console/designs');
       }, 2000);
 
     } catch (error: any) {
+      const errorMessage = error?.message || "Failed to upload design. Please try again.";
       toast({
         title: "Upload failed",
-        description: error.message || "Failed to upload design. Please try again.",
+        description: errorMessage,
         variant: "destructive",
+        duration: 5000,
       });
     } finally {
       setIsUploading(false);
-      setUploadProgress(0);
     }
   };
 
@@ -650,38 +825,251 @@ export default function UploadDesignContent() {
             </div>
           </div>
 
+          {/* Category and Subcategory - Side by Side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Category */}
           <div className="space-y-2">
-            <Label htmlFor="category">Category <span className="text-destructive">*</span></Label>
+              <div className="flex items-center justify-between h-6">
+                <Label htmlFor="category" className="text-sm font-medium leading-6">
+                  Category <span className="text-destructive">*</span>
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowCreateCategory(!showCreateCategory);
+                    setShowCreateSubcategory(false); // Close subcategory if open
+                  }}
+                  className="h-7 text-xs px-2 shrink-0"
+                >
+                  + New
+                </Button>
+              </div>
             {isLoadingCategories ? (
-              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 h-10">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm text-muted-foreground">Loading categories...</span>
+                  <span className="text-sm text-muted-foreground">Loading...</span>
               </div>
             ) : (
+                <>
               <Select 
-                value={categoryId ? String(categoryId) : ""} 
+                    value={categoryId ? String(categoryId) : ""} 
                 onValueChange={(value: string) => {
-                  setCategoryId(parseInt(value));
+                  if (value === "") {
+                    setCategoryId(null);
+                  } else {
+                    setCategoryId(parseInt(value));
+                  }
+                      setSubcategoryId(null); // Reset subcategory when category changes
+                      setShowCreateSubcategory(false); // Close create subcategory form
                   setValidationErrors({ ...validationErrors, category: "" });
                 }}
-                disabled={isUploading}
+                    disabled={isUploading || showCreateCategory}
               >
-                <SelectTrigger id="category">
+                    <SelectTrigger id="category" className="w-full h-10">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
+                      {categories.length === 0 ? (
+                        <div className="p-2 text-sm text-muted-foreground">No categories available</div>
+                      ) : (
+                        categories.map((cat) => (
                     <SelectItem key={cat.id} value={String(cat.id)}>
                       {cat.name}
                     </SelectItem>
-                  ))}
+                        ))
+                      )}
                 </SelectContent>
               </Select>
+                  {showCreateCategory && (
+                    <div className="space-y-2 p-3 border border-border rounded-md bg-muted/30 mt-2">
+                      <Label className="text-xs text-muted-foreground">Create New Category</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Enter category name"
+                          value={newCategoryName}
+                          onChange={(e) => setNewCategoryName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleCreateCategory();
+                            } else if (e.key === 'Escape') {
+                              setShowCreateCategory(false);
+                              setNewCategoryName("");
+                            }
+                          }}
+                          className="flex-1 h-9"
+                          autoFocus
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleCreateCategory}
+                          disabled={!newCategoryName.trim()}
+                          className="h-9 shrink-0"
+                        >
+                          Create
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setShowCreateCategory(false);
+                            setNewCategoryName("");
+                          }}
+                          className="h-9 shrink-0"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
             )}
             {validationErrors.category && (
-              <p className="text-sm text-destructive">{validationErrors.category}</p>
-            )}
+                    <p className="text-sm text-destructive mt-1 min-h-[20px]">{validationErrors.category}</p>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Subcategory */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between h-6">
+                <Label htmlFor="subcategory" className="text-sm font-medium leading-6">
+                  Subcategory <span className="text-muted-foreground text-xs font-normal">(Optional)</span>
+                </Label>
+                {categoryId ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowCreateSubcategory(!showCreateSubcategory);
+                      setShowCreateCategory(false); // Close category if open
+                    }}
+                    className="h-7 text-xs px-2 shrink-0"
+                  >
+                    + New
+                  </Button>
+                ) : (
+                  <div className="h-7 w-12 shrink-0" />
+                )}
+              </div>
+              {!categoryId ? (
+                <div className="h-10 flex items-center px-3 text-sm text-muted-foreground border border-border rounded-md bg-muted/30">
+                  Select category first
+                </div>
+              ) : isLoadingSubcategories ? (
+                <div className="flex items-center gap-2 h-10">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm text-muted-foreground">Loading...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Select 
+                      value={subcategoryId ? String(subcategoryId) : ""} 
+                      onValueChange={(value: string) => {
+                        if (value === "") {
+                          setSubcategoryId(null);
+                        } else {
+                          setSubcategoryId(parseInt(value));
+                        }
+                        setValidationErrors({ ...validationErrors, subcategory: "" });
+                      }}
+                      disabled={isUploading || showCreateSubcategory}
+                    >
+                      <SelectTrigger id="subcategory" className="w-full h-10">
+                        <SelectValue placeholder="Select subcategory (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subcategories.length === 0 ? (
+                          <div className="p-2 text-sm text-muted-foreground">No subcategories available</div>
+                        ) : (
+                          subcategories.map((subcat) => (
+                            <SelectItem key={subcat.id} value={String(subcat.id)}>
+                              {subcat.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {subcategoryId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSubcategoryId(null);
+                          setValidationErrors({ ...validationErrors, subcategory: "" });
+                        }}
+                        className="absolute right-8 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label="Clear subcategory"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  {showCreateSubcategory && (
+                    <div className="space-y-2 p-3 border border-border rounded-md bg-muted/30 mt-2">
+                      <Label className="text-xs text-muted-foreground">Create New Subcategory</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Enter subcategory name"
+                          value={newSubcategoryName}
+                          onChange={(e) => setNewSubcategoryName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleCreateSubcategory();
+                            } else if (e.key === 'Escape') {
+                              setShowCreateSubcategory(false);
+                              setNewSubcategoryName("");
+                            }
+                          }}
+                          className="flex-1 h-9"
+                          autoFocus
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleCreateSubcategory}
+                          disabled={!newSubcategoryName.trim()}
+                          className="h-9 shrink-0"
+                        >
+                          Create
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setShowCreateSubcategory(false);
+                            setNewSubcategoryName("");
+                          }}
+                          className="h-9 shrink-0"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {validationErrors.subcategory && (
+                    <p className="text-sm text-destructive mt-1 min-h-[20px]">{validationErrors.subcategory}</p>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
           {/* Color (optional) */}
@@ -696,71 +1084,32 @@ export default function UploadDesignContent() {
             />
           </div>
 
-          {/* Tags */}
+          {/* Tags - Chip Input */}
           <div className="space-y-2">
             <Label htmlFor="tags">Tags (optional)</Label>
-            {isLoadingTags ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm text-muted-foreground">Loading tags...</span>
-              </div>
-            ) : (
-              <>
-                <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 p-2 min-h-[42px] border border-border rounded-md bg-background">
+              {selectedTags.map((tagName, index) => (
+                <Badge key={index} variant="secondary" className="px-3 py-1 flex items-center gap-1">
+                  {tagName}
+                  <X
+                    className="w-3 h-3 cursor-pointer hover:text-destructive"
+                    onClick={() => handleRemoveTag(tagName)}
+                  />
+                </Badge>
+              ))}
                   <Input
                     id="tags"
-                    placeholder="Search and select tags"
+                placeholder={selectedTags.length === 0 ? "Type and press Enter or comma to add tags" : "Add more tags..."}
                     value={tagInput}
-                    onChange={(e) => handleSearchTag(e.target.value)}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagInputKeyDown}
                     disabled={isUploading}
+                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1 min-w-[200px]"
                   />
                 </div>
-                {tagInput && (
-                  <div className="border border-border rounded-md p-2 max-h-40 overflow-y-auto">
-                    {tags
-                      .filter(tag => 
-                        tag.name.toLowerCase().includes(tagInput.toLowerCase()) &&
-                        !selectedTagIds.includes(tag.id)
-                      )
-                      .slice(0, 10)
-                      .map((tag) => (
-                        <div
-                          key={tag.id}
-                          className="p-2 hover:bg-muted cursor-pointer rounded"
-                          onClick={() => {
-                            handleAddTag(tag.id);
-                            setTagInput("");
-                          }}
-                        >
-                          {tag.name}
-                        </div>
-                      ))}
-                    {tags.filter(tag => 
-                      tag.name.toLowerCase().includes(tagInput.toLowerCase()) &&
-                      !selectedTagIds.includes(tag.id)
-                    ).length === 0 && (
-                      <p className="text-sm text-muted-foreground p-2">No tags found</p>
-                    )}
-                  </div>
-                )}
-                {selectedTagIds.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {selectedTagIds.map((tagId) => {
-                      const tag = tags.find(t => t.id === tagId);
-                      return tag ? (
-                        <Badge key={tagId} variant="secondary" className="px-3 py-1">
-                          {tag.name}
-                          <X
-                            className="w-3 h-3 ml-2 cursor-pointer"
-                            onClick={() => handleRemoveTag(tagId)}
-                          />
-                        </Badge>
-                      ) : null;
-                    })}
-                  </div>
-                )}
-              </>
-            )}
+            <p className="text-xs text-muted-foreground">
+              Type a tag name and press Enter or comma to add it. New tags will be created automatically.
+            </p>
           </div>
 
           {/* Pricing */}
@@ -1087,21 +1436,6 @@ export default function UploadDesignContent() {
         </CardContent>
       </Card>
 
-      {/* Upload Progress */}
-      {isUploading && (
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">Uploading design...</span>
-                <span className="text-muted-foreground">{uploadProgress}%</span>
-              </div>
-              <Progress value={uploadProgress} className="h-2" />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Validation Errors */}
       {validationErrors.files && (
         <div className="mb-6 p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
@@ -1126,11 +1460,12 @@ export default function UploadDesignContent() {
           size="lg" 
           onClick={handleSubmit}
           disabled={isUploading}
+          className="min-w-[180px]"
         >
           {isUploading ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Uploading...
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Uploading...</span>
             </>
           ) : (
             "Submit for Review"

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { X, Loader2, ArrowLeft, Upload, Image as ImageIcon } from "lucide-react";
+import { X, Loader2, ArrowLeft, Upload, Image as ImageIcon, Download, CheckCircle2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -80,10 +80,14 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
     jpg: string | null;
     png: string | null;
     mockup: string | null;
+    eps: string | null;
+    cdr: string | null;
   }>({
     jpg: null,
     png: null,
     mockup: null,
+    eps: null,
+    cdr: null,
   });
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
 
@@ -293,10 +297,12 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
   useEffect(() => {
     if (designData && designData.media) {
       const mediaArray = Array.isArray(designData.media) ? designData.media : [];
-      const urls: { jpg: string | null; png: string | null; mockup: string | null } = {
+      const urls: { jpg: string | null; png: string | null; mockup: string | null; eps: string | null; cdr: string | null } = {
         jpg: null,
         png: null,
         mockup: null,
+        eps: null,
+        cdr: null,
       };
 
       mediaArray.forEach((media: any) => {
@@ -310,6 +316,10 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
           urls.jpg = makeAbsoluteUrl(url);
         } else if (urlLower.includes('.png')) {
           urls.png = makeAbsoluteUrl(url);
+        } else if (urlLower.includes('.eps')) {
+          urls.eps = makeAbsoluteUrl(url);
+        } else if (urlLower.includes('.cdr')) {
+          urls.cdr = makeAbsoluteUrl(url);
         }
       });
 
@@ -495,7 +505,6 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
         throw new Error(response.error);
       }
 
-      const hasFileUpdates = Object.values(files).some(file => file !== null);
       toast({
         title: "Design updated successfully!",
         description: hasFileUpdates 
@@ -772,6 +781,29 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                   }}
                   className="cursor-pointer"
                 />
+                {existingFileUrls.eps && !files.eps && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-green-600" />
+                      Already uploaded
+                    </Badge>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = existingFileUrls.eps!;
+                        link.download = 'design.eps';
+                        link.target = '_blank';
+                        link.click();
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-1" />
+                      Download
+                    </Button>
+                  </div>
+                )}
                 {files.eps && (
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">{files.eps.name}</span>
@@ -805,6 +837,29 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                   }}
                   className="cursor-pointer"
                 />
+                {existingFileUrls.cdr && !files.cdr && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-green-600" />
+                      Already uploaded
+                    </Badge>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = existingFileUrls.cdr!;
+                        link.download = 'design.cdr';
+                        link.target = '_blank';
+                        link.click();
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-1" />
+                      Download
+                    </Button>
+                  </div>
+                )}
                 {files.cdr && (
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">{files.cdr.name}</span>
@@ -838,6 +893,14 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                   }}
                   className="cursor-pointer"
                 />
+                {existingFileUrls.jpg && !files.jpg && (
+                  <div className="mt-2 mb-2">
+                    <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                      <CheckCircle2 className="w-3 h-3 text-green-600" />
+                      Already uploaded
+                    </Badge>
+                  </div>
+                )}
                 {(filePreviews.jpg || existingFileUrls.jpg) && (
                   <div className="mt-2">
                     <div className="w-full h-32 rounded border border-border overflow-hidden bg-muted">
@@ -882,6 +945,14 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                   }}
                   className="cursor-pointer"
                 />
+                {existingFileUrls.png && !files.png && (
+                  <div className="mt-2 mb-2">
+                    <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                      <CheckCircle2 className="w-3 h-3 text-green-600" />
+                      Already uploaded
+                    </Badge>
+                  </div>
+                )}
                 {(filePreviews.png || existingFileUrls.png) && (
                   <div className="mt-2">
                     <div className="w-full h-32 rounded border border-border overflow-hidden bg-muted">
@@ -926,6 +997,14 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                   }}
                   className="cursor-pointer"
                 />
+                {existingFileUrls.mockup && !files.mockup && (
+                  <div className="mt-2 mb-2">
+                    <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                      <CheckCircle2 className="w-3 h-3 text-green-600" />
+                      Already uploaded
+                    </Badge>
+                  </div>
+                )}
                 {(filePreviews.mockup || existingFileUrls.mockup) && (
                   <div className="mt-2">
                     <div className="w-full h-32 rounded border border-border overflow-hidden bg-muted">

@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <meta name="p:domain_verify" content="7efb64ebb140ef75eb3643e0a9714d6b" />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <Script
           src="https://checkout.razorpay.com/v1/checkout.js"
           strategy="lazyOnload"

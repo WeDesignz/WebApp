@@ -57,9 +57,14 @@ export function extractErrorMessage(error: any): string {
     return error.non_field_errors[0];
   }
 
-  // Network error
+  // Network error - fetch failures
   if (error.name === 'TypeError' && error.message.includes('fetch')) {
-    return 'Network error: Unable to connect to server. Please check your internet connection.';
+    return 'Network error: Unable to connect to server. Please check your internet connection and ensure the API server is running.';
+  }
+  
+  // AbortError (timeout)
+  if (error.name === 'AbortError') {
+    return 'Request timeout: The server took too long to respond.';
   }
 
   return 'An unexpected error occurred';
