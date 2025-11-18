@@ -64,7 +64,7 @@ interface Design {
   id: number;
   title: string;
   description?: string;
-  category?: number;
+  category?: number | { name?: string; parent?: string; [key: string]: any };
   category_name?: string;
   parent_category_name?: string;
   price?: number;
@@ -621,7 +621,7 @@ export default function MyDesignsContent() {
                         <span>
                           {design.parent_category_name ? 
                             `${design.parent_category_name} / ${design.category_name || '—'}` : 
-                            (design.category_name || (design.category && typeof design.category === 'object' ? design.category.name : null) || 'Uncategorized')}
+                            (design.category_name || 'Uncategorized')}
                         </span>
                       <span className="font-semibold text-foreground">{formatCurrency(design.price)}</span>
                       </div>
