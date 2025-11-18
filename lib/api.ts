@@ -2129,5 +2129,38 @@ export const apiClient = {
       body: JSON.stringify({ message }),
     });
   },
+
+  /**
+   * Get business configuration values
+   */
+  getBusinessConfig: async (): Promise<ApiResponse<{
+    commission_rate: number;
+    gst_percentage: number;
+    custom_order_time_slot_hours: number;
+    minimum_required_designs_onboard: number;
+  }>> => {
+    const response = await apiRequest<{
+      message: string;
+      data: {
+        commission_rate: number;
+        gst_percentage: number;
+        custom_order_time_slot_hours: number;
+        minimum_required_designs_onboard: number;
+      };
+    }>('/api/coreadmin/business-config/');
+    
+    // Transform response to match expected format
+    if (response.data?.data) {
+      return {
+        data: response.data.data,
+      };
+    }
+    return response as ApiResponse<{
+      commission_rate: number;
+      gst_percentage: number;
+      custom_order_time_slot_hours: number;
+      minimum_required_designs_onboard: number;
+    }>;
+  },
 };
 

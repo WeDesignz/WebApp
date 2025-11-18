@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -17,7 +17,6 @@ interface Step4BulkUploadProps {
 }
 
 const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB in bytes
-const MIN_DESIGNS = 50;
 const REQUIRED_FILES = ['.eps', '.cdr', '.jpg', '.png'];
 
 export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadProps) {
@@ -28,6 +27,23 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
   const [isValidating, setIsValidating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
+  const [minDesigns, setMinDesigns] = useState<number>(50); // Default fallback value
+
+  // Fetch minimum required designs from API
+  useEffect(() => {
+    const fetchMinDesigns = async () => {
+      try {
+        const response = await apiClient.getBusinessConfig();
+        if (response.data?.minimum_required_designs_onboard) {
+          setMinDesigns(response.data.minimum_required_designs_onboard);
+        }
+      } catch (error) {
+        console.error('Failed to fetch business config, using default:', error);
+        // Keep default value of 50
+      }
+    };
+    fetchMinDesigns();
+  }, []);
 
   const downloadTemplate = async () => {
     setIsGeneratingTemplate(true);
@@ -234,8 +250,8 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
         designCount = validDesignFolders.size;
 
         // Validate folder count
-        if (designCount < MIN_DESIGNS) {
-          errors.push(`❌ Insufficient design folders: You have ${designCount} design folders, but a minimum of ${MIN_DESIGNS} is required. Please add ${MIN_DESIGNS - designCount} more design folders.`);
+        if (designCount < minDesigns) {
+          errors.push(`❌ Insufficient design folders: You have ${designCount} design folders, but a minimum of ${minDesigns} is required. Please add ${minDesigns - designCount} more design folders.`);
         }
 
         // Validate folder_name mapping
@@ -411,7 +427,7 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
               <div>
                 <h3 className="font-semibold mb-1">Upload Designs</h3>
                 <p className="text-xs text-muted-foreground">
-                  Upload a minimum of 50 designs to start selling on our platform
+                  Upload a minimum of {minDesigns} designs to start selling on our platform
                 </p>
               </div>
             </div>
@@ -444,7 +460,7 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
               <div className="flex items-start gap-2 text-sm">
                 <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
                 <p className="text-muted-foreground">
-                  Minimum 50 designs required to proceed
+                  Minimum {minDesigns} designs required to proceed
                 </p>
               </div>
               <div className="flex items-start gap-2 text-sm">
@@ -491,7 +507,7 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
             <div>
               <h2 className="text-2xl font-bold mb-2">Upload Your Design Portfolio</h2>
               <p className="text-muted-foreground text-sm">
-                Upload a minimum of 50 designs to activate your designer account and start earning
+                Upload a minimum of {minDesigns} designs to activate your designer account and start earning
               </p>
             </div>
 
