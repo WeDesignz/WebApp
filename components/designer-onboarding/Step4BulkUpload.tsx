@@ -38,15 +38,22 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
       // Create sample design folders (3 examples)
       const sampleFolders = ['Design_001', 'Design_002', 'Design_003'];
       const requiredFiles = ['design.eps', 'design.cdr', 'design.jpg', 'design.png'];
+      const optionalFiles = ['mockup.jpg']; // Optional mockup file (case insensitive)
       
       // Create dummy file content (empty or minimal content)
       const dummyContent = new Uint8Array(0); // Empty file
       
       // Add sample design folders with required files
       for (const folderName of sampleFolders) {
+        // Add required files
         for (const fileName of requiredFiles) {
           const filePath = `${rootFolder}/${folderName}/${fileName}`;
           zip.file(filePath, dummyContent);
+        }
+        // Add optional mockup file (only in first folder as example)
+        if (folderName === 'Design_001') {
+          const mockupPath = `${rootFolder}/${folderName}/${optionalFiles[0]}`;
+          zip.file(mockupPath, dummyContent);
         }
       }
       
@@ -199,11 +206,18 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
             }
 
             // Only process files in design folders (second level, e.g., dummy/WD1/file.eps)
-            if (parts.length === 3 && REQUIRED_FILES.includes(ext)) {
+            // Check for required files or optional mockup file (case insensitive)
+            const fileNameLower = fileNameOnly.toLowerCase();
+            const isMockupFile = fileNameLower === 'mockup.jpg' || fileNameLower === 'mockup.png';
+            
+            if (parts.length === 3 && (REQUIRED_FILES.includes(ext) || isMockupFile)) {
               if (!zipFolders.has(folderName)) {
                 zipFolders.set(folderName, new Set());
               }
-              zipFolders.get(folderName)!.add(ext);
+              if (REQUIRED_FILES.includes(ext)) {
+                zipFolders.get(folderName)!.add(ext);
+              }
+              // Note: mockup files are optional, so we don't add them to the required files set
             }
           }
         }
@@ -424,6 +438,12 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
               <div className="flex items-start gap-2 text-sm">
                 <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
                 <p className="text-muted-foreground">
+                  Optional: Add mockup.jpg or mockup.png to showcase your design
+                </p>
+              </div>
+              <div className="flex items-start gap-2 text-sm">
+                <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                <p className="text-muted-foreground">
                   Minimum 50 designs required to proceed
                 </p>
               </div>
@@ -597,7 +617,8 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
                   <div className="pl-8">├── design.eps</div>
                   <div className="pl-8">├── design.cdr</div>
                   <div className="pl-8">├── design.jpg</div>
-                  <div className="pl-8">└── design.png</div>
+                  <div className="pl-8">├── design.png</div>
+                  <div className="pl-8">└── mockup.jpg <span className="text-muted-foreground">(optional)</span></div>
                   <div className="pl-4">├── Design_002/</div>
                   <div className="pl-8">└── ...</div>
                   <div className="pl-4">└── Design_050/</div>

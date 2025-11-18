@@ -332,15 +332,22 @@ export default function UploadDesignContent() {
       // Create sample design folders (3 examples)
       const sampleFolders = ['Design_001', 'Design_002', 'Design_003'];
       const requiredFiles = ['design.eps', 'design.cdr', 'design.jpg', 'design.png'];
+      const optionalFiles = ['mockup.jpg']; // Optional mockup file (case insensitive)
       
       // Create dummy file content (empty or minimal content)
       const dummyContent = new Uint8Array(0); // Empty file
       
       // Add sample design folders with required files
       for (const folderName of sampleFolders) {
+        // Add required files
         for (const fileName of requiredFiles) {
           const filePath = `${rootFolder}/${folderName}/${fileName}`;
           zip.file(filePath, dummyContent);
+        }
+        // Add optional mockup file (only in first folder as example)
+        if (folderName === 'Design_001') {
+          const mockupPath = `${rootFolder}/${folderName}/${optionalFiles[0]}`;
+          zip.file(mockupPath, dummyContent);
         }
       }
       
