@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { X, Loader2, ArrowLeft } from "lucide-react";
+import { X, Loader2, ArrowLeft, Upload, Image as ImageIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +30,16 @@ interface Tag {
   name: string;
 }
 
+interface FileUploadStatus {
+  eps: File | null;
+  cdr: File | null;
+  jpg: File | null;
+  png: File | null;
+  mockup: File | null;
+}
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB for single files
+
 interface EditDesignContentProps {
   designId: number;
 }
@@ -48,6 +58,34 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
   const [isUpdating, setIsUpdating] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const isInitializedRef = useRef(false);
+  
+  // File upload states
+  const [files, setFiles] = useState<FileUploadStatus>({
+    eps: null,
+    cdr: null,
+    jpg: null,
+    png: null,
+    mockup: null,
+  });
+  const [filePreviews, setFilePreviews] = useState<{
+    jpg: string | null;
+    png: string | null;
+    mockup: string | null;
+  }>({
+    jpg: null,
+    png: null,
+    mockup: null,
+  });
+  const [existingFileUrls, setExistingFileUrls] = useState<{
+    jpg: string | null;
+    png: string | null;
+    mockup: string | null;
+  }>({
+    jpg: null,
+    png: null,
+    mockup: null,
+  });
+  const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
 
   // Reset initialization when designId changes
   useEffect(() => {
@@ -235,6 +273,106 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
     setSelectedTagIds(selectedTagIds.filter(id => id !== tagId));
   };
 
+  // Helper function to make absolute URL
+  const makeAbsoluteUrl = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+    if (apiBaseUrl && url.startsWith('/')) {
+      return `${apiBaseUrl}${url}`;
+    }
+    if (apiBaseUrl && !url.startsWith('/')) {
+      return `${apiBaseUrl}/${url}`;
+    }
+    return url;
+  };
+
+  // Load existing file URLs from design data
+  useEffect(() => {
+    if (designData && designData.media) {
+      const mediaArray = Array.isArray(designData.media) ? designData.media : [];
+      const urls: { jpg: string | null; png: string | null; mockup: string | null } = {
+        jpg: null,
+        png: null,
+        mockup: null,
+      };
+
+      mediaArray.forEach((media: any) => {
+        const url = media.file_url || media.file;
+        if (!url) return;
+        
+        const urlLower = url.toLowerCase();
+        if (urlLower.includes('mockup')) {
+          urls.mockup = makeAbsoluteUrl(url);
+        } else if (urlLower.includes('.jpg') || urlLower.includes('.jpeg')) {
+          urls.jpg = makeAbsoluteUrl(url);
+        } else if (urlLower.includes('.png')) {
+          urls.png = makeAbsoluteUrl(url);
+        }
+      });
+
+      setExistingFileUrls(urls);
+    }
+  }, [designData]);
+
+  // Handle file upload
+  const handleFileUpload = (fileType: keyof FileUploadStatus, file: File) => {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    
+    // Validate file type
+    if (fileType === 'mockup') {
+      if (extension !== 'jpg' && extension !== 'jpeg' && extension !== 'png') {
+        setFileErrors({
+          ...fileErrors,
+          [fileType]: `Invalid file type. Mockup must be .jpg or .png file.`
+        });
+        return;
+      }
+    } else {
+      if (extension !== fileType) {
+        setFileErrors({
+          ...fileErrors,
+          [fileType]: `Invalid file type. Please upload a valid .${fileType} file.`
+        });
+        return;
+      }
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      setFileErrors({
+        ...fileErrors,
+        [fileType]: `File size exceeds ${MAX_FILE_SIZE / (1024 * 1024)}MB limit.`
+      });
+      return;
+    }
+
+    // Set file
+    setFiles({ ...files, [fileType]: file });
+    setFileErrors({ ...fileErrors, [fileType]: "" });
+
+    // Create preview for image files
+    if (fileType === 'jpg' || fileType === 'png' || fileType === 'mockup') {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFilePreviews({
+          ...filePreviews,
+          [fileType]: reader.result as string,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Remove file
+  const handleRemoveFile = (fileType: keyof FileUploadStatus) => {
+    setFiles({ ...files, [fileType]: null });
+    setFilePreviews({ ...filePreviews, [fileType]: null });
+    setFileErrors({ ...fileErrors, [fileType]: "" });
+  };
+
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
@@ -274,33 +412,74 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
       // Use subcategory ID if selected, otherwise use parent category ID
       const finalCategoryId = subcategoryId || parentCategoryId;
       
-      const updateData: any = {
-        title: title.trim(),
-        description: description.trim(),
-        category_id: finalCategoryId,
-      };
+      // Check if any files are being updated
+      const hasFileUpdates = Object.values(files).some(file => file !== null);
+      
+      let updateData: any;
 
-      // Map pricing type: Product model uses 'basic', 'prime', 'premium'
-      // For free designs, use 'basic', for paid use 'prime' (or we can keep existing value)
-      // Actually, let's not change product_plan_type if it's not being changed
-      // Only update price based on pricing type
-      if (pricingType === "paid" && price) {
-        const priceValue = parseFloat(price);
-        if (!isNaN(priceValue) && priceValue > 0) {
-          updateData.price = priceValue;
-          // For paid designs, set product_plan_type to 'prime' (or keep existing)
-          // Let's use 'prime' as default for paid
-          updateData.product_plan_type = 'prime';
+      if (hasFileUpdates) {
+        // Use FormData for file uploads
+        updateData = new FormData();
+        updateData.append('title', title.trim());
+        updateData.append('description', description.trim());
+        updateData.append('category_id', String(finalCategoryId));
+        updateData.append('status', 'draft'); // Set status to draft when files are updated
+        
+        // Map pricing type
+        if (pricingType === "paid" && price) {
+          const priceValue = parseFloat(price);
+          if (!isNaN(priceValue) && priceValue > 0) {
+            updateData.append('price', String(priceValue));
+            updateData.append('product_plan_type', 'prime');
+          }
+        } else if (pricingType === "free") {
+          updateData.append('price', '');
+          updateData.append('product_plan_type', 'basic');
         }
-      } else if (pricingType === "free") {
-        // For free designs, set price to null and use 'basic'
-        updateData.price = null;
-        updateData.product_plan_type = 'basic';
-      }
 
-      // Include color if provided, otherwise omit
-      if (color && color.trim()) {
-        updateData.color = color.trim();
+        if (color && color.trim()) {
+          updateData.append('color', color.trim());
+        }
+
+        // Add files
+        Object.entries(files).forEach(([fileType, file]) => {
+          if (file) {
+            updateData.append('design_files', file);
+          }
+        });
+
+        // Add tags
+        selectedTagIds.forEach(tagId => {
+          updateData.append('tags', String(tagId));
+        });
+      } else {
+        // Use regular JSON for non-file updates
+        updateData = {
+          title: title.trim(),
+          description: description.trim(),
+          category_id: finalCategoryId,
+        };
+
+        // Map pricing type
+        if (pricingType === "paid" && price) {
+          const priceValue = parseFloat(price);
+          if (!isNaN(priceValue) && priceValue > 0) {
+            updateData.price = priceValue;
+            updateData.product_plan_type = 'prime';
+          }
+        } else if (pricingType === "free") {
+          updateData.price = null;
+          updateData.product_plan_type = 'basic';
+        }
+
+        if (color && color.trim()) {
+          updateData.color = color.trim();
+        }
+
+        // Add tags
+        if (selectedTagIds.length > 0) {
+          updateData.tags = selectedTagIds;
+        }
       }
 
       const response = await apiClient.updateDesign(designId, updateData);
@@ -316,9 +495,12 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
         throw new Error(response.error);
       }
 
+      const hasFileUpdates = Object.values(files).some(file => file !== null);
       toast({
         title: "Design updated successfully!",
-        description: "Your design has been updated and will be reviewed again.",
+        description: hasFileUpdates 
+          ? "Your design files have been updated. The design status has been set to 'Draft' and will be reviewed again by admin."
+          : "Your design has been updated successfully.",
       });
 
       // Redirect to My Designs after a delay
@@ -564,6 +746,215 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
               onChange={(e) => setColor(e.target.value)}
               placeholder="e.g., Red, Blue, Multi-color"
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* File Upload Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Design Files</CardTitle>
+          <CardDescription>Update design files. Uploading new files will set the design status to "Draft" and require admin approval.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            {/* EPS File */}
+            <div>
+              <Label htmlFor="eps">EPS File</Label>
+              <div className="mt-2">
+                <Input
+                  id="eps"
+                  type="file"
+                  accept=".eps"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload('eps', file);
+                  }}
+                  className="cursor-pointer"
+                />
+                {files.eps && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{files.eps.name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveFile('eps')}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+                {fileErrors.eps && (
+                  <p className="text-sm text-destructive mt-1">{fileErrors.eps}</p>
+                )}
+              </div>
+            </div>
+
+            {/* CDR File */}
+            <div>
+              <Label htmlFor="cdr">CDR File</Label>
+              <div className="mt-2">
+                <Input
+                  id="cdr"
+                  type="file"
+                  accept=".cdr"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload('cdr', file);
+                  }}
+                  className="cursor-pointer"
+                />
+                {files.cdr && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{files.cdr.name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveFile('cdr')}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+                {fileErrors.cdr && (
+                  <p className="text-sm text-destructive mt-1">{fileErrors.cdr}</p>
+                )}
+              </div>
+            </div>
+
+            {/* JPG File */}
+            <div>
+              <Label htmlFor="jpg">JPG File</Label>
+              <div className="mt-2">
+                <Input
+                  id="jpg"
+                  type="file"
+                  accept=".jpg,.jpeg"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload('jpg', file);
+                  }}
+                  className="cursor-pointer"
+                />
+                {(filePreviews.jpg || existingFileUrls.jpg) && (
+                  <div className="mt-2">
+                    <div className="w-full h-32 rounded border border-border overflow-hidden bg-muted">
+                      <img
+                        src={filePreviews.jpg || existingFileUrls.jpg || ''}
+                        alt="JPG Preview"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    {files.jpg && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">{files.jpg.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveFile('jpg')}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {fileErrors.jpg && (
+                  <p className="text-sm text-destructive mt-1">{fileErrors.jpg}</p>
+                )}
+              </div>
+            </div>
+
+            {/* PNG File */}
+            <div>
+              <Label htmlFor="png">PNG File</Label>
+              <div className="mt-2">
+                <Input
+                  id="png"
+                  type="file"
+                  accept=".png"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload('png', file);
+                  }}
+                  className="cursor-pointer"
+                />
+                {(filePreviews.png || existingFileUrls.png) && (
+                  <div className="mt-2">
+                    <div className="w-full h-32 rounded border border-border overflow-hidden bg-muted">
+                      <img
+                        src={filePreviews.png || existingFileUrls.png || ''}
+                        alt="PNG Preview"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    {files.png && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">{files.png.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveFile('png')}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {fileErrors.png && (
+                  <p className="text-sm text-destructive mt-1">{fileErrors.png}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Mockup File */}
+            <div className="col-span-2">
+              <Label htmlFor="mockup">Mockup (JPG/PNG) - Optional</Label>
+              <div className="mt-2">
+                <Input
+                  id="mockup"
+                  type="file"
+                  accept=".jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload('mockup', file);
+                  }}
+                  className="cursor-pointer"
+                />
+                {(filePreviews.mockup || existingFileUrls.mockup) && (
+                  <div className="mt-2">
+                    <div className="w-full h-32 rounded border border-border overflow-hidden bg-muted">
+                      <img
+                        src={filePreviews.mockup || existingFileUrls.mockup || ''}
+                        alt="Mockup Preview"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    {files.mockup && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">{files.mockup.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveFile('mockup')}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {fileErrors.mockup && (
+                  <p className="text-sm text-destructive mt-1">{fileErrors.mockup}</p>
+                )}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

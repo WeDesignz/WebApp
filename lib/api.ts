@@ -82,8 +82,11 @@ async function apiRequest<T>(
       ? localStorage.getItem('wedesign_access_token') 
       : null;
 
+    // Check if body is FormData
+    const isFormData = options.body instanceof FormData;
+    
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(options.headers as Record<string, string> || {}),
     };
 
@@ -1488,9 +1491,12 @@ export const apiClient = {
   },
 
   updateDesign: async (designId: number, data: any) => {
+    // Check if data is FormData (for file uploads)
+    const isFormData = data instanceof FormData;
+    
     return apiRequest(`/api/catalog/designs/${designId}/`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: isFormData ? data : JSON.stringify(data),
     });
   },
 
