@@ -1594,9 +1594,13 @@ export const apiClient = {
 
   // Upload Design
   uploadDesign: async (formData: FormData) => {
+    console.log('[uploadDesign] Starting upload...');
+    
     const token = typeof window !== 'undefined' 
       ? localStorage.getItem('wedesign_access_token') 
       : null;
+
+    console.log('[uploadDesign] Token found:', token ? 'Yes' : 'No');
 
     const headers: HeadersInit = {};
     if (token) {
@@ -1605,6 +1609,7 @@ export const apiClient = {
 
     const baseUrl = getApiBaseUrl();
     if (!baseUrl) {
+      console.error('[uploadDesign] No API base URL configured');
       return {
         error: 'API base URL is not configured',
         errorDetails: {
@@ -1615,10 +1620,18 @@ export const apiClient = {
       };
     }
 
+    console.log('[uploadDesign] Base URL:', baseUrl);
+    console.log('[uploadDesign] Endpoint: /api/catalog/upload-design/');
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 minutes
+    const timeoutId = setTimeout(() => {
+      console.error('[uploadDesign] Request timeout after 5 minutes');
+      controller.abort();
+    }, 5 * 60 * 1000); // 5 minutes
     
     try {
+      console.log('[uploadDesign] Sending fetch request...');
+      const startTime = Date.now();
       const response = await fetch(`${baseUrl}/api/catalog/upload-design/`, {
         method: 'POST',
         headers,
@@ -1627,32 +1640,45 @@ export const apiClient = {
       });
       
       clearTimeout(timeoutId);
+      const elapsedTime = Date.now() - startTime;
+      console.log(`[uploadDesign] Response received after ${elapsedTime}ms:`, response.status, response.statusText);
 
       if (!response.ok) {
+        console.error('[uploadDesign] Response not OK:', response.status);
         let errorData: any = {};
         try {
-          errorData = await response.json();
-        } catch {
+          const text = await response.text();
+          console.error('[uploadDesign] Error response text:', text);
+          errorData = JSON.parse(text);
+        } catch (parseError) {
+          console.error('[uploadDesign] Failed to parse error response:', parseError);
           errorData = { error: response.statusText || 'Upload failed' };
         }
 
         if (response.status === 401) {
+          console.error('[uploadDesign] Unauthorized - redirecting to login');
           await handleUnauthorized();
         }
 
+        const errorMessage = errorData.error || errorData.detail || 'Upload failed';
+        console.error('[uploadDesign] Returning error:', errorMessage);
         return {
-          error: errorData.error || errorData.detail || 'Upload failed',
+          error: errorMessage,
           errorDetails: formatError(errorData, response.status),
         };
       }
 
+      console.log('[uploadDesign] Parsing success response...');
       const data = await response.json();
+      console.log('[uploadDesign] Success data:', data);
       return { data };
       
     } catch (error: any) {
       clearTimeout(timeoutId);
+      console.error('[uploadDesign] Exception caught:', error);
       
       if (error.name === 'AbortError') {
+        console.error('[uploadDesign] Request aborted (timeout)');
         return {
           error: 'Upload timeout. Please try again with smaller files.',
           errorDetails: {
@@ -1663,8 +1689,10 @@ export const apiClient = {
         };
       }
 
+      const errorMessage = error?.message || 'Failed to upload design. Please check your connection and try again.';
+      console.error('[uploadDesign] Returning network error:', errorMessage);
       return {
-        error: 'Failed to upload design. Please check your connection and try again.',
+        error: errorMessage,
         errorDetails: formatError(error, undefined),
       };
     }

@@ -1,7 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShoppingCart, Download, CreditCard, Heart, Loader2 } from "lucide-react";
+import { X, ShoppingCart, Download, CreditCard, Heart, Loader2, Tag, Image as ImageIcon, Package, Hash, Palette, DollarSign, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartWishlist } from "@/contexts/CartWishlistContext";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +20,7 @@ interface ProductModalProps {
 export default function ProductModal({ isOpen, onClose, hasActivePlan, product: initialProduct }: ProductModalProps) {
   const { addToCart, addToWishlist, isInWishlist } = useCartWishlist();
   const { toast } = useToast();
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   // Fetch detailed product data when modal opens
   const { data: productData, isLoading: isLoadingProduct, error: productError } = useQuery({
@@ -28,14 +30,26 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
       if (response.error) {
         throw new Error(response.error);
       }
-      return transformProduct(response.data?.product || initialProduct);
+      // Return raw API data to access all fields
+      return {
+        transformed: transformProduct(response.data?.product || initialProduct),
+        raw: response.data?.product || initialProduct
+      };
     },
     enabled: isOpen, // Only fetch when modal is open
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   // Use fetched product data or fallback to initial product
-  const product = productData || initialProduct;
+  const product = productData?.transformed || initialProduct;
+  const rawProduct = productData?.raw || null;
+
+  // Reset selected image when modal opens or product changes
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedImageIndex(0);
+    }
+  }, [isOpen, product.id]);
 
   const handleAddToCart = async (subProduct?: any) => {
     const cartItem = {
@@ -106,14 +120,14 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
           />
           
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto pointer-events-none">
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto pointer-events-none">
 
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: "spring", duration: 0.5 }}
-              className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-4xl my-8 pointer-events-auto"
+              className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-4xl my-8 pointer-events-auto max-h-[90vh] flex flex-col"
             >
               {isLoadingProduct ? (
                 <div className="p-12 flex items-center justify-center">
@@ -129,35 +143,14 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                 </div>
               ) : (
                 <>
-                  <div className="flex flex-col md:flex-row gap-6 p-6 border-b border-border">
-                    <div className="md:w-1/3">
-                      <img
-                        src={product.media[0] || '/generated_images/Brand_Identity_Design_67fa7e1f.png'}
-                        alt={product.title}
-                        className="w-full h-64 md:h-full object-cover rounded-xl"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
-                        }}
-                      />
-                    </div>
-                
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h2 className="text-2xl font-bold mb-2">{product.title}</h2>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm px-3 py-1 bg-primary/10 text-primary rounded-full">
-                          {product.category}
-                        </span>
-                        <span className={`text-xs px-3 py-1 border rounded-full ${getStatusColor(product.status)}`}>
-                          {product.status}
-                        </span>
-                      </div>
-                    </div>
+                  {/* Header with close button - Sticky */}
+                  <div className="flex items-center justify-between p-6 border-b border-border bg-card sticky top-0 z-10 rounded-t-2xl">
+                    <h2 className="text-2xl font-bold">{product.title}</h2>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={handleAddToWishlist}
                         className="p-2 hover:bg-muted rounded-full transition-colors"
+                        aria-label="Add to wishlist"
                       >
                         <Heart 
                           className={`w-5 h-5 ${isInWishlist(String(product.id)) ? 'fill-destructive text-destructive' : ''}`} 
@@ -166,80 +159,179 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                       <button
                         onClick={onClose}
                         className="p-2 hover:bg-muted rounded-full transition-colors"
+                        aria-label="Close modal"
                       >
                         <X className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
-                  
-                  <p className="text-muted-foreground mb-4">{product.description}</p>
-                  
-                  <div className="inline-block px-4 py-2 bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 rounded-lg">
-                    <span className="text-sm font-semibold">Plan Type: </span>
-                    <span className="text-sm text-primary">{product.product_plan_type}</span>
-                  </div>
-                </div>
-              </div>
 
-              <div className="p-6 border-b border-border">
-                <h3 className="text-lg font-semibold mb-4">Available Variants</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left py-3 px-2 font-semibold">Product #</th>
-                        <th className="text-left py-3 px-2 font-semibold">Color</th>
-                        <th className="text-left py-3 px-2 font-semibold">Price</th>
-                        <th className="text-left py-3 px-2 font-semibold">Stock</th>
-                        <th className="text-left py-3 px-2 font-semibold">Status</th>
-                        <th className="text-right py-3 px-2 font-semibold">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {product.sub_products.map((subProduct) => (
-                        <tr key={subProduct.id} className="border-b border-border/50 hover:bg-muted/50 transition-colors">
-                          <td className="py-3 px-2 font-mono text-xs">{subProduct.product_number}</td>
-                          <td className="py-3 px-2">
+                  {/* Scrollable content */}
+                  <div className="overflow-y-auto flex-1">
+                  <div className="flex flex-col lg:flex-row gap-6 p-6">
+                    {/* Left Side - Image Gallery */}
+                    <div className="lg:w-2/5 space-y-4">
+                      {/* Main Image */}
+                      <div className="relative aspect-square rounded-xl overflow-hidden bg-muted border border-border">
+                        {product.media && product.media.length > 0 && product.media[selectedImageIndex] ? (
+                          <img
+                            src={product.media[selectedImageIndex]}
+                            alt={product.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <div className="text-center">
+                              <svg className="w-16 h-16 mx-auto mb-2 text-muted-foreground/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <p className="text-sm text-muted-foreground">No image available</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Thumbnail Gallery */}
+                      {product.media.length > 1 && (
+                        <div className="flex gap-2 overflow-x-auto pb-2">
+                          {product.media.map((mediaUrl, index) => (
+                            <button
+                              key={index}
+                              onClick={() => setSelectedImageIndex(index)}
+                              className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                                selectedImageIndex === index 
+                                  ? 'border-primary ring-2 ring-primary/20' 
+                                  : 'border-border hover:border-primary/50'
+                              }`}
+                            >
+                              <img
+                                src={mediaUrl}
+                                alt={`${product.title} - Image ${index + 1}`}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                                }}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right Side - Product Information */}
+                    <div className="lg:w-3/5 space-y-6">
+                      {/* Category and Status Badges */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm px-3 py-1.5 bg-primary/10 text-primary rounded-full font-medium flex items-center gap-1.5">
+                          <Package className="w-3.5 h-3.5" />
+                          {product.category}
+                        </span>
+                        <span className={`text-xs px-3 py-1.5 border rounded-full font-medium ${getStatusColor(product.status)}`}>
+                          {product.status}
+                        </span>
+                        <span className="text-sm px-3 py-1.5 bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 rounded-full font-medium">
+                          {product.product_plan_type}
+                        </span>
+                      </div>
+
+                      {/* Description */}
+                      <div>
+                        <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
+                          <Info className="w-4 h-4" />
+                          Description
+                        </h3>
+                        <p className="text-muted-foreground leading-relaxed">{product.description || 'No description available.'}</p>
+                      </div>
+
+                      {/* Product Details Grid */}
+                      <div className="grid grid-cols-2 gap-4">
+                        {rawProduct?.product_number && (
+                          <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                              <Hash className="w-4 h-4" />
+                              <span className="text-xs font-medium">Product Number</span>
+                            </div>
+                            <p className="font-mono text-sm font-semibold">{rawProduct.product_number}</p>
+                          </div>
+                        )}
+                        
+                        {rawProduct?.studio_design_number && (
+                          <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                              <Hash className="w-4 h-4" />
+                              <span className="text-xs font-medium">Studio Design #</span>
+                            </div>
+                            <p className="font-mono text-sm font-semibold">{rawProduct.studio_design_number}</p>
+                          </div>
+                        )}
+
+                        {rawProduct?.color && (
+                          <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                              <Palette className="w-4 h-4" />
+                              <span className="text-xs font-medium">Color</span>
+                            </div>
                             <div className="flex items-center gap-2">
                               <div
-                                className="w-4 h-4 rounded-full border border-border"
-                                style={{ backgroundColor: subProduct.color }}
+                                className="w-5 h-5 rounded-full border border-border"
+                                style={{ backgroundColor: rawProduct.color }}
                               />
-                              <span>{subProduct.color}</span>
+                              <p className="text-sm font-semibold">{rawProduct.color}</p>
                             </div>
-                          </td>
-                          <td className="py-3 px-2 font-semibold">₹{subProduct.price.toLocaleString()}</td>
-                          <td className="py-3 px-2">
-                            <span className={subProduct.stock > 0 ? "text-green-500" : "text-red-500"}>
-                              {subProduct.stock}
-                            </span>
-                          </td>
-                          <td className="py-3 px-2">
-                            <span className={`text-xs px-2 py-1 border rounded-full ${getStatusColor(subProduct.status)}`}>
-                              {subProduct.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-2 text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="rounded-full"
-                              disabled={subProduct.stock === 0 || subProduct.status === "Hide"}
-                              onClick={() => handleAddToCart(subProduct)}
-                            >
-                              <ShoppingCart className="w-3 h-3 mr-1" />
-                              Add
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                          </div>
+                        )}
 
-              <div className="p-6">
-                <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                        {rawProduct?.price && (
+                          <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                              <DollarSign className="w-4 h-4" />
+                              <span className="text-xs font-medium">Price</span>
+                            </div>
+                            <p className="text-lg font-bold text-primary">₹{parseFloat(rawProduct.price).toLocaleString()}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tags */}
+                      {rawProduct?.tags && Array.isArray(rawProduct.tags) && rawProduct.tags.length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                            <Tag className="w-4 h-4" />
+                            Tags
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {rawProduct.tags.map((tag: any) => (
+                              <span
+                                key={tag.id || tag.name}
+                                className="text-xs px-3 py-1.5 bg-muted border border-border rounded-full text-muted-foreground"
+                              >
+                                {tag.name || tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Media Files Count */}
+                      {product.media.length > 0 && (
+                        <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                          <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                            <ImageIcon className="w-4 h-4" />
+                            <span className="text-xs font-medium">Media Files</span>
+                          </div>
+                          <p className="text-sm font-semibold">{product.media.length} file{product.media.length !== 1 ? 's' : ''} available</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  </div>
+
+              {/* Action Buttons - Sticky at bottom */}
+              <div className="p-6 border-t border-border bg-muted/30 sticky bottom-0 rounded-b-2xl">
+                <div className="flex flex-col sm:flex-row gap-3">
                   {hasActivePlan ? (
                     <>
                       <Button className="flex-1 rounded-full h-12 text-base font-semibold">
@@ -274,21 +366,6 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                       </Button>
                     </>
                   )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                  <div>
-                    <span className="font-semibold">Created By:</span> {product.created_by}
-                  </div>
-                  <div>
-                    <span className="font-semibold">Created At:</span> {new Date(product.created_at).toLocaleDateString()}
-                  </div>
-                  <div>
-                    <span className="font-semibold">Updated By:</span> {product.updated_by}
-                  </div>
-                  <div>
-                    <span className="font-semibold">Updated At:</span> {new Date(product.updated_at).toLocaleDateString()}
-                  </div>
                 </div>
               </div>
                 </>

@@ -55,14 +55,44 @@ export function transformProduct(apiProduct: any): TransformedProduct {
   };
   const transformedStatus = statusMap[apiProduct.status?.toLowerCase()] || 'Active';
   
-  // Extract media URLs from media array
-  const mediaUrls = (apiProduct.media || []).map((mediaItem: any) => {
+  // Extract media URLs from media array with priority: mockup > .png > others
+  const mediaItems = (apiProduct.media || []).map((mediaItem: any) => {
     if (typeof mediaItem === 'string') {
-      return mediaItem;
+      return { url: mediaItem, is_mockup: false, is_png: false, file_name: '' };
     }
-    // Handle media object structure: {file: {url: ...}} or {url: ...}
-    return mediaItem?.file?.url || mediaItem?.url || '';
-  }).filter((url: string) => url);
+    // Handle media object structure: backend returns {file: url, url: url, file_name: ...}
+    // file and url are both strings (absolute URLs) from the backend
+    const url = mediaItem?.url || mediaItem?.file || (typeof mediaItem?.file === 'string' ? mediaItem.file : '') || '';
+    const file_name = mediaItem?.file_name || '';
+    
+    // Check if filename contains "mockup" (case-insensitive)
+    const fileNameLower = file_name.toLowerCase();
+    const is_mockup = mediaItem?.is_mockup || (file_name && fileNameLower.includes('mockup'));
+    
+    // Check if it's a .png file
+    const is_png = mediaItem?.is_jpg_png || (file_name && fileNameLower.endsWith('.png'));
+    
+    return {
+      url,
+      is_mockup,
+      is_png,
+      file_name,
+    };
+  }).filter((item: any) => item.url && item.url.trim() !== '');
+
+  // Sort media: mockup first, then .png, then others
+  mediaItems.sort((a: any, b: any) => {
+    // Priority 1: Mockup files
+    if (a.is_mockup && !b.is_mockup) return -1;
+    if (!a.is_mockup && b.is_mockup) return 1;
+    // Priority 2: PNG files
+    if (a.is_png && !b.is_png) return -1;
+    if (!a.is_png && b.is_png) return 1;
+    return 0;
+  });
+
+  // Extract URLs in priority order - only include valid URLs
+  const mediaUrls = mediaItems.map((item: any) => item.url).filter((url: string) => url && url.trim() !== '');
 
   // Transform sub_products if they exist, otherwise create empty array
   // Note: Backend might not have sub_products, so we'll create a default one from the product
@@ -111,7 +141,7 @@ export function transformProduct(apiProduct: any): TransformedProduct {
     created_at: apiProduct.created_at || new Date().toISOString(),
     updated_by: updatedBy,
     updated_at: apiProduct.updated_at || new Date().toISOString(),
-    media: mediaUrls.length > 0 ? mediaUrls : ['/generated_images/Brand_Identity_Design_67fa7e1f.png'], // Fallback image
+    media: mediaUrls, // No fallback - only show actual media URLs
     sub_products: subProducts,
   };
 }

@@ -655,7 +655,10 @@ export default function UploadDesignContent() {
   };
 
   const handleSubmit = async () => {
+    console.log('Submit button clicked - handleSubmit called');
+    
     if (!validateForm()) {
+      console.log('Form validation failed');
       toast({
         title: "Validation Error",
         description: "Please fill all required fields correctly.",
@@ -664,6 +667,7 @@ export default function UploadDesignContent() {
       return;
     }
 
+    console.log('Form validation passed, starting upload...');
     setIsUploading(true);
 
     try {
@@ -703,19 +707,34 @@ export default function UploadDesignContent() {
         formData.append('tags', String(tagId));
       });
 
-      // Upload - returns immediately, files processed in background
+      console.log('Calling uploadDesign API...');
+      console.log('FormData prepared:', {
+        title: title.trim(),
+        categoryId: finalCategoryId,
+        pricingType,
+        tagCount: selectedTagIds.length,
+        fileCount: uploadMode === "single" ? Object.values(files).filter(f => f).length : (bulkFile ? 1 : 0)
+      });
+
+      // Upload
       const response = await apiClient.uploadDesign(formData);
+      
+      console.log('API response received:', response);
 
       if (response.error) {
+        console.error('API returned error:', response.error);
         throw new Error(response.error);
       }
 
       if (!response.data) {
+        console.error('No data in response:', response);
         throw new Error('Upload failed - no response from server');
       }
 
       const productId = response.data.product_id;
       const platformId = response.data.platform_id;
+
+      console.log('Upload successful:', { productId, platformId });
 
       // Show success toast immediately
       toast({
@@ -752,7 +771,9 @@ export default function UploadDesignContent() {
       }, 2000);
 
     } catch (error: any) {
-      const errorMessage = error?.message || "Failed to upload design. Please try again.";
+      console.error('Upload error caught:', error);
+      const errorMessage = error?.message || error?.error || "Failed to upload design. Please try again.";
+      console.error('Showing error toast:', errorMessage);
       toast({
         title: "Upload failed",
         description: errorMessage,
@@ -760,6 +781,7 @@ export default function UploadDesignContent() {
         duration: 5000,
       });
     } finally {
+      console.log('Setting isUploading to false');
       setIsUploading(false);
     }
   };
