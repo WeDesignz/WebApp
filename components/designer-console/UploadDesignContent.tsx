@@ -765,10 +765,9 @@ export default function UploadDesignContent() {
       setValidationErrors({});
       setFileErrors({});
 
-      // Redirect to My Designs
-      setTimeout(() => {
-        router.push('/designer-console/designs');
-      }, 2000);
+      // Stay on upload design page - form is already reset
+      // Success toast message is shown above
+      // User can immediately upload another design if needed
 
     } catch (error: any) {
       console.error('Upload error caught:', error);
