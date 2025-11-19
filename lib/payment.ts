@@ -54,19 +54,59 @@ export function isRazorpayLoaded(): boolean {
 }
 
 /**
+ * Wait for Razorpay script to load
+ */
+export function waitForRazorpay(maxWait: number = 5000): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (isRazorpayLoaded()) {
+      resolve(true);
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      resolve(false);
+      return;
+    }
+
+    const startTime = Date.now();
+    
+    // Poll for Razorpay to be loaded
+    const checkInterval = setInterval(() => {
+      if (isRazorpayLoaded()) {
+        clearInterval(checkInterval);
+        resolve(true);
+      } else if (Date.now() - startTime >= maxWait) {
+        clearInterval(checkInterval);
+        resolve(false);
+      }
+    }, 100);
+  });
+}
+
+/**
  * Initialize Razorpay checkout
  */
 export async function initializeRazorpayCheckout(
   options: RazorpayOptions
 ): Promise<PaymentResult> {
+  // Validate Razorpay key first
+  if (!options.key || options.key.trim() === '') {
+    return {
+      success: false,
+      error: 'Razorpay authentication key is missing. Please configure NEXT_PUBLIC_RAZORPAY_KEY_ID in your environment variables.',
+    };
+  }
+
+  // Wait for Razorpay script to load (with timeout)
+  const razorpayLoaded = await waitForRazorpay(5000);
+  if (!razorpayLoaded) {
+    return {
+      success: false,
+      error: 'Razorpay payment gateway not loaded. Please refresh the page and try again.',
+    };
+  }
+
   return new Promise((resolve) => {
-    if (!isRazorpayLoaded()) {
-      resolve({
-        success: false,
-        error: 'Razorpay payment gateway not loaded. Please refresh and try again.',
-      });
-      return;
-    }
 
     const razorpay = new window.Razorpay({
       ...options,

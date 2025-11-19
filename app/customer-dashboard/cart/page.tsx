@@ -52,6 +52,21 @@ export default function CartPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
+  // Load coupon state from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedCoupon = localStorage.getItem('appliedCoupon');
+      if (savedCoupon) {
+        const couponData = JSON.parse(savedCoupon);
+        setCouponCode(couponData.code || '');
+        setCouponApplied(couponData.applied || false);
+        setCouponInfo(couponData.info || null);
+      }
+    } catch (error) {
+      // Ignore localStorage errors
+    }
+  }, []);
+
   // Fetch cart summary
   useEffect(() => {
     if (cartItems.length > 0) {
@@ -126,9 +141,30 @@ export default function CartPage() {
       });
 
       if (response.error || !response.data?.valid) {
-        const errorMessage = response.error || response.data?.error || 'Invalid coupon code';
+        // Extract error message from response
+        let errorMessage = 'Invalid coupon code';
+        
+        if (response.error) {
+          // If error is in response.error, use it
+          errorMessage = response.error;
+        } else if (response.data?.error) {
+          // If error is in response.data.error, use it
+          errorMessage = response.data.error;
+        } else if (response.errorDetails?.message) {
+          // If error is in errorDetails, use it
+          errorMessage = response.errorDetails.message;
+        }
+        
         setCouponApplied(false);
         setCouponInfo(null);
+        
+        // Clear from localStorage
+        try {
+          localStorage.removeItem('appliedCoupon');
+        } catch (error) {
+          // Ignore localStorage errors
+        }
+        
         toast({
           title: "Coupon validation failed",
           description: errorMessage,
@@ -139,11 +175,23 @@ export default function CartPage() {
 
       if (response.data) {
         setCouponApplied(true);
-        setCouponInfo({
+        const couponInfoData = {
           discount_amount: response.data.discount_amount || 0,
           coupon_name: response.data.coupon?.name || couponCode.trim(),
           coupon_type: response.data.coupon?.coupon_discount_type || 'percentage',
-        });
+        };
+        setCouponInfo(couponInfoData);
+        
+        // Save to localStorage
+        try {
+          localStorage.setItem('appliedCoupon', JSON.stringify({
+            code: couponCode.trim(),
+            applied: true,
+            info: couponInfoData,
+          }));
+        } catch (error) {
+          // Ignore localStorage errors
+        }
         toast({
           title: "Coupon applied",
           description: `Discount of ${formatPrice(response.data.discount_amount || 0)} applied successfully!`,
@@ -152,6 +200,13 @@ export default function CartPage() {
     } catch (error: any) {
       setCouponApplied(false);
       setCouponInfo(null);
+      
+      // Clear from localStorage
+      try {
+        localStorage.removeItem('appliedCoupon');
+      } catch (error) {
+        // Ignore localStorage errors
+      }
       toast({
         title: "Error applying coupon",
         description: error.message || "Failed to validate coupon. Please try again.",
@@ -194,7 +249,6 @@ export default function CartPage() {
       if (cartSummary?.will_be_free) {
         const purchaseResponse = await apiClient.purchaseCart({
           payment_method: 'razorpay',
-          address_id: 1, // TODO: Get from user profile or address selection
           coupon_code: couponApplied ? couponCode : undefined,
         });
 
@@ -228,9 +282,15 @@ export default function CartPage() {
 
       const { razorpay_order_id, payment_id } = paymentOrderResponse.data;
 
+      // Validate Razorpay key before initializing
+      const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!razorpayKey || razorpayKey.trim() === '') {
+        throw new Error('Razorpay payment gateway is not configured. Please contact support.');
+      }
+
       // Step 2: Initialize Razorpay checkout
       const paymentResult = await initializeRazorpayCheckout({
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
+        key: razorpayKey,
         amount: finalAmount * 100, // Convert rupees to paise for Razorpay
         currency: 'INR',
         name: 'WeDesign',
@@ -252,14 +312,20 @@ export default function CartPage() {
         amount: finalAmount,
       });
 
+      // Check if there's an error (but allow "already captured" to proceed)
       if (captureResponse.error) {
-        throw new Error(captureResponse.error || 'Failed to capture payment');
+        // If payment is already captured, that's okay - continue with checkout
+        if (captureResponse.error.toLowerCase().includes('already captured') || 
+            (captureResponse.data?.message && captureResponse.data.message.toLowerCase().includes('already captured'))) {
+          // Payment already captured, continue with checkout
+        } else {
+          throw new Error(captureResponse.error || 'Failed to capture payment');
+        }
       }
 
       // Step 4: Complete purchase
       const purchaseResponse = await apiClient.purchaseCart({
         payment_method: 'razorpay',
-        address_id: 1, // TODO: Get from user profile or address selection
         coupon_code: couponApplied ? couponCode : undefined,
       });
 
@@ -475,6 +541,18 @@ export default function CartPage() {
                         if (couponApplied) {
                           setCouponApplied(false);
                           setCouponInfo(null);
+                          // Clear from localStorage
+                          try {
+                            localStorage.removeItem('appliedCoupon');
+                          } catch (error) {
+                            // Ignore localStorage errors
+                          }
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !couponApplied && !isValidatingCoupon && couponCode.trim()) {
+                          e.preventDefault();
+                          handleApplyCoupon();
                         }
                       }}
                       placeholder="Enter coupon code"
@@ -595,6 +673,7 @@ export default function CartPage() {
           </div>
         </div>
       </div>
+
     </div>
   );
 }

@@ -46,6 +46,23 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     will_be_free: boolean;
   } | null>(null);
 
+  // Load coupon state from localStorage when drawer opens
+  useEffect(() => {
+    if (isOpen) {
+      try {
+        const savedCoupon = localStorage.getItem('appliedCoupon');
+        if (savedCoupon) {
+          const couponData = JSON.parse(savedCoupon);
+          setCouponCode(couponData.code || '');
+          setCouponApplied(couponData.applied || false);
+          setCouponInfo(couponData.info || null);
+        }
+      } catch (error) {
+        // Ignore localStorage errors
+      }
+    }
+  }, [isOpen]);
+
   // Fetch cart summary when drawer opens
   useEffect(() => {
     if (isOpen && cartItems.length > 0) {
@@ -88,9 +105,30 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
       });
 
       if (response.error || !response.data?.valid) {
-        const errorMessage = response.error || response.data?.error || 'Invalid coupon code';
+        // Extract error message from response
+        let errorMessage = 'Invalid coupon code';
+        
+        if (response.error) {
+          // If error is in response.error, use it
+          errorMessage = response.error;
+        } else if (response.data?.error) {
+          // If error is in response.data.error, use it
+          errorMessage = response.data.error;
+        } else if (response.errorDetails?.message) {
+          // If error is in errorDetails, use it
+          errorMessage = response.errorDetails.message;
+        }
+        
         setCouponApplied(false);
         setCouponInfo(null);
+        
+        // Clear from localStorage
+        try {
+          localStorage.removeItem('appliedCoupon');
+        } catch (error) {
+          // Ignore localStorage errors
+        }
+        
         toast({
           title: "Coupon validation failed",
           description: errorMessage,
@@ -101,11 +139,23 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
       if (response.data) {
         setCouponApplied(true);
-        setCouponInfo({
+        const couponInfoData = {
           discount_amount: response.data.discount_amount || 0,
           coupon_name: response.data.coupon?.name || couponCode.trim(),
           coupon_type: response.data.coupon?.coupon_discount_type || 'percentage',
-        });
+        };
+        setCouponInfo(couponInfoData);
+        
+        // Save to localStorage
+        try {
+          localStorage.setItem('appliedCoupon', JSON.stringify({
+            code: couponCode.trim(),
+            applied: true,
+            info: couponInfoData,
+          }));
+        } catch (error) {
+          // Ignore localStorage errors
+        }
         toast({
           title: "Coupon applied",
           description: `Discount of ${formatPrice(response.data.discount_amount || 0)} applied!`,
@@ -114,6 +164,13 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     } catch (error: any) {
       setCouponApplied(false);
       setCouponInfo(null);
+      
+      // Clear from localStorage
+      try {
+        localStorage.removeItem('appliedCoupon');
+      } catch (error) {
+        // Ignore localStorage errors
+      }
       toast({
         title: "Error applying coupon",
         description: error.message || "Failed to validate coupon. Please try again.",
@@ -265,6 +322,18 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         if (couponApplied) {
                           setCouponApplied(false);
                           setCouponInfo(null);
+                          // Clear from localStorage
+                          try {
+                            localStorage.removeItem('appliedCoupon');
+                          } catch (error) {
+                            // Ignore localStorage errors
+                          }
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !couponApplied && !isValidatingCoupon && couponCode.trim()) {
+                          e.preventDefault();
+                          handleApplyCoupon();
                         }
                       }}
                       placeholder="Enter coupon code"

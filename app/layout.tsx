@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body suppressHydrationWarning>
         <Script
           src="https://checkout.razorpay.com/v1/checkout.js"
-          strategy="lazyOnload"
+          strategy="afterInteractive"
         />
         <Providers>{children}</Providers>
       </body>

@@ -124,7 +124,10 @@ export function getUserFriendlyMessage(errorDetails: ErrorDetails): string {
     case ErrorType.FORBIDDEN:
       return 'You do not have permission to perform this action.';
     case ErrorType.NOT_FOUND:
-      return 'The requested resource was not found.';
+      // Use the actual error message from backend if available, otherwise use generic message
+      return message && message !== 'The requested resource was not found.' 
+        ? message 
+        : 'The requested resource was not found.';
     case ErrorType.VALIDATION:
       return message || 'Please check your input and try again.';
     case ErrorType.SERVER:

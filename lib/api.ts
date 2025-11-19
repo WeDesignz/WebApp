@@ -175,6 +175,10 @@ async function apiRequest<T>(
       const errorDetails = formatError(errorData, response.status);
       const userMessage = getUserFriendlyMessage(errorDetails);
       
+      // For coupon validation and other endpoints, prefer the error message from errorData
+      // This ensures backend-specific error messages are preserved
+      const finalErrorMessage = errorData?.error || errorData?.detail || userMessage;
+      
       // Don't log 404 errors for GET endpoints that are expected to return 404 when no data exists
       const isExpected404 = response.status === 404 && 
         (options.method === 'GET' || !options.method) &&
@@ -194,9 +198,11 @@ async function apiRequest<T>(
       }
 
       return {
-        error: userMessage,
+        error: finalErrorMessage,
         errorDetails,
         fieldErrors: errorDetails.fieldErrors,
+        // Include original error data for cases where we need to access it directly
+        data: errorData,
       };
     }
 
@@ -621,7 +627,7 @@ export const apiClient = {
 
   purchaseCart: async (data: {
     payment_method: 'razorpay' | 'wallet';
-    address_id: number;
+    address_id?: number;
     coupon_code?: string;
   }) => {
     return apiRequest('/api/orders/purchase/', {
