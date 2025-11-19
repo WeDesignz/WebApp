@@ -2198,7 +2198,7 @@ export const apiClient = {
   },
 
   /**
-   * Get custom request comments
+   * Get custom request comments (deprecated - use getOrderComments instead)
    */
   getCustomRequestComments: async (requestId: number) => {
     return apiRequest<{
@@ -2207,7 +2207,7 @@ export const apiClient = {
   },
 
   /**
-   * Add comment to custom request
+   * Add comment to custom request (deprecated - use addOrderComment instead)
    */
   addCustomRequestComment: async (requestId: number, data: {
     comment: string;
@@ -2217,6 +2217,50 @@ export const apiClient = {
       message: string;
       comment: any;
     }>(`/api/custom-requests/${requestId}/comments/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // ==================== ORDER COMMENTS (Unified Chat System) ====================
+  
+  /**
+   * Get order comments/messages (works for all order types: cart, subscription, custom)
+   */
+  getOrderComments: async (orderId: number | string): Promise<ApiResponse<{
+    order_id: number;
+    order_type: string;
+    order_title: string;
+    comments: Array<{
+      id: number;
+      comment_type: 'customer' | 'admin' | 'system';
+      message: string;
+      created_by: any;
+      created_at: string;
+      media?: Array<{
+        id: number;
+        file_url: string;
+        file?: any;
+      }>;
+    }>;
+    total_comments: number;
+  }>> => {
+    return apiRequest(`/api/orders/order/${orderId}/comments/`);
+  },
+
+  /**
+   * Add comment/message to an order (works for all order types)
+   */
+  addOrderComment: async (orderId: number | string, data: {
+    message: string;
+    comment_type?: 'customer' | 'admin' | 'system';
+    is_internal?: boolean;
+    media_ids?: number[];
+  }): Promise<ApiResponse<{
+    message: string;
+    comment: any;
+  }>> => {
+    return apiRequest(`/api/orders/order/${orderId}/comments/`, {
       method: 'POST',
       body: JSON.stringify(data),
     });

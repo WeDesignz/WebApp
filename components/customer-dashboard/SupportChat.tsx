@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Paperclip } from "lucide-react";
+import { Send, Paperclip, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { apiClient } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface Message {
   id: string;
@@ -26,35 +29,72 @@ interface SupportChatProps {
   orderTitle: string;
 }
 
-const getOrderMessages = (orderId: string): Message[] => {
-  const storedMessages = localStorage.getItem(`chat_${orderId}`);
-  if (storedMessages) {
-    return JSON.parse(storedMessages);
-  }
-  
-  return [
-    {
-      id: "1",
-      sender: "support",
-      content: "Hello! I've received your custom design order. I'll start working on it right away.",
-      timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    },
-  ];
-};
-
 export default function SupportChat({ open, onClose, orderId, orderTitle }: SupportChatProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isSending, setIsSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (orderId) {
-      const orderMessages = getOrderMessages(orderId);
-      setMessages(orderMessages);
-    }
-  }, [orderId]);
+  // Fetch order comments from API
+  const { data: commentsData, isLoading: isLoadingComments, error: commentsError, refetch } = useQuery({
+    queryKey: ['orderComments', orderId],
+    queryFn: async () => {
+      const response = await apiClient.getOrderComments(orderId);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    enabled: open && !!orderId,
+    staleTime: 10 * 1000, // 10 seconds
+    refetchInterval: 30000, // Refetch every 30 seconds for new messages
+  });
+
+  // Send message mutation
+  const sendMessageMutation = useMutation({
+    mutationFn: async (data: { message: string; media_ids?: number[] }) => {
+      const response = await apiClient.addOrderComment(orderId, {
+        message: data.message,
+        comment_type: 'customer',
+        media_ids: data.media_ids,
+      });
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      // Refresh comments after sending
+      queryClient.invalidateQueries({ queryKey: ['orderComments', orderId] });
+      setNewMessage("");
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error sending message",
+        description: error.message || "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Transform API comments to Message format
+  const messages: Message[] = commentsData?.comments?.map((comment: any) => ({
+    id: comment.id.toString(),
+    sender: comment.comment_type === 'customer' ? 'user' : 'support',
+    content: comment.message,
+    timestamp: comment.created_at,
+    attachment: comment.media && comment.media.length > 0 ? {
+      name: comment.media[0].file?.name || comment.media[0].file_url?.split('/').pop() || 'Attachment',
+      url: comment.media[0].file_url || comment.media[0].file
+    } : undefined
+  })) || [];
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -62,70 +102,51 @@ export default function SupportChat({ open, onClose, orderId, orderTitle }: Supp
     }
   }, [messages]);
 
-  const saveMessages = (msgs: Message[]) => {
-    localStorage.setItem(`chat_${orderId}`, JSON.stringify(msgs));
-  };
-
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
     }
   };
 
-  const fileToDataURL = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleSend = async () => {
-    if (!newMessage.trim() && !selectedFile) return;
+    if (!newMessage.trim() && !selectedFile) {
+      toast({
+        title: "Empty message",
+        description: "Please enter a message or select a file.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    let attachmentData = null;
-    
-    if (selectedFile) {
-      try {
-        const dataURL = await fileToDataURL(selectedFile);
-        attachmentData = {
-          name: selectedFile.name,
-          url: dataURL,
-        };
-      } catch (error) {
-        console.error("Failed to convert file:", error);
+    setIsSending(true);
+
+    try {
+      let mediaIds: number[] = [];
+      
+      // TODO: Upload file if selected and get media_id
+      // For now, we'll just send the message text
+      // File upload can be implemented later using MediaFiles API
+      
+      if (selectedFile) {
+        // TODO: Upload file first, then attach media_id
+        toast({
+          title: "File upload",
+          description: "File upload will be implemented soon. Please send a text message for now.",
+          variant: "default",
+        });
+        setIsSending(false);
+        return;
       }
+
+      await sendMessageMutation.mutateAsync({
+        message: newMessage.trim(),
+        media_ids: mediaIds.length > 0 ? mediaIds : undefined,
+      });
+    } catch (error: any) {
+      console.error("Error sending message:", error);
+    } finally {
+      setIsSending(false);
     }
-
-    const message: Message = {
-      id: Date.now().toString(),
-      sender: "user",
-      content: newMessage || "Sent a file",
-      timestamp: new Date().toISOString(),
-      ...(attachmentData && { attachment: attachmentData }),
-    };
-
-    const updatedMessages = [...messages, message];
-    setMessages(updatedMessages);
-    saveMessages(updatedMessages);
-    setNewMessage("");
-    setSelectedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-
-    setTimeout(() => {
-      const reply: Message = {
-        id: (Date.now() + 1).toString(),
-        sender: "support",
-        content: "Got it! I'll take care of that.",
-        timestamp: new Date().toISOString(),
-      };
-      const newMessages = [...updatedMessages, reply];
-      setMessages(newMessages);
-      saveMessages(newMessages);
-    }, 1000);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -140,15 +161,45 @@ export default function SupportChat({ open, onClose, orderId, orderTitle }: Supp
       <DialogContent className="max-w-2xl h-[600px] flex flex-col p-0">
         <DialogHeader className="p-6 pb-4 border-b">
           <DialogTitle>Support Chat</DialogTitle>
-          <div className="text-sm text-muted-foreground space-y-1">
-            <p className="font-semibold">{orderTitle}</p>
-            <p className="font-mono text-xs">{orderId}</p>
+          <DialogDescription>
+            Communicate with support about this order
+          </DialogDescription>
+          <div className="text-sm text-muted-foreground space-y-1 mt-2">
+            <p className="font-semibold">{commentsData?.order_title || orderTitle}</p>
+            <p className="font-mono text-xs">Order #{commentsData?.order_id || orderId} • {commentsData?.order_type || 'Order'}</p>
           </div>
         </DialogHeader>
 
         <ScrollArea className="flex-1 p-6" ref={scrollRef}>
-          <div className="space-y-4">
-            {messages.map((message) => (
+          {isLoadingComments ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : commentsError ? (
+            <div className="text-center py-12">
+              <p className="text-destructive mb-2">Error loading messages</p>
+              <p className="text-sm text-muted-foreground">
+                {commentsError instanceof Error ? commentsError.message : 'Failed to load messages'}
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => refetch()} 
+                className="mt-4"
+              >
+                Retry
+              </Button>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground mb-2">No messages yet</p>
+              <p className="text-sm text-muted-foreground">
+                Start a conversation by sending a message below.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {messages.map((message) => (
               <div
                 key={message.id}
                 className={`flex gap-3 ${
@@ -195,8 +246,9 @@ export default function SupportChat({ open, onClose, orderId, orderTitle }: Supp
                   </span>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </ScrollArea>
 
         <div className="p-4 border-t">
@@ -236,8 +288,17 @@ export default function SupportChat({ open, onClose, orderId, orderTitle }: Supp
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyPress={handleKeyPress}
             />
-            <Button onClick={handleSend} size="icon" className="flex-shrink-0">
-              <Send className="w-4 h-4" />
+            <Button 
+              onClick={handleSend} 
+              size="icon" 
+              className="flex-shrink-0"
+              disabled={isSending || (!newMessage.trim() && !selectedFile)}
+            >
+              {isSending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-2 text-center">
