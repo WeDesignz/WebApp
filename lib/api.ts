@@ -2097,6 +2097,8 @@ export const apiClient = {
       message: string;
       subscription: any;
       plan: any;
+      order_id?: number;
+      amount?: number;
     }>('/api/plans/subscription/subscribe/', {
       method: 'POST',
       body: JSON.stringify({ plan_id: planId, auto_renew: autoRenew }),

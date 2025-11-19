@@ -201,7 +201,7 @@ export default function PlansContent() {
     setIsProcessingPayment(true);
 
     try {
-      // Step 1: Create subscription (this will create the subscription record)
+      // Step 1: Create subscription (this now also creates Order)
       const subscribeResponse = await apiClient.subscribeToPlan(plan.id, true);
 
       if (subscribeResponse.error) {
@@ -217,11 +217,18 @@ export default function PlansContent() {
         throw new Error(subscribeResponse.error);
       }
 
-      // Step 2: Create payment order
+      // Get order_id from subscription creation response
+      const orderId = subscribeResponse.data?.order_id;
+      if (!orderId) {
+        throw new Error('Failed to create order for subscription');
+      }
+
+      // Step 2: Create payment order with order_id to link payment to order
       const paymentOrderResponse = await apiClient.createPaymentOrder({
         amount: parseFloat(plan.price.toString()),
         currency: 'INR',
         description: `Subscription: ${plan.plan_name_display || plan.plan_name} - ${plan.plan_duration}`,
+        order_id: orderId, // Link payment to order
       });
 
       if (paymentOrderResponse.error || !paymentOrderResponse.data) {
