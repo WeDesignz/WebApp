@@ -27,6 +27,7 @@ interface Order {
   id: number | string;
   title?: string;
   order_number?: string;
+  order_type?: "cart" | "subscription" | "custom";
   type?: "custom" | "product";
   status: "pending" | "success" | "failed" | "processing" | "cancelled" | "in_progress" | "completed" | string;
   created_at: string;
@@ -35,6 +36,9 @@ interface Order {
   price?: number;
   budget?: number;
   description?: string;
+  products_count?: number;
+  custom_order_details?: any;
+  subscription_details?: any;
 }
 
 interface CustomRequest {
@@ -160,62 +164,99 @@ export default function OrdersContent() {
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
-            {/* Regular Orders */}
-            {orders.length > 0 && (
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold">Product Orders</h2>
-                {orders.map((order, index) => (
-                  <motion.div
-                    key={`order-${order.id}`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <OrderCard
-                      order={order}
-                      onOpenChat={() => {
-                        setSelectedOrder(order);
-                        setChatOpen(true);
-                      }}
-                    />
-                  </motion.div>
-                ))}
-              </div>
-            )}
+            {/* Group orders by order_type */}
+            {(() => {
+              const cartOrders = orders.filter(o => o.order_type === 'cart' || (!o.order_type && o.type !== 'custom'));
+              const subscriptionOrders = orders.filter(o => o.order_type === 'subscription');
+              const customOrders = orders.filter(o => o.order_type === 'custom' || o.type === 'custom');
+              
+              return (
+                <>
+                  {/* Cart Orders */}
+                  {cartOrders.length > 0 && (
+                    <div className="space-y-4">
+                      <h2 className="text-xl font-semibold">Cart Orders</h2>
+                      {cartOrders.map((order, index) => (
+                        <motion.div
+                          key={`cart-order-${order.id}`}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                        >
+                          <CartOrderCard
+                            order={order}
+                            onOpenChat={() => {
+                              setSelectedOrder(order);
+                              setChatOpen(true);
+                            }}
+                          />
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
 
-            {/* Custom Requests */}
-            {customRequests.length > 0 && (
-              <div className="space-y-4 mt-6">
-                <h2 className="text-xl font-semibold">Custom Requests</h2>
-                {customRequests.map((request, index) => (
-                  <motion.div
-                    key={`custom-${request.id}`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: (orders.length + index) * 0.1 }}
-                  >
-                    <CustomRequestCard
-                      request={request}
-                      onView={() => handleViewCustomRequest(request)}
-                    />
-                  </motion.div>
-                ))}
-              </div>
-            )}
+                  {/* Subscription Orders */}
+                  {subscriptionOrders.length > 0 && (
+                    <div className="space-y-4 mt-6">
+                      <h2 className="text-xl font-semibold">Subscription Orders</h2>
+                      {subscriptionOrders.map((order, index) => (
+                        <motion.div
+                          key={`subscription-order-${order.id}`}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: (cartOrders.length + index) * 0.1 }}
+                        >
+                          <SubscriptionOrderCard
+                            order={order}
+                            onOpenChat={() => {
+                              setSelectedOrder(order);
+                              setChatOpen(true);
+                            }}
+                          />
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
 
-            {/* Empty State */}
-            {orders.length === 0 && customRequests.length === 0 && (
-              <Card className="p-12 text-center">
-                <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-                <h3 className="text-xl font-semibold mb-2">No orders yet</h3>
-                <p className="text-muted-foreground mb-4">
-                  Your orders and custom requests will appear here
-                </p>
-                <Button onClick={() => setCustomOrderModalOpen(true)}>
-                  Create Custom Order
-                </Button>
-              </Card>
-            )}
+                  {/* Custom Orders */}
+                  {customOrders.length > 0 && (
+                    <div className="space-y-4 mt-6">
+                      <h2 className="text-xl font-semibold">Custom Orders</h2>
+                      {customOrders.map((order, index) => (
+                        <motion.div
+                          key={`custom-order-${order.id}`}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: (cartOrders.length + subscriptionOrders.length + index) * 0.1 }}
+                        >
+                          <CustomOrderCard
+                            order={order}
+                            onOpenChat={() => {
+                              setSelectedOrder(order);
+                              setChatOpen(true);
+                            }}
+                          />
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Empty State */}
+                  {orders.length === 0 && (
+                    <Card className="p-12 text-center">
+                      <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                      <h3 className="text-xl font-semibold mb-2">No orders yet</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Your orders will appear here
+                      </p>
+                      <Button onClick={() => setCustomOrderModalOpen(true)}>
+                        Create Custom Order
+                      </Button>
+                    </Card>
+                  )}
+                </>
+              );
+            })()}
           </TabsContent>
 
           <TabsContent value="products" className="space-y-4">
@@ -231,73 +272,85 @@ export default function OrdersContent() {
                   {ordersError instanceof Error ? ordersError.message : 'Failed to load orders'}
                 </p>
               </Card>
-            ) : orders.length === 0 ? (
-              <Card className="p-12 text-center">
-                <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-                <h3 className="text-xl font-semibold mb-2">No product orders yet</h3>
-                <p className="text-muted-foreground">
-                  Your product orders will appear here
-                </p>
-              </Card>
-            ) : (
-              orders.map((order, index) => (
-                <motion.div
-                  key={order.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <OrderCard
-                    order={order}
-                    onOpenChat={() => {
-                      setSelectedOrder(order);
-                      setChatOpen(true);
-                    }}
-                  />
-                </motion.div>
-              ))
-            )}
+            ) : (() => {
+              const productOrders = orders.filter(o => o.order_type === 'cart' || o.order_type === 'subscription' || (!o.order_type && o.type !== 'custom'));
+              return productOrders.length === 0 ? (
+                <Card className="p-12 text-center">
+                  <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                  <h3 className="text-xl font-semibold mb-2">No product orders yet</h3>
+                  <p className="text-muted-foreground">
+                    Your product orders will appear here
+                  </p>
+                </Card>
+              ) : (
+                productOrders.map((order, index) => {
+                  const CardComponent = order.order_type === 'subscription' ? SubscriptionOrderCard : CartOrderCard;
+                  return (
+                    <motion.div
+                      key={order.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <CardComponent
+                        order={order}
+                        onOpenChat={() => {
+                          setSelectedOrder(order);
+                          setChatOpen(true);
+                        }}
+                      />
+                    </motion.div>
+                  );
+                })
+              );
+            })()}
           </TabsContent>
 
           <TabsContent value="custom" className="space-y-4">
-            {isLoadingCustomRequests ? (
+            {isLoadingOrders ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
               </div>
-            ) : customRequestsError ? (
+            ) : ordersError ? (
               <Card className="p-12 text-center">
                 <AlertCircle className="w-16 h-16 mx-auto mb-4 text-destructive" />
-                <h3 className="text-xl font-semibold mb-2">Error loading custom requests</h3>
+                <h3 className="text-xl font-semibold mb-2">Error loading custom orders</h3>
                 <p className="text-muted-foreground">
-                  {customRequestsError instanceof Error ? customRequestsError.message : 'Failed to load custom requests'}
+                  {ordersError instanceof Error ? ordersError.message : 'Failed to load custom orders'}
                 </p>
               </Card>
-            ) : customRequests.length === 0 ? (
-              <Card className="p-12 text-center">
-                <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-                <h3 className="text-xl font-semibold mb-2">No custom requests yet</h3>
-                <p className="text-muted-foreground mb-4">
-                  Create a custom design request to get started
-                </p>
-                <Button onClick={() => setCustomOrderModalOpen(true)}>
-                  Create Custom Order
-                </Button>
-              </Card>
-            ) : (
-              customRequests.map((request, index) => (
-                <motion.div
-                  key={request.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <CustomRequestCard
-                    request={request}
-                    onView={() => handleViewCustomRequest(request)}
-                  />
-                </motion.div>
-              ))
-            )}
+            ) : (() => {
+              const customOrders = orders.filter(o => o.order_type === 'custom' || o.type === 'custom');
+              return customOrders.length === 0 ? (
+                <Card className="p-12 text-center">
+                  <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                  <h3 className="text-xl font-semibold mb-2">No custom orders yet</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Create a custom design request to get started
+                  </p>
+                  <Button onClick={() => setCustomOrderModalOpen(true)}>
+                    Create Custom Order
+                  </Button>
+                </Card>
+              ) : (
+                customOrders.map((order, index) => (
+                  <motion.div
+                    key={order.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <CustomOrderCard
+                      order={order}
+                      onOpenChat={() => {
+                        setSelectedOrder(order);
+                        setChatOpen(true);
+                      }}
+                    />
+                  </motion.div>
+                ))
+              );
+            })()}
           </TabsContent>
         </Tabs>
       </div>
@@ -358,6 +411,198 @@ export default function OrdersContent() {
   );
 }
 
+// Base order card component with shared logic
+function BaseOrderCard({ order, onOpenChat, orderTypeLabel, iconColor, bgColor, borderColor }: { 
+  order: Order; 
+  onOpenChat: () => void;
+  orderTypeLabel: string;
+  iconColor: string;
+  bgColor: string;
+  borderColor: string;
+}) {
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const deliveryTime = order.deliveryTime || 60 * 60 * 1000;
+  const createdAt = order.created_at || new Date().toISOString();
+
+  useEffect(() => {
+    if (order.status === "pending" || order.status === "processing") {
+      const calculateTimeRemaining = () => {
+        const createdTime = new Date(createdAt).getTime();
+        const deadline = createdTime + deliveryTime;
+        const now = Date.now();
+        const remaining = Math.max(0, deadline - now);
+        setTimeRemaining(remaining);
+      };
+      calculateTimeRemaining();
+      const interval = setInterval(calculateTimeRemaining, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [order, createdAt, deliveryTime]);
+
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
+
+  const getStatusConfig = () => {
+    switch (order.status) {
+      case "pending":
+        return { icon: AlertCircle, label: "Pending", badgeVariant: "secondary" as const };
+      case "processing":
+      case "in_progress":
+        return { icon: Clock, label: "Processing", badgeVariant: "default" as const };
+      case "success":
+      case "completed":
+        return { icon: CheckCircle2, label: "Completed", badgeVariant: "secondary" as const };
+      case "failed":
+        return { icon: AlertCircle, label: "Failed", badgeVariant: "destructive" as const };
+      case "cancelled":
+        return { icon: AlertCircle, label: "Cancelled", badgeVariant: "secondary" as const };
+      default:
+        return { icon: Package, label: order.status || "Unknown", badgeVariant: "secondary" as const };
+    }
+  };
+
+  const config = getStatusConfig();
+  const Icon = config.icon;
+
+  return (
+    <Card className={`p-6 bg-gradient-to-br ${bgColor} ${borderColor}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex gap-4 flex-1">
+          <div className={`p-3 bg-gradient-to-br ${iconColor} rounded-lg flex-shrink-0`}>
+            <Icon className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="font-semibold text-lg">
+                {order.title || `${orderTypeLabel} #${order.order_number || order.id}`}
+              </h3>
+              <Badge variant={config.badgeVariant}>{config.label}</Badge>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                <span>Order ID: <span className="font-mono">{order.order_number || order.id}</span></span>
+                {(order.total_amount !== undefined || order.price !== undefined) && (
+                  <>
+                    <span>•</span>
+                    <span>₹{order.total_amount || order.price || 0}</span>
+                  </>
+                )}
+                <span>•</span>
+                <span>{new Date(createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+              </div>
+              {(order.status === "pending" || order.status === "processing" || order.status === "in_progress") && timeRemaining > 0 && (
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-blue-500" />
+                  <span className="font-mono text-lg font-bold text-blue-500">{formatTime(timeRemaining)}</span>
+                  <span className="text-sm text-muted-foreground">remaining</span>
+                </div>
+              )}
+              {order.status === "success" || order.status === "completed" ? (
+                <p className="text-sm text-green-600 dark:text-green-400">Your order has been completed! Check your downloads.</p>
+              ) : order.status === "failed" ? (
+                <p className="text-sm text-red-600 dark:text-red-400">Order processing failed. Please contact support.</p>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={onOpenChat}>
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Chat
+          </Button>
+          {(order.status === "success" || order.status === "completed") && (
+            <Button size="sm">View Design</Button>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// Cart Order Card
+function CartOrderCard({ order, onOpenChat }: { order: Order; onOpenChat: () => void }) {
+  return (
+    <BaseOrderCard
+      order={order}
+      onOpenChat={onOpenChat}
+      orderTypeLabel="Cart Order"
+      iconColor="from-blue-500 to-indigo-500"
+      bgColor="from-blue-500/10 to-indigo-500/10"
+      borderColor="border-blue-500/20"
+    />
+  );
+}
+
+// Subscription Order Card
+function SubscriptionOrderCard({ order, onOpenChat }: { order: Order; onOpenChat: () => void }) {
+  return (
+    <BaseOrderCard
+      order={order}
+      onOpenChat={onOpenChat}
+      orderTypeLabel="Subscription Order"
+      iconColor="from-purple-500 to-pink-500"
+      bgColor="from-purple-500/10 to-pink-500/10"
+      borderColor="border-purple-500/20"
+    />
+  );
+}
+
+// Custom Order Card
+function CustomOrderCard({ order, onOpenChat }: { order: Order; onOpenChat: () => void }) {
+  const customDetails = order.custom_order_details;
+  return (
+    <Card className="p-6 bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/20">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex gap-4 flex-1">
+          <div className="p-3 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex-shrink-0">
+            <FileText className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="font-semibold text-lg">
+                {customDetails?.title || order.title || `Custom Order #${order.order_number || order.id}`}
+              </h3>
+              <Badge variant={order.status === "success" ? "secondary" : "default"}>
+                {order.status === "success" ? "Completed" : order.status === "pending" ? "Pending" : order.status}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                <span>Order ID: <span className="font-mono">{order.order_number || order.id}</span></span>
+                {customDetails?.budget && (
+                  <>
+                    <span>•</span>
+                    <span>Budget: ₹{customDetails.budget}</span>
+                  </>
+                )}
+                <span>•</span>
+                <span>{new Date(order.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+              </div>
+              {customDetails?.description && (
+                <p className="text-sm text-muted-foreground line-clamp-2">{customDetails.description}</p>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={onOpenChat}>
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Chat
+          </Button>
+          {order.status === "success" && (
+            <Button size="sm">View Design</Button>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// Keep old OrderCard for backward compatibility (used in products tab)
 function OrderCard({ order, onOpenChat }: { order: Order; onOpenChat: () => void }) {
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
 

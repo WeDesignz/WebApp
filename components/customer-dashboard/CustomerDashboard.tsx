@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import CustomerDashboardSidebar from "./CustomerDashboardSidebar";
 import CustomerDashboardTopBar from "./CustomerDashboardTopBar";
 import CustomerDashboardContent from "./CustomerDashboardContent";
@@ -19,6 +20,7 @@ import LogoutModal from "./LogoutModal";
 export type DashboardView = "dashboard" | "downloads" | "orders" | "categories" | "freelancers" | "plans" | "support" | "notifications" | "faq" | "profile" | "accounts";
 
 export default function CustomerDashboard() {
+  const searchParams = useSearchParams();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -26,6 +28,14 @@ export default function CustomerDashboard() {
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [activeView, setActiveView] = useState<DashboardView>("dashboard");
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+
+  // Check for view query parameter on mount
+  useEffect(() => {
+    const viewParam = searchParams.get('view');
+    if (viewParam && ['dashboard', 'downloads', 'orders', 'categories', 'freelancers', 'plans', 'support', 'notifications', 'faq', 'profile', 'accounts'].includes(viewParam)) {
+      setActiveView(viewParam as DashboardView);
+    }
+  }, [searchParams]);
 
   const renderContent = () => {
     switch (activeView) {

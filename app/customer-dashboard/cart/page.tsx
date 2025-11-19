@@ -271,7 +271,7 @@ export default function CartPage() {
         
         // Use a small delay to ensure state update is reflected before navigation
         setTimeout(() => {
-          router.push('/customer-dashboard/orders');
+          router.push('/customer-dashboard?view=orders');
         }, 50);
         return;
       }
@@ -400,7 +400,7 @@ export default function CartPage() {
             
             // Use a small delay to ensure state update is reflected before navigation
             setTimeout(() => {
-              router.push('/customer-dashboard/orders');
+              router.push('/customer-dashboard?view=orders');
             }, 50);
             return; // Exit early
           }
@@ -431,7 +431,7 @@ export default function CartPage() {
       
       // Use a small delay to ensure state update is reflected before navigation
       setTimeout(() => {
-        router.push('/customer-dashboard/orders');
+        router.push('/customer-dashboard?view=orders');
       }, 50);
       return; // Exit early to prevent finally block from running
     } catch (error: any) {
