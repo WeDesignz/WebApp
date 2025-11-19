@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShoppingCart, Tag, ArrowRight, Trash2, Heart, Loader2 } from "lucide-react";
+import { X, ShoppingCart, Tag, ArrowRight, Trash2, Heart, Loader2, Check } from "lucide-react";
 import { useCartWishlist } from "@/contexts/CartWishlistContext";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -32,6 +32,13 @@ interface CartDrawerProps {
 export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { cartItems, removeFromCart, moveToWishlist, getCartTotal, isLoadingCart } = useCartWishlist();
   const [couponCode, setCouponCode] = useState("");
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [couponInfo, setCouponInfo] = useState<{
+    discount_amount: number;
+    coupon_name: string;
+    coupon_type: 'flat' | 'percentage';
+  } | null>(null);
   const { toast } = useToast();
   const [cartSummary, setCartSummary] = useState<{
     total_amount: number;
@@ -62,14 +69,63 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     await moveToWishlist(itemId);
   };
 
-  const handleApplyCoupon = () => {
-    if (couponCode.trim()) {
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
       toast({
-        title: "Coupon applied",
-        description: "Your discount has been applied to the cart.",
+        title: "Invalid coupon code",
+        description: "Please enter a coupon code",
+        variant: "destructive",
       });
+      return;
+    }
+
+    setIsValidatingCoupon(true);
+    try {
+      const orderAmount = cartSummary?.total_amount || getCartTotal();
+      const response = await apiClient.validateCoupon({
+        coupon_code: couponCode.trim(),
+        order_amount: orderAmount,
+      });
+
+      if (response.error || !response.data?.valid) {
+        const errorMessage = response.error || response.data?.error || 'Invalid coupon code';
+        setCouponApplied(false);
+        setCouponInfo(null);
+        toast({
+          title: "Coupon validation failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (response.data) {
+        setCouponApplied(true);
+        setCouponInfo({
+          discount_amount: response.data.discount_amount || 0,
+          coupon_name: response.data.coupon?.name || couponCode.trim(),
+          coupon_type: response.data.coupon?.coupon_discount_type || 'percentage',
+        });
+        toast({
+          title: "Coupon applied",
+          description: `Discount of ${formatPrice(response.data.discount_amount || 0)} applied!`,
+        });
+      }
+    } catch (error: any) {
+      setCouponApplied(false);
+      setCouponInfo(null);
+      toast({
+        title: "Error applying coupon",
+        description: error.message || "Failed to validate coupon. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsValidatingCoupon(false);
     }
   };
+
+  const discount = couponInfo?.discount_amount || 0;
+  const total = (cartSummary?.total_amount || getCartTotal()) - discount;
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -144,15 +200,15 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                     >
                       <div className="flex gap-4">
                         <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
-                          <img
+                        <img
                             src={makeAbsoluteUrl(item.image) || '/generated_images/Brand_Identity_Design_67fa7e1f.png'}
-                            alt={item.title}
+                          alt={item.title}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               target.src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
                             }}
-                          />
+                        />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold truncate mb-1">{item.title}</h3>
@@ -203,7 +259,14 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                     <input
                       type="text"
                       value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
+                      onChange={(e) => {
+                        setCouponCode(e.target.value);
+                        // Clear applied coupon if user changes the code
+                        if (couponApplied) {
+                          setCouponApplied(false);
+                          setCouponInfo(null);
+                        }
+                      }}
                       placeholder="Enter coupon code"
                       className="flex-1 px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                     />
@@ -211,8 +274,21 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                       size="sm" 
                       variant="outline"
                       onClick={handleApplyCoupon}
+                      disabled={couponApplied || isValidatingCoupon}
                     >
-                      Apply
+                      {isValidatingCoupon ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          Validating...
+                        </>
+                      ) : couponApplied ? (
+                        <>
+                          <Check className="w-4 h-4 mr-1" />
+                          Applied
+                        </>
+                      ) : (
+                        'Apply'
+                      )}
                     </Button>
                   </div>
                   
@@ -228,10 +304,16 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="font-semibold">{formatPrice(getCartTotal())}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Discount</span>
-                    <span className="text-success">-$0.00</span>
-                  </div>
+                  {couponApplied && couponInfo && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Discount {couponInfo.coupon_type === 'percentage' 
+                          ? `(${((discount / (cartSummary?.total_amount || getCartTotal())) * 100).toFixed(0)}%)`
+                          : `(${couponInfo.coupon_name})`}
+                      </span>
+                      <span className="text-success">-{formatPrice(discount)}</span>
+                    </div>
+                  )}
                   {cartSummary?.will_be_free && (
                     <div className="p-3 bg-success/5 border border-success/20 rounded-lg">
                       <p className="text-sm text-success font-medium">
@@ -241,7 +323,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   )}
                   <div className="flex items-center justify-between text-lg font-bold pt-2 border-t border-border">
                     <span>Total</span>
-                    <span>{formatPrice(cartSummary?.total_amount || getCartTotal())}</span>
+                    <span>{formatPrice(cartSummary?.will_be_free ? 0 : Math.max(0, total))}</span>
                   </div>
                   {cartSummary?.will_be_free && (
                     <div className="text-sm text-muted-foreground text-center">

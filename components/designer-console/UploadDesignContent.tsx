@@ -628,21 +628,21 @@ export default function UploadDesignContent() {
 
     if (uploadMode === "single") {
       // Validate single design upload fields
-      if (!title.trim()) {
-        errors.title = "Title is required";
-      }
+    if (!title.trim()) {
+      errors.title = "Title is required";
+    }
 
-      if (!description.trim()) {
-        errors.description = "Description is required";
-      }
+    if (!description.trim()) {
+      errors.description = "Description is required";
+    }
 
       if (!categoryId && !subcategoryId) {
-        errors.category = "Category is required";
-      }
+      errors.category = "Category is required";
+    }
 
-      if (pricingType === "paid" && (!price || parseFloat(price) <= 0)) {
-        errors.price = "Valid price is required for paid designs";
-      }
+    if (pricingType === "paid" && (!price || parseFloat(price) <= 0)) {
+      errors.price = "Valid price is required for paid designs";
+    }
 
       // Check for required files: eps, cdr, jpg, png (mockup is optional)
       const requiredFiles = ['eps', 'cdr', 'jpg', 'png'] as const;
@@ -731,27 +731,27 @@ export default function UploadDesignContent() {
 
       } else {
         // Single design upload
-        const formData = new FormData();
+      const formData = new FormData();
 
-        // Add text fields
-        formData.append('title', title.trim());
-        formData.append('description', description.trim());
-        const finalCategoryId = subcategoryId || categoryId;
-        if (!finalCategoryId) {
-          throw new Error('Category is required');
-        }
-        formData.append('category_id', String(finalCategoryId));
-        formData.append('product_plan_type', pricingType === "free" ? "free" : "basic");
+      // Add text fields
+      formData.append('title', title.trim());
+      formData.append('description', description.trim());
+      const finalCategoryId = subcategoryId || categoryId;
+      if (!finalCategoryId) {
+        throw new Error('Category is required');
+      }
+      formData.append('category_id', String(finalCategoryId));
+      formData.append('product_plan_type', pricingType === "free" ? "free" : "basic");
 
-        if (pricingType === "paid" && price) {
-          formData.append('price', price);
-        }
+      if (pricingType === "paid" && price) {
+        formData.append('price', price);
+      }
 
-        if (color.trim()) {
-          formData.append('color', color.trim());
-        }
+      if (color.trim()) {
+        formData.append('color', color.trim());
+      }
 
-        // Add design files
+      // Add design files
         Object.entries(files).forEach(([fileType, file]) => {
           if (file) {
             // For mockup files, rename to include "mockup" in filename for backend detection
@@ -760,55 +760,55 @@ export default function UploadDesignContent() {
               const mockupFile = new File([file], `mockup.${extension}`, { type: file.type });
               formData.append('design_files', mockupFile);
             } else {
-              formData.append('design_files', file);
-            }
+            formData.append('design_files', file);
           }
+      }
         });
 
-        // Add tags
-        selectedTagIds.forEach(tagId => {
-          formData.append('tags', String(tagId));
-        });
+      // Add tags
+      selectedTagIds.forEach(tagId => {
+        formData.append('tags', String(tagId));
+      });
 
-        // Upload
-        const response = await apiClient.uploadDesign(formData);
+      // Upload
+      const response = await apiClient.uploadDesign(formData);
 
-        if (response.error) {
-          throw new Error(response.error);
-        }
+      if (response.error) {
+        throw new Error(response.error);
+      }
 
-        if (!response.data) {
-          throw new Error('Upload failed - no response from server');
-        }
+      if (!response.data) {
+        throw new Error('Upload failed - no response from server');
+      }
 
-        const productId = response.data.product_id;
-        const platformId = response.data.platform_id;
+      const productId = response.data.product_id;
+      const platformId = response.data.platform_id;
 
-        // Show success toast immediately
-        toast({
-          title: "Design submitted successfully!",
-          description: `Your design has been submitted for review. Files are being processed in the background. Product ID: ${productId}, Platform ID: ${platformId}`,
-        });
+      // Show success toast immediately
+      toast({
+        title: "Design submitted successfully!",
+        description: `Your design has been submitted for review. Files are being processed in the background. Product ID: ${productId}, Platform ID: ${platformId}`,
+      });
 
-        // Reset form
-        setTitle("");
-        setDescription("");
-        setCategoryId(null);
-        setSubcategoryId(null);
-        setPrice("");
-        setColor("");
-        setSelectedTagIds([]);
-        setSelectedTags([]);
-        setTagInput("");
-        setFiles({
-          eps: null,
-          cdr: null,
-          jpg: null,
-          png: null,
-          mockup: null,
-        });
-        setValidationErrors({});
-        setFileErrors({});
+      // Reset form
+      setTitle("");
+      setDescription("");
+      setCategoryId(null);
+      setSubcategoryId(null);
+      setPrice("");
+      setColor("");
+      setSelectedTagIds([]);
+      setSelectedTags([]);
+      setTagInput("");
+      setFiles({
+        eps: null,
+        cdr: null,
+        jpg: null,
+        png: null,
+        mockup: null,
+      });
+      setValidationErrors({});
+      setFileErrors({});
       }
 
     } catch (error: any) {
@@ -895,12 +895,12 @@ export default function UploadDesignContent() {
 
       {/* Design Details Section - Only show for single upload */}
       {uploadMode === "single" && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Design Details</CardTitle>
-            <CardDescription>Provide the core information about your design</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Design Details</CardTitle>
+          <CardDescription>Provide the core information about your design</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
@@ -1282,12 +1282,12 @@ export default function UploadDesignContent() {
 
       {/* File Upload Section - Only show for single upload */}
       {uploadMode === "single" && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>File Upload</CardTitle>
-            <CardDescription>Upload your design files in the required formats</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>File Upload</CardTitle>
+          <CardDescription>Upload your design files in the required formats</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Upload required file formats: .cdr, .eps, .png, .jpg. Mockup (.jpg or .png) is optional.
@@ -1360,10 +1360,10 @@ export default function UploadDesignContent() {
             </div>
           </CardContent>
         </Card>
-      )}
+          )}
 
       {/* Bulk Upload Section - Only show for bulk upload */}
-      {uploadMode === "bulk" && (
+          {uploadMode === "bulk" && (
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Bulk Upload</CardTitle>
@@ -1374,25 +1374,25 @@ export default function UploadDesignContent() {
               <div className="bg-muted/30 border border-border rounded-lg p-4 relative">
                 <div className="flex items-start justify-between gap-4 mb-2">
                   <h4 className="font-medium">Bulk Upload Requirements:</h4>
-                  <Button 
-                    variant="outline" 
+              <Button 
+                variant="outline" 
                     size="default"
-                    onClick={downloadTemplate}
-                    disabled={isGeneratingTemplate}
+                onClick={downloadTemplate}
+                disabled={isGeneratingTemplate}
                     className="shrink-0"
-                  >
-                    {isGeneratingTemplate ? (
-                      <>
+              >
+                {isGeneratingTemplate ? (
+                  <>
                         <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
+                    Generating...
+                  </>
+                ) : (
+                  <>
                         <Download className="w-5 h-5 mr-2" />
                         Download Template
-                      </>
-                    )}
-                  </Button>
+                  </>
+                )}
+              </Button>
                 </div>
                 <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
                   <li>Upload a single .zip file</li>
@@ -1433,10 +1433,10 @@ export default function UploadDesignContent() {
                     isDragging
                       ? 'border-primary bg-primary/10'
                       : bulkFile && bulkValidationErrors.length === 0
-                      ? 'border-green-500 bg-green-500/5'
-                      : (fileErrors.bulk || bulkValidationErrors.length > 0)
-                      ? 'border-destructive bg-destructive/5'
-                      : 'border-border hover:border-primary'
+                    ? 'border-green-500 bg-green-500/5'
+                    : (fileErrors.bulk || bulkValidationErrors.length > 0)
+                    ? 'border-destructive bg-destructive/5'
+                    : 'border-border hover:border-primary'
                   }`}
                   onDragEnter={(e) => {
                     e.preventDefault();
@@ -1520,8 +1520,8 @@ export default function UploadDesignContent() {
                       >
                         Change File
                       </Button>
-                    </div>
-                  ) : (
+                      </div>
+                    ) : (
                     <div className="space-y-3">
                       <div className="flex justify-center">
                         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -1537,8 +1537,8 @@ export default function UploadDesignContent() {
                       <p className="text-xs text-muted-foreground">
                         Maximum file size: 1GB (1024 MB)
                       </p>
-                    </div>
-                  )}
+                      </div>
+                    )}
                 </div>
 
                 {(fileErrors.bulk || bulkValidationErrors.length > 0) && (
@@ -1563,8 +1563,8 @@ export default function UploadDesignContent() {
                 )}
               </div>
             </div>
-          </CardContent>
-        </Card>
+        </CardContent>
+      </Card>
       )}
 
       {/* Validation Errors */}

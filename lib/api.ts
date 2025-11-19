@@ -630,6 +630,42 @@ export const apiClient = {
     });
   },
 
+  validateCoupon: async (data: {
+    coupon_code: string;
+    order_amount: number;
+  }): Promise<ApiResponse<{
+    valid: boolean;
+    coupon?: {
+      id: number;
+      name: string;
+      code: string;
+      description?: string;
+      coupon_discount_type: 'flat' | 'percentage';
+      discount_value: number;
+    };
+    discount_amount: number;
+    final_amount: number;
+    error?: string;
+  }>> => {
+    return apiRequest<{
+      valid: boolean;
+      coupon?: {
+        id: number;
+        name: string;
+        code: string;
+        description?: string;
+        coupon_discount_type: 'flat' | 'percentage';
+        discount_value: number;
+      };
+      discount_amount: number;
+      final_amount: number;
+      error?: string;
+    }>('/api/coupons/validate/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   // Custom Request methods
   submitCustomRequest: async (data: {
     title: string;

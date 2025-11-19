@@ -34,6 +34,12 @@ export default function CartPage() {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [couponCode, setCouponCode] = useState("");
   const [couponApplied, setCouponApplied] = useState(false);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [couponInfo, setCouponInfo] = useState<{
+    discount_amount: number;
+    coupon_name: string;
+    coupon_type: 'flat' | 'percentage';
+  } | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [cartSummary, setCartSummary] = useState<{
     total_amount: number;
@@ -101,18 +107,63 @@ export default function CartPage() {
     setSelectedItems([]);
   };
 
-  const handleApplyCoupon = () => {
-    if (couponCode.trim()) {
-      setCouponApplied(true);
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
       toast({
-        title: "Coupon applied",
-        description: "Your discount has been applied successfully!",
+        title: "Invalid coupon code",
+        description: "Please enter a coupon code",
+        variant: "destructive",
       });
+      return;
+    }
+
+    setIsValidatingCoupon(true);
+    try {
+      const orderAmount = cartSummary?.total_amount || getCartTotal();
+      const response = await apiClient.validateCoupon({
+        coupon_code: couponCode.trim(),
+        order_amount: orderAmount,
+      });
+
+      if (response.error || !response.data?.valid) {
+        const errorMessage = response.error || response.data?.error || 'Invalid coupon code';
+        setCouponApplied(false);
+        setCouponInfo(null);
+        toast({
+          title: "Coupon validation failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (response.data) {
+        setCouponApplied(true);
+        setCouponInfo({
+          discount_amount: response.data.discount_amount || 0,
+          coupon_name: response.data.coupon?.name || couponCode.trim(),
+          coupon_type: response.data.coupon?.coupon_discount_type || 'percentage',
+        });
+        toast({
+          title: "Coupon applied",
+          description: `Discount of ${formatPrice(response.data.discount_amount || 0)} applied successfully!`,
+        });
+      }
+    } catch (error: any) {
+      setCouponApplied(false);
+      setCouponInfo(null);
+      toast({
+        title: "Error applying coupon",
+        description: error.message || "Failed to validate coupon. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsValidatingCoupon(false);
     }
   };
 
-  const discount = couponApplied ? getCartTotal() * 0.1 : 0;
-  const total = getCartTotal() - discount;
+  const discount = couponInfo?.discount_amount || 0;
+  const total = (cartSummary?.total_amount || getCartTotal()) - discount;
 
   const handleCheckout = async () => {
     if (cartItems.length === 0) {
@@ -137,7 +188,7 @@ export default function CartPage() {
     setIsProcessingPayment(true);
 
     try {
-      const finalAmount = cartSummary?.will_be_free ? 0 : (cartSummary?.total_amount || total);
+      const finalAmount = cartSummary?.will_be_free ? 0 : Math.max(0, total);
 
       // If free (has active subscription), complete purchase directly
       if (cartSummary?.will_be_free) {
@@ -346,15 +397,15 @@ export default function CartPage() {
                     />
                     
                     <div className="w-32 h-32 rounded-lg overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
-                      <img
+                    <img
                         src={makeAbsoluteUrl(item.image) || '/generated_images/Brand_Identity_Design_67fa7e1f.png'}
-                        alt={item.title}
+                      alt={item.title}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
                         }}
-                      />
+                    />
                     </div>
 
                     <div className="flex-1 min-w-0">
@@ -418,16 +469,28 @@ export default function CartPage() {
                     <input
                       type="text"
                       value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
+                      onChange={(e) => {
+                        setCouponCode(e.target.value);
+                        // Clear applied coupon if user changes the code
+                        if (couponApplied) {
+                          setCouponApplied(false);
+                          setCouponInfo(null);
+                        }
+                      }}
                       placeholder="Enter coupon code"
                       className="flex-1 px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                     />
                     <Button 
                       size="sm"
                       onClick={handleApplyCoupon}
-                      disabled={couponApplied}
+                      disabled={couponApplied || isValidatingCoupon}
                     >
-                      {couponApplied ? (
+                      {isValidatingCoupon ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          Validating...
+                        </>
+                      ) : couponApplied ? (
                         <>
                           <Check className="w-4 h-4 mr-1" />
                           Applied
@@ -436,12 +499,6 @@ export default function CartPage() {
                         'Apply'
                       )}
                     </Button>
-                  </div>
-
-                  <div className="p-3 bg-success/5 border border-success/20 rounded-lg">
-                    <p className="text-sm text-success font-medium">
-                      🎉 Free shipping on all digital products!
-                    </p>
                   </div>
                 </div>
 
@@ -458,9 +515,13 @@ export default function CartPage() {
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="font-semibold">{formatPrice(getCartTotal())}</span>
                   </div>
-                  {couponApplied && (
+                  {couponApplied && couponInfo && (
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Discount (10%)</span>
+                      <span className="text-muted-foreground">
+                        Discount {couponInfo.coupon_type === 'percentage' 
+                          ? `(${((discount / (cartSummary?.total_amount || getCartTotal())) * 100).toFixed(0)}%)`
+                          : `(${couponInfo.coupon_name})`}
+                      </span>
                       <span className="text-success">-{formatPrice(discount)}</span>
                     </div>
                   )}
@@ -478,7 +539,7 @@ export default function CartPage() {
 
                 <div className="flex items-center justify-between text-xl font-bold pt-4 mb-6">
                   <span>Total</span>
-                  <span>{formatPrice(cartSummary?.will_be_free ? 0 : (cartSummary?.total_amount || total))}</span>
+                  <span>{formatPrice(cartSummary?.will_be_free ? 0 : Math.max(0, total))}</span>
                 </div>
                 {cartSummary?.will_be_free && (
                   <div className="text-sm text-muted-foreground text-center mb-4">

@@ -214,29 +214,29 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
           if (parentId && !isNaN(parentId)) {
             setParentCategoryId(parentId);
             setSubcategoryId(currentCategoryId);
-          } else {
+        } else {
             // Fallback: try to find parent by name if available
-            if (designData.parent_category_name) {
-              const parentCat = parentCategories.find(cat => 
-                cat.name === designData.parent_category_name
-              );
-              if (parentCat) {
+          if (designData.parent_category_name) {
+            const parentCat = parentCategories.find(cat => 
+              cat.name === designData.parent_category_name
+            );
+            if (parentCat) {
                 const foundParentId = typeof parentCat.id === 'number' ? parentCat.id : parseInt(String(parentCat.id));
                 if (!isNaN(foundParentId)) {
                   setParentCategoryId(foundParentId);
-                  setSubcategoryId(currentCategoryId);
-                }
-              }
+              setSubcategoryId(currentCategoryId);
+            }
+          } 
             } else {
               // No parent found, treat as parent category
               setParentCategoryId(currentCategoryId);
               setSubcategoryId(null);
             }
           }
-        } else {
+            } else {
           // Category has no parent, so it's a parent category
-          setParentCategoryId(currentCategoryId);
-          setSubcategoryId(null);
+              setParentCategoryId(currentCategoryId);
+              setSubcategoryId(null);
         }
       }
       
@@ -272,13 +272,13 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
 
       // If we have a current category with a parent, parent category is set, but subcategory is not set yet
       if (currentCategory && currentCategory.parent && parentCategoryId && !subcategoryId) {
-        // Check if current category ID exists in the loaded subcategories
+          // Check if current category ID exists in the loaded subcategories
         const subcategoryExists = subcategoriesData.some(sub => sub.id === currentCategory.id);
-        if (subcategoryExists) {
+          if (subcategoryExists) {
           setSubcategoryId(currentCategory.id);
+          }
         }
       }
-    }
   }, [subcategoriesData, designData, parentCategoryId, subcategoryId, parentCategories, categories]);
 
   const handleAddTag = (tagId: number) => {
@@ -425,7 +425,7 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
         if (isMockup) {
           console.log('[EditDesign] Found MOCKUP file:', { mediaType, fileName, url, isMockup, isMockupFlag });
           if (!urls.mockup) {
-            urls.mockup = makeAbsoluteUrl(url);
+          urls.mockup = makeAbsoluteUrl(url);
           }
           return; // Don't check other file types if it's a mockup
         } 
@@ -444,7 +444,7 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
         if (isJpg) {
           console.log('[EditDesign] Found JPG file:', { mediaType, fileName, fileNameOnly, url, isJpg });
           if (!urls.jpg) {
-            urls.jpg = makeAbsoluteUrl(url);
+          urls.jpg = makeAbsoluteUrl(url);
           }
           return;
         } 
@@ -459,7 +459,7 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
         if (isPng) {
           console.log('[EditDesign] Found PNG file:', { mediaType, fileName, fileNameOnly, url, isPng });
           if (!urls.png) {
-            urls.png = makeAbsoluteUrl(url);
+          urls.png = makeAbsoluteUrl(url);
           }
           return;
         }
@@ -938,29 +938,29 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                   }}
                   className="cursor-pointer"
                 />
-                <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-2 flex items-center gap-2">
                   {existingFileUrls.eps ? (
                     <>
                       <Badge variant="outline" className="flex items-center gap-1 bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800">
-                        <CheckCircle2 className="w-3 h-3 text-green-600" />
+                      <CheckCircle2 className="w-3 h-3 text-green-600" />
                         Uploaded
-                      </Badge>
+                    </Badge>
                       {!files.eps && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const link = document.createElement('a');
-                            link.href = existingFileUrls.eps!;
-                            link.download = 'design.eps';
-                            link.target = '_blank';
-                            link.click();
-                          }}
-                        >
-                          <Download className="w-4 h-4 mr-1" />
-                          Download
-                        </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = existingFileUrls.eps!;
+                        link.download = 'design.eps';
+                        link.target = '_blank';
+                        link.click();
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-1" />
+                      Download
+                    </Button>
                       )}
                     </>
                   ) : (
@@ -969,7 +969,7 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                       Not uploaded
                     </Badge>
                   )}
-                </div>
+                  </div>
                 {files.eps && (
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">{files.eps.name}</span>
@@ -1010,29 +1010,29 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                   }}
                   className="cursor-pointer"
                 />
-                <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-2 flex items-center gap-2">
                   {existingFileUrls.cdr ? (
                     <>
                       <Badge variant="outline" className="flex items-center gap-1 bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800">
-                        <CheckCircle2 className="w-3 h-3 text-green-600" />
+                      <CheckCircle2 className="w-3 h-3 text-green-600" />
                         Uploaded
-                      </Badge>
+                    </Badge>
                       {!files.cdr && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const link = document.createElement('a');
-                            link.href = existingFileUrls.cdr!;
-                            link.download = 'design.cdr';
-                            link.target = '_blank';
-                            link.click();
-                          }}
-                        >
-                          <Download className="w-4 h-4 mr-1" />
-                          Download
-                        </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = existingFileUrls.cdr!;
+                        link.download = 'design.cdr';
+                        link.target = '_blank';
+                        link.click();
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-1" />
+                      Download
+                    </Button>
                       )}
                     </>
                   ) : (
@@ -1041,7 +1041,7 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                       Not uploaded
                     </Badge>
                   )}
-                </div>
+                  </div>
                 {files.cdr && (
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">{files.cdr.name}</span>
@@ -1094,18 +1094,18 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                       Not uploaded
                     </Badge>
                   )}
-                </div>
-                {files.jpg && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">{files.jpg.name}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveFile('jpg')}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
+                    </div>
+                    {files.jpg && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">{files.jpg.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveFile('jpg')}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
                   </div>
                 )}
                 {fileErrors.jpg && (
@@ -1147,18 +1147,18 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                       Not uploaded
                     </Badge>
                   )}
-                </div>
-                {files.png && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">{files.png.name}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveFile('png')}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
+                    </div>
+                    {files.png && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">{files.png.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveFile('png')}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
                   </div>
                 )}
                 {fileErrors.png && (
@@ -1200,18 +1200,18 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                       Not uploaded
                     </Badge>
                   )}
-                </div>
-                {files.mockup && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">{files.mockup.name}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveFile('mockup')}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
+                    </div>
+                    {files.mockup && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">{files.mockup.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveFile('mockup')}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
                   </div>
                 )}
                 {fileErrors.mockup && (
