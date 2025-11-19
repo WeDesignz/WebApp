@@ -325,7 +325,7 @@ export default function CartPage() {
       const paymentOrderResponse = await apiClient.createPaymentOrder({
         amount: finalAmount,
         currency: 'INR',
-        order_id: orderId,
+        order_id: orderId.toString(),
         description: `Payment for ${cartItems.length} item(s)`,
       });
 
