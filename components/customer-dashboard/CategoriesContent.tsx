@@ -273,37 +273,70 @@ export default function CategoriesContent() {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: idx * 0.02 }}
                       onClick={() => handleProductClick(product)}
-                      className="group relative aspect-[3/4] rounded-xl overflow-hidden bg-muted cursor-pointer"
+                      className="group relative aspect-[3/4] rounded-xl overflow-hidden bg-muted cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-border/50 hover:border-primary/30 dark:hover:border-primary/40"
                     >
                       <img
                         src={product.media[0] || '/generated_images/Brand_Identity_Design_67fa7e1f.png'}
                         alt={product.title}
-                        className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
                         }}
                       />
                       
                       {product.product_plan_type === "Premium" && (
-                        <div className="absolute top-3 right-3 bg-yellow-500 text-yellow-950 px-3 py-1 rounded-full flex items-center gap-1 text-xs font-bold">
+                        <div className="absolute top-3 right-3 bg-yellow-500 text-yellow-950 px-3 py-1 rounded-full flex items-center gap-1 text-xs font-bold z-10 shadow-lg">
                           <Crown className="w-3 h-3" />
                           Premium
                         </div>
                       )}
 
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="absolute bottom-0 left-0 right-0 p-4">
-                          <h3 className="text-white font-semibold mb-2">{product.title}</h3>
-                          <p className="text-white/80 text-xs mb-2 line-clamp-2">{product.description}</p>
-                          <div className="flex items-center gap-2">
-                            <span className="text-white/90 font-semibold">
-                              ₹{product.sub_products[0]?.price || 0}
-                            </span>
-                            <span className="text-white/60 text-xs">
-                              {product.sub_products.length} variants
-                            </span>
+                      {/* Modern hover overlay with glassmorphism */}
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out pointer-events-none">
+                        {/* Gradient backdrop that adapts to theme */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/60 to-transparent dark:from-background/98 dark:via-background/70" />
+                        
+                        {/* Glassmorphism overlay */}
+                        <div className="absolute inset-0 backdrop-blur-[2px]" />
+                        
+                        {/* Content container with smooth slide-up animation */}
+                        <div className="absolute bottom-0 left-0 right-0 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 ease-out">
+                          <div className="p-4 space-y-2.5">
+                            {/* Title with better typography */}
+                            <h3 className="text-foreground font-semibold text-sm leading-tight line-clamp-1 drop-shadow-sm">
+                              {product.title}
+                            </h3>
+                            
+                            {/* Description with improved styling */}
+                            {product.description && (
+                              <p className="text-muted-foreground text-xs leading-relaxed line-clamp-2">
+                                {product.description}
+                              </p>
+                            )}
+                            
+                            {/* Price and variants info */}
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="text-foreground font-bold text-sm">
+                                ₹{product.sub_products[0]?.price || 0}
+                              </span>
+                              <span className="text-muted-foreground text-xs font-medium bg-muted/50 dark:bg-muted/80 px-2 py-0.5 rounded-full">
+                                {product.sub_products.length} variants
+                              </span>
+                            </div>
+                            
+                            {/* CTA hint with subtle styling */}
+                            <div className="flex items-center gap-1.5 pt-1">
+                              <div className="h-px flex-1 bg-primary/20 dark:bg-primary/30" />
+                              <span className="text-xs font-medium text-primary dark:text-primary">
+                                View Details
+                              </span>
+                              <div className="h-px flex-1 bg-primary/20 dark:bg-primary/30" />
+                            </div>
                           </div>
                         </div>
+                        
+                        {/* Subtle border glow on hover */}
+                        <div className="absolute inset-0 rounded-xl border-2 border-primary/20 dark:border-primary/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       </div>
                     </motion.div>
                   ))}
