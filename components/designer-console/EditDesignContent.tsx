@@ -315,6 +315,8 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
         ? designData.media_files 
         : (Array.isArray(designData.media) ? designData.media : []);
       
+      console.log('[EditDesign] Media files from API:', mediaArray);
+      
       const urls: { jpg: string | null; png: string | null; mockup: string | null; eps: string | null; cdr: string | null } = {
         jpg: null,
         png: null,
@@ -324,11 +326,30 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
       };
 
       mediaArray.forEach((media: any) => {
+        console.log('[EditDesign] Processing media:', {
+          id: media.id,
+          media_type: media.media_type,
+          file_name: media.file_name,
+          url: media.url || media.file,
+          is_mockup: media.is_mockup,
+          meta: media.meta
+        });
         const url = media.url || media.file || media.file_url;
-        if (!url) return;
+        if (!url) {
+          console.log('[EditDesign] Skipping media - no URL:', media);
+          return;
+        }
         
-        // Check file name first (more reliable)
-        const fileName = (media.file_name || '').toLowerCase();
+        // Check media_type field first (most reliable now that we have cdr, eps types)
+        const mediaType = (media.media_type || '').toLowerCase();
+        
+        // Check file name (fallback) - extract from URL if file_name is not available
+        let fileName = (media.file_name || '').toLowerCase();
+        if (!fileName && url) {
+          // Try to extract filename from URL
+          const urlParts = url.split('/');
+          fileName = urlParts[urlParts.length - 1].toLowerCase();
+        }
         const urlLower = url.toLowerCase();
         
         // Check if media has is_mockup flag (from serializer) - this is the most reliable
@@ -346,55 +367,114 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
         }
         const metaStr = typeof meta === 'object' ? JSON.stringify(meta).toLowerCase() : String(meta).toLowerCase();
         
-        // Check for mockup first (check is_mockup flag, filename, URL, or metadata)
-        // Mockup files can be .jpg or .png, so we need to check before those
-        const isMockup = isMockupFlag ||
-                        fileName.includes('mockup') || 
-                        urlLower.includes('mockup') || 
-                        metaStr.includes('mockup') ||
-                        (meta && typeof meta === 'object' && meta.type && String(meta.type).toLowerCase().includes('mockup')) ||
-                        (meta && typeof meta === 'object' && meta.is_mockup === true);
+        // Extract just the filename part for better matching
+        const fileNameOnly = fileName.split('/').pop() || fileName;
         
-        if (isMockup) {
-          if (!urls.mockup) {
-            urls.mockup = makeAbsoluteUrl(url);
+        // IMPORTANT: Check EPS and CDR FIRST (by media_type) before mockup check
+        // This prevents EPS/CDR files from being incorrectly identified as mockups
+        
+        // Check for EPS - check media_type first (most reliable)
+        if (mediaType === 'eps') {
+          console.log('[EditDesign] Found EPS file (by media_type):', { mediaType, fileName, url });
+          if (!urls.eps) {
+            urls.eps = makeAbsoluteUrl(url);
           }
-          return; // Don't check other file types if it's a mockup
+          return;
         }
         
-        // Check for EPS
-        if (fileName.endsWith('.eps') || urlLower.includes('.eps') || metaStr.includes('eps')) {
+        // Check for CDR - check media_type first (most reliable)
+        if (mediaType === 'cdr') {
+          console.log('[EditDesign] Found CDR file (by media_type):', { mediaType, fileName, url });
+          if (!urls.cdr) {
+            urls.cdr = makeAbsoluteUrl(url);
+          }
+          return;
+        }
+        
+        // Fallback: Check EPS by filename/URL if media_type wasn't set
+        const isEps = fileNameOnly.endsWith('.eps') || 
+                      fileName.includes('.eps') ||
+                      urlLower.includes('.eps') || 
+                      urlLower.endsWith('.eps');
+        if (isEps) {
+          console.log('[EditDesign] Found EPS file (by filename):', { mediaType, fileName, url, isEps });
           if (!urls.eps) {
             urls.eps = makeAbsoluteUrl(url);
           }
           return;
         } 
         
-        // Check for CDR
-        if (fileName.endsWith('.cdr') || urlLower.includes('.cdr') || metaStr.includes('cdr')) {
+        // Fallback: Check CDR by filename/URL if media_type wasn't set
+        const isCdr = fileNameOnly.endsWith('.cdr') || 
+                      fileName.includes('.cdr') ||
+                      urlLower.includes('.cdr') || 
+                      urlLower.endsWith('.cdr');
+        if (isCdr) {
+          console.log('[EditDesign] Found CDR file (by filename):', { mediaType, fileName, url, isCdr });
           if (!urls.cdr) {
             urls.cdr = makeAbsoluteUrl(url);
           }
           return;
+        }
+        
+        // Check for mockup - ONLY if is_mockup flag is true OR filename contains "mockup"
+        // Don't check metadata string as it might have false positives
+        const isMockup = isMockupFlag ||
+                        fileNameOnly.includes('mockup') || 
+                        fileName.includes('mockup') ||
+                        urlLower.includes('mockup');
+        
+        if (isMockup) {
+          console.log('[EditDesign] Found MOCKUP file:', { mediaType, fileName, url, isMockup, isMockupFlag });
+          if (!urls.mockup) {
+            urls.mockup = makeAbsoluteUrl(url);
+          }
+          return; // Don't check other file types if it's a mockup
         } 
         
-        // Check for JPG (but not mockup)
-        if ((fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || urlLower.includes('.jpg') || urlLower.includes('.jpeg')) && !isMockup) {
+        // Check for JPG (but not mockup) - check filename (media_type 'image' can be jpg or png)
+        const isJpg = (
+          fileNameOnly.endsWith('.jpg') || 
+          fileNameOnly.endsWith('.jpeg') || 
+          fileName.includes('.jpg') ||
+          fileName.includes('.jpeg') ||
+          urlLower.includes('.jpg') || 
+          urlLower.includes('.jpeg') ||
+          urlLower.endsWith('.jpg') ||
+          urlLower.endsWith('.jpeg')
+        );
+        if (isJpg) {
+          console.log('[EditDesign] Found JPG file:', { mediaType, fileName, fileNameOnly, url, isJpg });
           if (!urls.jpg) {
             urls.jpg = makeAbsoluteUrl(url);
           }
           return;
         } 
         
-        // Check for PNG (but not mockup)
-        if (fileName.endsWith('.png') || urlLower.includes('.png')) {
+        // Check for PNG (but not mockup) - check filename (media_type 'image' can be jpg or png)
+        const isPng = (
+          fileNameOnly.endsWith('.png') || 
+          fileName.includes('.png') ||
+          urlLower.includes('.png') ||
+          urlLower.endsWith('.png')
+        );
+        if (isPng) {
+          console.log('[EditDesign] Found PNG file:', { mediaType, fileName, fileNameOnly, url, isPng });
           if (!urls.png) {
             urls.png = makeAbsoluteUrl(url);
           }
           return;
         }
+        
+        // If we get here and media_type is set but we didn't match, log it for debugging
+        if (mediaType && mediaType !== 'image' && mediaType !== 'video') {
+          console.log('[EditDesign] Unmatched media type:', { mediaType, fileName, url, media });
+        } else {
+          console.log('[EditDesign] File not matched:', { mediaType, fileName, url, isMockup });
+        }
       });
 
+      console.log('[EditDesign] Final detected URLs:', urls);
       setExistingFileUrls(urls);
     }
   }, [designData]);
