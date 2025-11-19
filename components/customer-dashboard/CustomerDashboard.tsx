@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import CustomerDashboardSidebar from "./CustomerDashboardSidebar";
 import CustomerDashboardTopBar from "./CustomerDashboardTopBar";
 import CustomerDashboardContent from "./CustomerDashboardContent";
@@ -21,6 +21,8 @@ export type DashboardView = "dashboard" | "downloads" | "orders" | "categories" 
 
 export default function CustomerDashboard() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -28,6 +30,7 @@ export default function CustomerDashboard() {
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [activeView, setActiveView] = useState<DashboardView>("dashboard");
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Check for view query parameter on mount
   useEffect(() => {
@@ -35,7 +38,29 @@ export default function CustomerDashboard() {
     if (viewParam && ['dashboard', 'downloads', 'orders', 'categories', 'freelancers', 'plans', 'support', 'notifications', 'faq', 'profile', 'accounts'].includes(viewParam)) {
       setActiveView(viewParam as DashboardView);
     }
+    setIsInitialized(true);
   }, [searchParams]);
+
+  // Update URL when activeView changes (after initial load from URL)
+  useEffect(() => {
+    if (!isInitialized) return; // Don't update URL during initial mount
+
+    const viewParam = searchParams.get('view');
+    const currentView = viewParam || 'dashboard';
+    
+    // Only update URL if it's different from the current param
+    if (currentView !== activeView) {
+      const params = new URLSearchParams(searchParams.toString());
+      if (activeView === 'dashboard') {
+        // Remove view param for dashboard (default view)
+        params.delete('view');
+      } else {
+        params.set('view', activeView);
+      }
+      const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+      router.replace(newUrl, { scroll: false });
+    }
+  }, [activeView, pathname, router, searchParams, isInitialized]);
 
   const renderContent = () => {
     switch (activeView) {
