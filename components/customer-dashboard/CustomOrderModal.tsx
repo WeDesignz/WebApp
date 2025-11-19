@@ -21,6 +21,7 @@ interface CustomOrderModalProps {
 export default function CustomOrderModal({ open, onClose, onOrderPlaced }: CustomOrderModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [budget, setBudget] = useState<number>(200);
   const [files, setFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,15 +48,33 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
       return;
     }
 
+    if (!budget || budget <= 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid budget amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (budget < 200) {
+      toast({
+        title: "Validation Error",
+        description: "Minimum budget is ₹200",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     setIsProcessing(true);
 
     try {
-      // Step 1: Submit custom request
+      // Step 1: Submit custom request (this creates CustomOrderRequest and Order)
       const submitResponse = await apiClient.submitCustomRequest({
         title: title.trim(),
         description: description.trim(),
-        budget: 200, // Default budget
+        budget: budget,
       });
 
       if (submitResponse.error || !submitResponse.data) {
@@ -75,19 +94,26 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
           updated_at: string;
           media?: Array<any>;
         };
+        order_id?: number;
         payment_required: boolean;
         amount: number;
         payment_message: string;
       };
       const customRequest = data.custom_request;
-      const amount = data.amount || 200;
+      const orderId = data.order_id;
+      const amount = data.amount || budget;
 
-      // Step 2: Create payment order
+      if (!orderId) {
+        throw new Error('Failed to create order for custom request');
+      }
+
+      // Step 2: Create payment order with order_id to link payment to order
       setIsProcessing(true);
       const paymentOrderResponse = await apiClient.createPaymentOrder({
         amount: amount,
         currency: 'INR',
         description: `Custom Order: ${title}`,
+        order_id: orderId, // Link payment to order
       });
 
       if (paymentOrderResponse.error || !paymentOrderResponse.data) {
@@ -124,7 +150,7 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
         throw new Error(captureResponse.error || 'Failed to capture payment');
       }
 
-      // Step 5: Refresh orders and custom requests
+      // Step 5: Success - Refresh orders and custom requests
       await queryClient.invalidateQueries({ queryKey: ['orders'] });
       await queryClient.invalidateQueries({ queryKey: ['customRequests'] });
 
@@ -133,7 +159,7 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
         description: "Your custom order has been placed and payment processed.",
       });
 
-      onOrderPlaced(customRequest.id?.toString() || '');
+      onOrderPlaced(customRequest.id?.toString() || orderId.toString());
       resetForm();
       onClose();
     } catch (error: any) {
@@ -151,6 +177,7 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
   const resetForm = () => {
     setTitle("");
     setDescription("");
+    setBudget(200);
     setFiles([]);
   };
 
@@ -182,6 +209,23 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
               onChange={(e) => setDescription(e.target.value)}
               className="mt-1.5 min-h-[120px]"
             />
+          </div>
+
+          <div>
+            <Label htmlFor="budget">Budget (₹) *</Label>
+            <Input
+              id="budget"
+              type="number"
+              min="1"
+              step="0.01"
+              placeholder="e.g., 200"
+              value={budget}
+              onChange={(e) => setBudget(parseFloat(e.target.value) || 0)}
+              className="mt-1.5"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Minimum budget: ₹200
+            </p>
           </div>
 
           <div>
@@ -233,7 +277,7 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
           <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="font-semibold">Order Price</span>
-              <span className="text-2xl font-bold">₹200</span>
+              <span className="text-2xl font-bold">₹{budget}</span>
             </div>
             <p className="text-sm text-muted-foreground">
               Delivered within 1 hour • Unlimited revisions
@@ -252,7 +296,7 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
                   {isProcessing ? "Processing Payment..." : "Submitting..."}
                 </>
               ) : (
-                "Place Order (₹200)"
+                `Place Order (₹${budget})`
               )}
             </Button>
             <Button 

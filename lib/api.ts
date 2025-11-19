@@ -701,6 +701,7 @@ export const apiClient = {
       updated_at: string;
       media?: Array<any>;
     };
+    order_id?: number;
     payment_required: boolean;
     amount: number;
     payment_message: string;
@@ -729,6 +730,10 @@ export const apiClient = {
       }),
     });
   },
+
+  /**
+   * Submit custom request (returns order_id)
+   */
 
   getCustomRequestHistory: async (): Promise<ApiResponse<{
     custom_requests?: Array<any>;
@@ -2309,7 +2314,8 @@ export const apiClient = {
   }) => {
     return apiRequest<{
       message: string;
-      thread_id: string;
+      thread_id: number | string;
+      thread?: any;
     }>('/api/feedback/create-support-thread/', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -2334,7 +2340,7 @@ export const apiClient = {
   sendSupportMessage: async (threadId: number, message: string) => {
     return apiRequest<{
       message: string;
-      message_id: string;
+      message_id: number | string;
     }>(`/api/feedback/support-thread/${threadId}/`, {
       method: 'POST',
       body: JSON.stringify({ message }),
