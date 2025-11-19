@@ -415,15 +415,15 @@ export default function DownloadsContent() {
                         ) : (
                           <FileImage className="w-16 h-16 absolute inset-0 m-auto text-muted-foreground/30" />
                         )}
-                        <Badge className="absolute top-2 right-2">
+                        <Badge className="absolute top-2 right-2 z-10">
                           {download.type || 'paid'}
                         </Badge>
                         {download.productId && hoveredProductId === download.id && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
                             <Button
                               size="sm"
-                              variant="secondary"
-                              className="bg-white/90 hover:bg-white"
+                              variant="default"
+                              className="shadow-lg"
                               onClick={() => setSelectedProductId(download.productId!)}
                             >
                               <Eye className="w-4 h-4 mr-2" />
@@ -503,11 +503,11 @@ export default function DownloadsContent() {
                             <FileImage className="w-8 h-8 text-muted-foreground/30" />
                           )}
                           {download.productId && hoveredProductId === download.id && (
-                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
                               <Button
                                 size="sm"
-                                variant="secondary"
-                                className="bg-white/90 hover:bg-white h-8"
+                                variant="default"
+                                className="shadow-lg h-8"
                                 onClick={() => setSelectedProductId(download.productId!)}
                               >
                                 <Eye className="w-3 h-3 mr-1" />
@@ -781,19 +781,112 @@ export default function DownloadsContent() {
                     <h3 className="text-sm font-semibold text-muted-foreground mb-2">
                       Media Files ({productDetail.media.length})
                     </h3>
-                    <div className="grid grid-cols-3 gap-2">
-                      {productDetail.media.map((media: any, idx: number) => (
-                        <div key={idx} className="aspect-square bg-muted rounded overflow-hidden">
-                          <img
-                            src={media.file_url || media.url || media.file}
-                            alt={`Media ${idx + 1}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      ))}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {productDetail.media.map((media: any, idx: number) => {
+                          const fileUrl = media.file_url || media.url || media.file;
+                          const fileName = fileUrl?.split('/').pop() || `file_${idx + 1}`;
+                          const fileExtension = fileName.split('.').pop()?.toLowerCase() || '';
+                          const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension);
+                          const isCdrOrEps = ['cdr', 'eps'].includes(fileExtension);
+                          
+                          // Skip CDR and EPS files from image display, but show them in the list
+                          if (isCdrOrEps) {
+                            return (
+                              <div key={idx} className="border rounded-lg p-4 space-y-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-20 h-20 bg-muted rounded flex items-center justify-center flex-shrink-0">
+                                    <FileText className="w-8 h-8 text-muted-foreground/50" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{fileName}</p>
+                                    <p className="text-xs text-muted-foreground uppercase">{fileExtension || 'file'}</p>
+                                    {media.meta?.type && (
+                                      <Badge variant="outline" className="text-xs mt-1">
+                                        {media.meta.type}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full"
+                                  onClick={() => {
+                                    // Create download link
+                                    const link = document.createElement('a');
+                                    link.href = fileUrl;
+                                    link.download = fileName;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    
+                                    toast({
+                                      title: "Download started",
+                                      description: `Downloading ${fileName}`,
+                                    });
+                                  }}
+                                >
+                                  <Download className="w-4 h-4 mr-2" />
+                                  Download
+                                </Button>
+                              </div>
+                            );
+                          }
+                          
+                          return (
+                            <div key={idx} className="border rounded-lg p-4 space-y-3">
+                              <div className="flex items-center gap-3">
+                                {isImage ? (
+                                  <div className="w-20 h-20 bg-muted rounded overflow-hidden flex-shrink-0">
+                                    <img
+                                      src={fileUrl}
+                                      alt={fileName}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                      }}
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-20 h-20 bg-muted rounded flex items-center justify-center flex-shrink-0">
+                                    <FileImage className="w-8 h-8 text-muted-foreground/50" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{fileName}</p>
+                                  <p className="text-xs text-muted-foreground uppercase">{fileExtension || 'file'}</p>
+                                  {media.meta?.type && (
+                                    <Badge variant="outline" className="text-xs mt-1">
+                                      {media.meta.type}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => {
+                                  // Create download link
+                                  const link = document.createElement('a');
+                                  link.href = fileUrl;
+                                  link.download = fileName;
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                  
+                                  toast({
+                                    title: "Download started",
+                                    description: `Downloading ${fileName}`,
+                                  });
+                                }}
+                              >
+                                <Download className="w-4 h-4 mr-2" />
+                                Download
+                              </Button>
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
                 )}
