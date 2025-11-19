@@ -313,7 +313,13 @@ export default function CartPage() {
         throw new Error(orderResponse.error || 'Failed to create order');
       }
 
-      const orderId = orderResponse.data.order_id || orderResponse.data.id;
+      // Type assertion: create_order returns { order_id: number, order: {...}, ... }
+      const orderData = orderResponse.data as { order_id?: number; id?: number; order?: { id?: number } };
+      const orderId = orderData.order_id || orderData.id || orderData.order?.id;
+      
+      if (!orderId) {
+        throw new Error('Order ID not found in response');
+      }
 
       // Step 2: Create payment order and associate with order
       const paymentOrderResponse = await apiClient.createPaymentOrder({
