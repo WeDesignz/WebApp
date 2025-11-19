@@ -253,6 +253,7 @@ export default function CartPage() {
         });
 
         if (purchaseResponse.error) {
+          setIsProcessingPayment(false);
           throw new Error(purchaseResponse.error);
         }
 
@@ -265,7 +266,13 @@ export default function CartPage() {
           description: "Your order has been placed. Check your orders page.",
         });
 
-        router.push('/customer-dashboard/orders');
+        // Reset processing state before navigation
+        setIsProcessingPayment(false);
+        
+        // Use a small delay to ensure state update is reflected before navigation
+        setTimeout(() => {
+          router.push('/customer-dashboard/orders');
+        }, 50);
         return;
       }
 
@@ -352,17 +359,61 @@ export default function CartPage() {
         amount: finalAmount,
       });
 
-      // Check if there's an error (but allow "already captured" to proceed)
+      // Check if there's an error (but allow "already captured" and handle timeout specially)
       if (captureResponse.error) {
         // If payment is already captured, that's okay - continue with checkout
-        if (captureResponse.error.toLowerCase().includes('already captured') || 
-            (captureResponse.data?.message && captureResponse.data.message.toLowerCase().includes('already captured'))) {
-          // Payment already captured, continue with checkout
+        const isAlreadyCaptured = captureResponse.error.toLowerCase().includes('already captured') || 
+            (captureResponse.data?.message && captureResponse.data.message.toLowerCase().includes('already captured'));
+        
+        if (isAlreadyCaptured) {
+          // Payment already captured, continue with checkout - proceed below
+        } else if (captureResponse.error.toLowerCase().includes('timeout') || (captureResponse as any).isTimeout) {
+          // Timeout occurred - check order status to verify if payment was actually captured
+          try {
+            const orderDetailResponse = await apiClient.getOrderDetail(orderId);
+            if (orderDetailResponse.data && orderDetailResponse.data.status === 'success') {
+              // Order status is success, meaning payment was captured - proceed with checkout
+              toast({
+                title: "Payment processed",
+                description: "Payment was captured successfully. Processing your order...",
+              });
+              // Continue to success flow below
+            } else {
+              // Order is still pending - payment likely didn't complete
+              setIsProcessingPayment(false);
+              throw new Error('Payment capture timed out. Please check your orders page to verify payment status.');
+            }
+          } catch (verifyError: any) {
+            // Reset processing state
+            setIsProcessingPayment(false);
+            
+            // If order check fails, show message and redirect to orders page
+            toast({
+              title: "Payment timeout",
+              description: "Payment may have been processed. Please check your orders page to confirm.",
+              variant: "default",
+            });
+            
+            // Clear cart and refresh before redirect
+            await queryClient.invalidateQueries({ queryKey: ['cart'] });
+            await queryClient.invalidateQueries({ queryKey: ['orders'] });
+            
+            // Use a small delay to ensure state update is reflected before navigation
+            setTimeout(() => {
+              router.push('/customer-dashboard/orders');
+            }, 50);
+            return; // Exit early
+          }
         } else {
-        throw new Error(captureResponse.error || 'Failed to capture payment');
+          // Real error occurred - reset state before throwing
+          setIsProcessingPayment(false);
+          throw new Error(captureResponse.error || 'Failed to capture payment');
         }
       }
 
+      // Payment was captured successfully (either directly, already captured, or verified after timeout)
+      // Proceed with checkout completion:
+      
       // Step 5: Order status is already updated to 'success' when payment is captured
       // No need to call purchaseCart again as order was already created in Step 1
 
@@ -375,14 +426,26 @@ export default function CartPage() {
         description: "Your payment has been processed and order placed.",
       });
 
-      router.push('/customer-dashboard/orders');
+      // Reset processing state before navigation to ensure UI updates
+      setIsProcessingPayment(false);
+      
+      // Use a small delay to ensure state update is reflected before navigation
+      setTimeout(() => {
+        router.push('/customer-dashboard/orders');
+      }, 50);
+      return; // Exit early to prevent finally block from running
     } catch (error: any) {
+      // Reset processing state immediately on error
+      setIsProcessingPayment(false);
+      
       toast({
         title: "Checkout failed",
         description: error.message || "Failed to process checkout. Please try again.",
         variant: "destructive",
       });
     } finally {
+      // Safety net: always reset processing state
+      // This will run if no early return occurred
       setIsProcessingPayment(false);
     }
   };

@@ -48,6 +48,7 @@ export interface ApiResponse<T> {
   errorDetails?: ErrorDetails;
   fieldErrors?: Record<string, string[]>;
   validationErrors?: string[];
+  isTimeout?: boolean; // Flag to indicate timeout occurred
 }
 
 /**
@@ -778,10 +779,95 @@ export const apiClient = {
     razorpay_payment_id: string;
     amount: number;
   }) => {
-    return apiRequest('/api/razorpay/capture-payment/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    // Use longer timeout for payment capture (60 seconds) as Razorpay API can be slow
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+    
+    try {
+      const token = typeof window !== 'undefined' 
+        ? localStorage.getItem('wedesign_access_token') 
+        : null;
+
+      const baseUrl = getApiBaseUrl();
+      if (!baseUrl) {
+        return {
+          error: 'API base URL is not configured.',
+        };
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${baseUrl}/api/razorpay/capture-payment/`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        let errorData: any = {};
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            errorData = await response.json();
+          } else {
+            errorData = { detail: response.statusText || 'An error occurred' };
+          }
+        } catch {
+          errorData = { detail: response.statusText || 'An error occurred' };
+        }
+
+        // Handle 401 Unauthorized
+        if (response.status === 401) {
+          await handleUnauthorized();
+        }
+
+        return {
+          error: errorData?.error || errorData?.detail || `HTTP ${response.status}`,
+        };
+      }
+
+      const result = await response.json();
+      return {
+        data: result,
+        message: result.message || 'Payment captured successfully',
+      };
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      
+      // Handle timeout - return timeout error but indicate payment may have been processed
+      if (fetchError.name === 'AbortError') {
+        // Don't try to verify payment status here (endpoint may not exist or payment not found)
+        // Instead, just return a helpful message that payment may have been processed
+        return {
+          error: 'Request timeout. Payment may have been processed. Please check your orders page to confirm.',
+          errorDetails: {
+            type: ErrorType.NETWORK,
+            message: 'Request timeout. The server took too long to respond.',
+            statusCode: 408,
+          },
+          // Include a flag that this is a timeout so frontend can handle it specially
+          isTimeout: true,
+        };
+      }
+      
+      // Handle other network errors
+      const networkError = formatError(fetchError, undefined);
+      logError(networkError, `API Request Failed: /api/razorpay/capture-payment/`);
+      
+      return {
+        error: 'Network error. Please check your connection and try again.',
+        errorDetails: networkError,
+      };
+    }
   },
 
   getPaymentStatus: async (paymentId: number) => {
