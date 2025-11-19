@@ -875,30 +875,50 @@ export const apiClient = {
   },
 
   // Download methods
-  getDownloads: async (): Promise<ApiResponse<{
-    downloads: Array<{
-      id: number;
-      cart_ids: string;
-      total_amount: string;
-      status: string;
-      created_at: string;
-      updated_at: string;
-      [key: string]: any;
-    }>;
+  getDownloads: async (filter?: 'all' | 'paid'): Promise<ApiResponse<{
+    products?: Array<any>;
     total_downloads: number;
+    paid_downloads: number;
   }>> => {
+    const url = filter && filter !== 'all' 
+      ? `/api/orders/downloads/?filter=${filter}`
+      : '/api/orders/downloads/';
     return apiRequest<{
-      downloads: Array<{
-        id: number;
-        cart_ids: string;
-        total_amount: string;
-        status: string;
-        created_at: string;
-        updated_at: string;
-        [key: string]: any;
-      }>;
+      products?: Array<any>;
       total_downloads: number;
-    }>('/api/orders/downloads/');
+      paid_downloads: number;
+    }>(url);
+  },
+
+  downloadProductZip: async (productId: number): Promise<Blob> => {
+    const token = typeof window !== 'undefined' 
+      ? localStorage.getItem('wedesign_access_token') 
+      : null;
+
+    if (!token) {
+      throw new Error('Authentication required');
+    }
+
+    const apiBaseUrl = getApiBaseUrl();
+    if (!apiBaseUrl) {
+      throw new Error('API base URL is not configured');
+    }
+
+    const url = `${apiBaseUrl}/api/orders/downloads/product/${productId}/zip/`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to download product zip: ${response.statusText}`);
+    }
+
+    return await response.blob();
   },
 
   // PDF Download methods

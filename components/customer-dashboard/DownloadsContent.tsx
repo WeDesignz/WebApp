@@ -37,6 +37,9 @@ interface Download {
   price?: number;
   total_amount?: number | string;
   cart_items?: any[];
+  productId?: number;
+  pdfDownloadId?: number;
+  media?: any[];
 }
 
 export default function DownloadsContent() {
@@ -44,24 +47,19 @@ export default function DownloadsContent() {
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [pdfPurchases, setPdfPurchases] = useState<PDFPurchase[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'paid'>('all');
+  const [downloadingProductId, setDownloadingProductId] = useState<number | null>(null);
   const { toast } = useToast();
 
-  // Fetch downloads from API
+  // Fetch downloadable products from API
   const { data: downloadsData, isLoading, error } = useQuery({
-    queryKey: ['downloads'],
+    queryKey: ['downloads', filter],
     queryFn: async () => {
-      const response = await apiClient.getDownloads();
+      const response = await apiClient.getDownloads(filter);
       if (response.error) {
         throw new Error(response.error);
       }
-      // Transform the data to match Download interface
-      const downloads = response.data?.downloads || [];
-      return downloads.map((download: any) => ({
-        ...download,
-        total_amount: typeof download.total_amount === 'string' 
-          ? parseFloat(download.total_amount) 
-          : download.total_amount,
-      }));
+      return response.data || { products: [], total_downloads: 0, paid_downloads: 0 };
     },
     staleTime: 30 * 1000, // 30 seconds
   });
@@ -79,7 +77,22 @@ export default function DownloadsContent() {
     staleTime: 30 * 1000,
   });
 
-  const downloads: Download[] = downloadsData || [];
+  // Transform products to download format
+  const products = downloadsData?.products || [];
+  const transformedProducts: Download[] = products.map((product: any) => ({
+    id: product.id,
+    name: product.title,
+    title: product.title,
+    thumbnail: product.media?.[0]?.file_url || product.media?.[0]?.url,
+    format: 'ZIP',
+    downloadDate: product.created_at,
+    created_at: product.created_at,
+    type: 'paid' as const,
+    price: product.price,
+    productId: product.id,
+    media: product.media || [],
+  }));
+
   const pdfDownloads = pdfDownloadsData || [];
 
   // Transform PDF downloads to match download format
@@ -97,15 +110,22 @@ export default function DownloadsContent() {
       pdfDownloadId: pdf.download_id || pdf.id,
     }));
 
-  const allDownloads = [...downloads, ...transformedPDFDownloads].sort((a, b) => {
-    const dateA = new Date(a.downloadDate || a.created_at || 0).getTime();
-    const dateB = new Date(b.downloadDate || b.created_at || 0).getTime();
-    return dateB - dateA;
-  });
+  // Combine products and PDF downloads
+  const allDownloads = filter === 'paid' 
+    ? [...transformedProducts, ...transformedPDFDownloads].sort((a, b) => {
+        const dateA = new Date(a.downloadDate || a.created_at || 0).getTime();
+        const dateB = new Date(b.downloadDate || b.created_at || 0).getTime();
+        return dateB - dateA;
+      })
+    : [...transformedProducts, ...transformedPDFDownloads].sort((a, b) => {
+        const dateA = new Date(a.downloadDate || a.created_at || 0).getTime();
+        const dateB = new Date(b.downloadDate || b.created_at || 0).getTime();
+        return dateB - dateA;
+      });
 
-  const totalDownloads = allDownloads.length;
-  const freeDownloads = allDownloads.filter((d) => d.type === "free").length;
-  const paidDownloads = allDownloads.filter((d) => d.type === "paid").length;
+  const totalDownloads = downloadsData?.total_downloads || 0;
+  const paidDownloads = downloadsData?.paid_downloads || 0;
+  const freeDownloads = transformedPDFDownloads.filter((d) => d.type === "free").length;
 
   useEffect(() => {
     setIsMounted(true);
@@ -148,8 +168,8 @@ export default function DownloadsContent() {
   const handleDownload = async (download: Download) => {
     try {
       // Check if it's a PDF download
-      if ((download as any).pdfDownloadId) {
-        const pdfId = (download as any).pdfDownloadId;
+      if (download.pdfDownloadId) {
+        const pdfId = download.pdfDownloadId;
         const response = await apiClient.downloadPDF(pdfId);
         
         if (response.error) {
@@ -172,11 +192,33 @@ export default function DownloadsContent() {
             description: "Your PDF is being downloaded.",
           });
         }
+      } else if (download.productId) {
+        // Handle product zip download
+        setDownloadingProductId(download.productId);
+        try {
+          const blob = await apiClient.downloadProductZip(download.productId);
+          
+          // Create download link
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${download.title?.replace(/[^a-z0-9]/gi, '_') || 'design'}_${download.productId}.zip`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+
+          toast({
+            title: "Download started",
+            description: "Your design files are being downloaded as a ZIP file.",
+          });
+        } finally {
+          setDownloadingProductId(null);
+        }
       } else {
-        // Handle regular product downloads
         toast({
           title: "Download",
-          description: "Product download functionality will be implemented.",
+          description: "Download not available for this item.",
         });
       }
     } catch (error: any) {
@@ -185,6 +227,7 @@ export default function DownloadsContent() {
         description: error.message || "Failed to download file",
         variant: "destructive",
       });
+      setDownloadingProductId(null);
     }
   };
 
@@ -233,6 +276,14 @@ export default function DownloadsContent() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant={filter === "paid" ? "default" : "outline"}
+              onClick={() => setFilter(filter === "paid" ? "all" : "paid")}
+            >
+              <Receipt className="w-4 h-4 mr-2" />
+              {filter === "paid" ? "All Downloads" : "Paid Downloads"}
+            </Button>
             <Button
               size="sm"
               variant={viewMode === "grid" ? "default" : "outline"}
@@ -325,9 +376,20 @@ export default function DownloadsContent() {
                   >
                     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
                       <div className="aspect-video bg-muted relative">
-                        <FileImage className="w-16 h-16 absolute inset-0 m-auto text-muted-foreground/30" />
+                        {download.thumbnail ? (
+                          <img 
+                            src={download.thumbnail} 
+                            alt={download.title || 'Design'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <FileImage className="w-16 h-16 absolute inset-0 m-auto text-muted-foreground/30" />
+                        )}
                         <Badge className="absolute top-2 right-2">
-                          {download.type}
+                          {download.type || 'paid'}
                         </Badge>
                       </div>
                       <div className="p-4 space-y-3">
@@ -335,31 +397,19 @@ export default function DownloadsContent() {
                           {download.name || download.title || `Download #${download.id}`}
                         </h3>
                         <div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <span>{download.format || 'N/A'}</span>
+                          <span>{download.format || 'ZIP'}</span>
                           <div className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             {new Date(download.downloadDate || download.created_at || Date.now()).toLocaleDateString()}
                           </div>
                         </div>
-                        {download.type === "paid" && (download.transactionId || download.price) && (
+                        {download.type === "paid" && download.price && (
                           <div className="flex items-center justify-between">
-                            {download.transactionId && (
-                              <span className="text-xs text-muted-foreground font-mono">
-                                {download.transactionId}
+                            <span className="text-xs font-semibold">₹{download.price}</span>
+                            {download.media && download.media.length > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                {download.media.length} file{download.media.length !== 1 ? 's' : ''}
                               </span>
-                            )}
-                            {download.price && (
-                              <span className="text-xs font-semibold">₹{download.price}</span>
-                            )}
-                            {download.transactionId && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => openReceipt(download)}
-                                className="h-auto p-1"
-                              >
-                                <Receipt className="w-4 h-4" />
-                              </Button>
                             )}
                           </div>
                         )}
@@ -367,9 +417,19 @@ export default function DownloadsContent() {
                           className="w-full" 
                           size="sm"
                           onClick={() => handleDownload(download)}
+                          disabled={downloadingProductId === download.productId}
                         >
-                          <Download className="w-4 h-4 mr-2" />
-                          Download
+                          {downloadingProductId === download.productId ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Preparing...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-4 h-4 mr-2" />
+                              Download
+                            </>
+                          )}
                         </Button>
                       </div>
                     </Card>
@@ -387,52 +447,64 @@ export default function DownloadsContent() {
                   >
                     <Card className="p-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-20 h-20 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                          <FileImage className="w-8 h-8 text-muted-foreground/30" />
+                        <div className="w-20 h-20 bg-muted rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {download.thumbnail ? (
+                            <img 
+                              src={download.thumbnail} 
+                              alt={download.title || 'Design'}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <FileImage className="w-8 h-8 text-muted-foreground/30" />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold truncate">
                             {download.name || download.title || `Download #${download.id}`}
                           </h3>
-                          <p className="text-sm text-muted-foreground">{download.format || 'N/A'}</p>
+                          <p className="text-sm text-muted-foreground">{download.format || 'ZIP'}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <Badge variant="secondary" className="text-xs">
-                              {download.type || 'download'}
+                              {download.type || 'paid'}
                             </Badge>
                             <span className="text-xs text-muted-foreground">
                               {new Date(download.downloadDate || download.created_at || Date.now()).toLocaleDateString()}
                             </span>
                           </div>
-                          {download.type === "paid" && (download.transactionId || download.price) && (
+                          {download.type === "paid" && download.price && (
                             <div className="flex items-center gap-2 mt-1">
-                              {download.transactionId && (
-                                <p className="text-xs text-muted-foreground font-mono">
-                                  {download.transactionId}
-                                </p>
-                              )}
-                              {download.price && (
-                                <p className="text-xs font-semibold">₹{download.price}</p>
+                              <p className="text-xs font-semibold">₹{download.price}</p>
+                              {download.media && download.media.length > 0 && (
+                                <>
+                                  <span className="text-xs text-muted-foreground">•</span>
+                                  <p className="text-xs text-muted-foreground">
+                                    {download.media.length} file{download.media.length !== 1 ? 's' : ''}
+                                  </p>
+                                </>
                               )}
                             </div>
                           )}
                         </div>
                         <div className="flex gap-2">
-                          {download.type === "paid" && download.transactionId && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openReceipt(download)}
-                            >
-                              <Receipt className="w-4 h-4 mr-2" />
-                              Receipt
-                            </Button>
-                          )}
                           <Button 
                             size="sm"
                             onClick={() => handleDownload(download)}
+                            disabled={downloadingProductId === download.productId}
                           >
-                            <Download className="w-4 h-4 mr-2" />
-                            Download
+                            {downloadingProductId === download.productId ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Preparing...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-4 h-4 mr-2" />
+                                Download
+                              </>
+                            )}
                           </Button>
                         </div>
                       </div>
