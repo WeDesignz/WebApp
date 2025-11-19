@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { X, Loader2, ArrowLeft, Upload, Image as ImageIcon, Download, CheckCircle2 } from "lucide-react";
+import { X, Loader2, ArrowLeft, Upload, Image as ImageIcon, Download, CheckCircle2, XCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -169,59 +169,74 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
       setDescription(designData.description || "");
       
       // Extract category information
-      let currentCategoryId = null;
-      if (designData.category_id) {
-        currentCategoryId = designData.category_id;
-      } else if (designData.category) {
-        currentCategoryId = typeof designData.category === 'object' ? designData.category.id : designData.category;
+      // According to user: Product.category is ALWAYS a subcategory (or a category with no parent)
+      // If category has a parent: subcategory = category, category = category.parent
+      // If category has no parent: category = category, subcategory = null
+      let currentCategory: any = null;
+      if (designData.category) {
+        currentCategory = typeof designData.category === 'object' 
+          ? designData.category 
+          : categories.find(cat => cat.id === designData.category);
+      } else if (designData.category_id) {
+        currentCategory = categories.find(cat => cat.id === designData.category_id);
       }
 
-      // Determine if current category is a parent or subcategory
-      if (currentCategoryId) {
-        // First, check if it's a parent category
-        const isParentCategory = parentCategories.some(cat => cat.id === currentCategoryId);
+      if (currentCategory) {
+        // Ensure currentCategory.id is a number
+        const currentCategoryId = typeof currentCategory.id === 'number' 
+          ? currentCategory.id 
+          : parseInt(String(currentCategory.id));
         
-        if (isParentCategory) {
-          // It's a parent category
-          setParentCategoryId(currentCategoryId);
-          setSubcategoryId(null);
-        } else {
-          // It's likely a subcategory - find the parent category
-          // Method 1: Check if parent_category_name is available
-          if (designData.parent_category_name) {
-            const parentCat = parentCategories.find(cat => 
-              cat.name === designData.parent_category_name
-            );
+        // Check if current category has a parent
+        const hasParent = currentCategory.parent || currentCategory.parent_id;
+        
+        if (hasParent) {
+          // Category has a parent, so it's a subcategory
+          // Set parent category ID - ensure it's always a number
+          let parentId: number | null = null;
+          
+          if (typeof currentCategory.parent === 'object' && currentCategory.parent?.id) {
+            parentId = typeof currentCategory.parent.id === 'number' 
+              ? currentCategory.parent.id 
+              : parseInt(String(currentCategory.parent.id));
+          } else if (currentCategory.parent_id) {
+            parentId = typeof currentCategory.parent_id === 'number' 
+              ? currentCategory.parent_id 
+              : parseInt(String(currentCategory.parent_id));
+          } else if (typeof currentCategory.parent === 'string') {
+            // Parent is a string (name), find it in parentCategories
+            const parentCat = parentCategories.find(cat => cat.name === currentCategory.parent);
             if (parentCat) {
-              setParentCategoryId(parentCat.id);
-              setSubcategoryId(currentCategoryId);
-            }
-          } 
-          // Method 2: Check if category object has parent info
-          else if (designData.category && typeof designData.category === 'object' && designData.category.parent) {
-            const parentName = typeof designData.category.parent === 'string' 
-              ? designData.category.parent 
-              : designData.category.parent.name;
-            const parentCat = parentCategories.find(cat => cat.name === parentName);
-            if (parentCat) {
-              setParentCategoryId(parentCat.id);
-              setSubcategoryId(currentCategoryId);
+              parentId = typeof parentCat.id === 'number' ? parentCat.id : parseInt(String(parentCat.id));
             }
           }
-          // Method 3: Search through all categories to find which parent has this subcategory
-          else {
-            const parentCat = categories.find(cat => 
-              cat.subcategories?.some(sub => sub.id === currentCategoryId)
-            );
-            if (parentCat) {
-              setParentCategoryId(parentCat.id);
-              setSubcategoryId(currentCategoryId);
+          
+          if (parentId && !isNaN(parentId)) {
+            setParentCategoryId(parentId);
+            setSubcategoryId(currentCategoryId);
+          } else {
+            // Fallback: try to find parent by name if available
+            if (designData.parent_category_name) {
+              const parentCat = parentCategories.find(cat => 
+                cat.name === designData.parent_category_name
+              );
+              if (parentCat) {
+                const foundParentId = typeof parentCat.id === 'number' ? parentCat.id : parseInt(String(parentCat.id));
+                if (!isNaN(foundParentId)) {
+                  setParentCategoryId(foundParentId);
+                  setSubcategoryId(currentCategoryId);
+                }
+              }
             } else {
-              // Fallback: treat as parent (shouldn't happen, but just in case)
+              // No parent found, treat as parent category
               setParentCategoryId(currentCategoryId);
               setSubcategoryId(null);
             }
           }
+        } else {
+          // Category has no parent, so it's a parent category
+          setParentCategoryId(currentCategoryId);
+          setSubcategoryId(null);
         }
       }
       
@@ -246,26 +261,25 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
   useEffect(() => {
     if (subcategoriesData && subcategoriesData.length > 0 && designData && isInitializedRef.current) {
       // Extract category information
-      let currentCategoryId = null;
-      if (designData.category_id) {
-        currentCategoryId = designData.category_id;
-      } else if (designData.category) {
-        currentCategoryId = typeof designData.category === 'object' ? designData.category.id : designData.category;
+      let currentCategory: any = null;
+      if (designData.category) {
+        currentCategory = typeof designData.category === 'object' 
+          ? designData.category 
+          : categories.find(cat => cat.id === designData.category);
+      } else if (designData.category_id) {
+        currentCategory = categories.find(cat => cat.id === designData.category_id);
       }
 
-      // If we have a current category ID, parent category is set, but subcategory is not set yet
-      if (currentCategoryId && parentCategoryId && !subcategoryId) {
-        const isParentCategory = parentCategories.some(cat => cat.id === currentCategoryId);
-        if (!isParentCategory) {
-          // Check if current category ID exists in the loaded subcategories
-          const subcategoryExists = subcategoriesData.some(sub => sub.id === currentCategoryId);
-          if (subcategoryExists) {
-            setSubcategoryId(currentCategoryId);
-          }
+      // If we have a current category with a parent, parent category is set, but subcategory is not set yet
+      if (currentCategory && currentCategory.parent && parentCategoryId && !subcategoryId) {
+        // Check if current category ID exists in the loaded subcategories
+        const subcategoryExists = subcategoriesData.some(sub => sub.id === currentCategory.id);
+        if (subcategoryExists) {
+          setSubcategoryId(currentCategory.id);
         }
       }
     }
-  }, [subcategoriesData, designData, parentCategoryId, subcategoryId, parentCategories]);
+  }, [subcategoriesData, designData, parentCategoryId, subcategoryId, parentCategories, categories]);
 
   const handleAddTag = (tagId: number) => {
     if (!selectedTagIds.includes(tagId)) {
@@ -295,8 +309,12 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
 
   // Load existing file URLs from design data
   useEffect(() => {
-    if (designData && designData.media) {
-      const mediaArray = Array.isArray(designData.media) ? designData.media : [];
+    if (designData) {
+      // API returns media_files (not media)
+      const mediaArray = Array.isArray(designData.media_files) 
+        ? designData.media_files 
+        : (Array.isArray(designData.media) ? designData.media : []);
+      
       const urls: { jpg: string | null; png: string | null; mockup: string | null; eps: string | null; cdr: string | null } = {
         jpg: null,
         png: null,
@@ -306,20 +324,74 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
       };
 
       mediaArray.forEach((media: any) => {
-        const url = media.file_url || media.file;
+        const url = media.url || media.file || media.file_url;
         if (!url) return;
         
+        // Check file name first (more reliable)
+        const fileName = (media.file_name || '').toLowerCase();
         const urlLower = url.toLowerCase();
-        if (urlLower.includes('mockup')) {
-          urls.mockup = makeAbsoluteUrl(url);
-        } else if (urlLower.includes('.jpg') || urlLower.includes('.jpeg')) {
-          urls.jpg = makeAbsoluteUrl(url);
-        } else if (urlLower.includes('.png')) {
-          urls.png = makeAbsoluteUrl(url);
-        } else if (urlLower.includes('.eps')) {
-          urls.eps = makeAbsoluteUrl(url);
-        } else if (urlLower.includes('.cdr')) {
-          urls.cdr = makeAbsoluteUrl(url);
+        
+        // Check if media has is_mockup flag (from serializer) - this is the most reliable
+        const isMockupFlag = media.is_mockup === true || media.is_mockup === 'true' || media.is_mockup === 1;
+        
+        // Check metadata for file type hints (from relation meta)
+        let meta = media.meta || {};
+        // If meta is a string, try to parse it
+        if (typeof meta === 'string') {
+          try {
+            meta = JSON.parse(meta);
+          } catch {
+            meta = {};
+          }
+        }
+        const metaStr = typeof meta === 'object' ? JSON.stringify(meta).toLowerCase() : String(meta).toLowerCase();
+        
+        // Check for mockup first (check is_mockup flag, filename, URL, or metadata)
+        // Mockup files can be .jpg or .png, so we need to check before those
+        const isMockup = isMockupFlag ||
+                        fileName.includes('mockup') || 
+                        urlLower.includes('mockup') || 
+                        metaStr.includes('mockup') ||
+                        (meta && typeof meta === 'object' && meta.type && String(meta.type).toLowerCase().includes('mockup')) ||
+                        (meta && typeof meta === 'object' && meta.is_mockup === true);
+        
+        if (isMockup) {
+          if (!urls.mockup) {
+            urls.mockup = makeAbsoluteUrl(url);
+          }
+          return; // Don't check other file types if it's a mockup
+        }
+        
+        // Check for EPS
+        if (fileName.endsWith('.eps') || urlLower.includes('.eps') || metaStr.includes('eps')) {
+          if (!urls.eps) {
+            urls.eps = makeAbsoluteUrl(url);
+          }
+          return;
+        } 
+        
+        // Check for CDR
+        if (fileName.endsWith('.cdr') || urlLower.includes('.cdr') || metaStr.includes('cdr')) {
+          if (!urls.cdr) {
+            urls.cdr = makeAbsoluteUrl(url);
+          }
+          return;
+        } 
+        
+        // Check for JPG (but not mockup)
+        if ((fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || urlLower.includes('.jpg') || urlLower.includes('.jpeg')) && !isMockup) {
+          if (!urls.jpg) {
+            urls.jpg = makeAbsoluteUrl(url);
+          }
+          return;
+        } 
+        
+        // Check for PNG (but not mockup)
+        if (fileName.endsWith('.png') || urlLower.includes('.png')) {
+          if (!urls.png) {
+            urls.png = makeAbsoluteUrl(url);
+          }
+          return;
         }
       });
 
@@ -769,7 +841,14 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
           <div className="grid grid-cols-2 gap-4">
             {/* EPS File */}
             <div>
-              <Label htmlFor="eps">EPS File</Label>
+              <Label htmlFor="eps" className="flex items-center gap-2">
+                EPS File
+                {existingFileUrls.eps ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-muted-foreground" />
+                )}
+              </Label>
               <div className="mt-2">
                 <Input
                   id="eps"
@@ -781,29 +860,38 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                   }}
                   className="cursor-pointer"
                 />
-                {existingFileUrls.eps && !files.eps && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-green-600" />
-                      Already uploaded
+                <div className="mt-2 flex items-center gap-2">
+                  {existingFileUrls.eps ? (
+                    <>
+                      <Badge variant="outline" className="flex items-center gap-1 bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800">
+                        <CheckCircle2 className="w-3 h-3 text-green-600" />
+                        Uploaded
+                      </Badge>
+                      {!files.eps && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = existingFileUrls.eps!;
+                            link.download = 'design.eps';
+                            link.target = '_blank';
+                            link.click();
+                          }}
+                        >
+                          <Download className="w-4 h-4 mr-1" />
+                          Download
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground">
+                      <XCircle className="w-3 h-3" />
+                      Not uploaded
                     </Badge>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = existingFileUrls.eps!;
-                        link.download = 'design.eps';
-                        link.target = '_blank';
-                        link.click();
-                      }}
-                    >
-                      <Download className="w-4 h-4 mr-1" />
-                      Download
-                    </Button>
-                  </div>
-                )}
+                  )}
+                </div>
                 {files.eps && (
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">{files.eps.name}</span>
@@ -825,7 +913,14 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
 
             {/* CDR File */}
             <div>
-              <Label htmlFor="cdr">CDR File</Label>
+              <Label htmlFor="cdr" className="flex items-center gap-2">
+                CDR File
+                {existingFileUrls.cdr ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-muted-foreground" />
+                )}
+              </Label>
               <div className="mt-2">
                 <Input
                   id="cdr"
@@ -837,29 +932,38 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                   }}
                   className="cursor-pointer"
                 />
-                {existingFileUrls.cdr && !files.cdr && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-green-600" />
-                      Already uploaded
+                <div className="mt-2 flex items-center gap-2">
+                  {existingFileUrls.cdr ? (
+                    <>
+                      <Badge variant="outline" className="flex items-center gap-1 bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800">
+                        <CheckCircle2 className="w-3 h-3 text-green-600" />
+                        Uploaded
+                      </Badge>
+                      {!files.cdr && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = existingFileUrls.cdr!;
+                            link.download = 'design.cdr';
+                            link.target = '_blank';
+                            link.click();
+                          }}
+                        >
+                          <Download className="w-4 h-4 mr-1" />
+                          Download
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground">
+                      <XCircle className="w-3 h-3" />
+                      Not uploaded
                     </Badge>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = existingFileUrls.cdr!;
-                        link.download = 'design.cdr';
-                        link.target = '_blank';
-                        link.click();
-                      }}
-                    >
-                      <Download className="w-4 h-4 mr-1" />
-                      Download
-                    </Button>
-                  </div>
-                )}
+                  )}
+                </div>
                 {files.cdr && (
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">{files.cdr.name}</span>
@@ -881,7 +985,14 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
 
             {/* JPG File */}
             <div>
-              <Label htmlFor="jpg">JPG File</Label>
+              <Label htmlFor="jpg" className="flex items-center gap-2">
+                JPG File
+                {existingFileUrls.jpg ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-muted-foreground" />
+                )}
+              </Label>
               <div className="mt-2">
                 <Input
                   id="jpg"
@@ -893,36 +1004,30 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                   }}
                   className="cursor-pointer"
                 />
-                {existingFileUrls.jpg && !files.jpg && (
-                  <div className="mt-2 mb-2">
-                    <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                <div className="mt-2 flex items-center gap-2">
+                  {existingFileUrls.jpg ? (
+                    <Badge variant="outline" className="flex items-center gap-1 bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800">
                       <CheckCircle2 className="w-3 h-3 text-green-600" />
-                      Already uploaded
+                      Uploaded
                     </Badge>
-                  </div>
-                )}
-                {(filePreviews.jpg || existingFileUrls.jpg) && (
-                  <div className="mt-2">
-                    <div className="w-full h-32 rounded border border-border overflow-hidden bg-muted">
-                      <img
-                        src={filePreviews.jpg || existingFileUrls.jpg || ''}
-                        alt="JPG Preview"
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                    {files.jpg && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">{files.jpg.name}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveFile('jpg')}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    )}
+                  ) : (
+                    <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground">
+                      <XCircle className="w-3 h-3" />
+                      Not uploaded
+                    </Badge>
+                  )}
+                </div>
+                {files.jpg && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{files.jpg.name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveFile('jpg')}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
                 )}
                 {fileErrors.jpg && (
@@ -933,7 +1038,14 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
 
             {/* PNG File */}
             <div>
-              <Label htmlFor="png">PNG File</Label>
+              <Label htmlFor="png" className="flex items-center gap-2">
+                PNG File
+                {existingFileUrls.png ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-muted-foreground" />
+                )}
+              </Label>
               <div className="mt-2">
                 <Input
                   id="png"
@@ -945,36 +1057,30 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                   }}
                   className="cursor-pointer"
                 />
-                {existingFileUrls.png && !files.png && (
-                  <div className="mt-2 mb-2">
-                    <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                <div className="mt-2 flex items-center gap-2">
+                  {existingFileUrls.png ? (
+                    <Badge variant="outline" className="flex items-center gap-1 bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800">
                       <CheckCircle2 className="w-3 h-3 text-green-600" />
-                      Already uploaded
+                      Uploaded
                     </Badge>
-                  </div>
-                )}
-                {(filePreviews.png || existingFileUrls.png) && (
-                  <div className="mt-2">
-                    <div className="w-full h-32 rounded border border-border overflow-hidden bg-muted">
-                      <img
-                        src={filePreviews.png || existingFileUrls.png || ''}
-                        alt="PNG Preview"
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                    {files.png && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">{files.png.name}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveFile('png')}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    )}
+                  ) : (
+                    <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground">
+                      <XCircle className="w-3 h-3" />
+                      Not uploaded
+                    </Badge>
+                  )}
+                </div>
+                {files.png && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{files.png.name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveFile('png')}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
                 )}
                 {fileErrors.png && (
@@ -985,7 +1091,14 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
 
             {/* Mockup File */}
             <div className="col-span-2">
-              <Label htmlFor="mockup">Mockup (JPG/PNG) - Optional</Label>
+              <Label htmlFor="mockup" className="flex items-center gap-2">
+                Mockup (JPG/PNG) - Optional
+                {existingFileUrls.mockup ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-muted-foreground" />
+                )}
+              </Label>
               <div className="mt-2">
                 <Input
                   id="mockup"
@@ -997,36 +1110,30 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                   }}
                   className="cursor-pointer"
                 />
-                {existingFileUrls.mockup && !files.mockup && (
-                  <div className="mt-2 mb-2">
-                    <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                <div className="mt-2 flex items-center gap-2">
+                  {existingFileUrls.mockup ? (
+                    <Badge variant="outline" className="flex items-center gap-1 bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800">
                       <CheckCircle2 className="w-3 h-3 text-green-600" />
-                      Already uploaded
+                      Uploaded
                     </Badge>
-                  </div>
-                )}
-                {(filePreviews.mockup || existingFileUrls.mockup) && (
-                  <div className="mt-2">
-                    <div className="w-full h-32 rounded border border-border overflow-hidden bg-muted">
-                      <img
-                        src={filePreviews.mockup || existingFileUrls.mockup || ''}
-                        alt="Mockup Preview"
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                    {files.mockup && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">{files.mockup.name}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveFile('mockup')}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    )}
+                  ) : (
+                    <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground">
+                      <XCircle className="w-3 h-3" />
+                      Not uploaded
+                    </Badge>
+                  )}
+                </div>
+                {files.mockup && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{files.mockup.name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveFile('mockup')}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
                 )}
                 {fileErrors.mockup && (

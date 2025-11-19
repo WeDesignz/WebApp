@@ -77,6 +77,7 @@ export default function UploadDesignContent() {
   const [isValidatingBulk, setIsValidatingBulk] = useState(false);
   const [bulkDesignCount, setBulkDesignCount] = useState<number>(0);
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Fetch categories - Categories List API returns only parent categories
   const { data: categoriesData, isLoading: isLoadingCategories, refetch: refetchCategories } = useQuery({
@@ -625,23 +626,24 @@ export default function UploadDesignContent() {
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
-    if (!title.trim()) {
-      errors.title = "Title is required";
-    }
-
-    if (!description.trim()) {
-      errors.description = "Description is required";
-    }
-
-    if (!categoryId) {
-      errors.category = "Category is required";
-    }
-
-    if (pricingType === "paid" && (!price || parseFloat(price) <= 0)) {
-      errors.price = "Valid price is required for paid designs";
-    }
-
     if (uploadMode === "single") {
+      // Validate single design upload fields
+      if (!title.trim()) {
+        errors.title = "Title is required";
+      }
+
+      if (!description.trim()) {
+        errors.description = "Description is required";
+      }
+
+      if (!categoryId && !subcategoryId) {
+        errors.category = "Category is required";
+      }
+
+      if (pricingType === "paid" && (!price || parseFloat(price) <= 0)) {
+        errors.price = "Valid price is required for paid designs";
+      }
+
       // Check for required files: eps, cdr, jpg, png (mockup is optional)
       const requiredFiles = ['eps', 'cdr', 'jpg', 'png'] as const;
       const missingFiles = requiredFiles.filter(fileType => !files[fileType]);
@@ -649,6 +651,8 @@ export default function UploadDesignContent() {
         errors.files = `Missing required files: ${missingFiles.map(f => `.${f}`).join(', ')}`;
       }
     } else {
+      // Bulk upload - only validate zip file
+      // All other information comes from metadata.xlsx
       if (!bulkFile) {
         errors.bulk = "Bulk upload file is required";
       }
@@ -662,10 +666,7 @@ export default function UploadDesignContent() {
   };
 
   const handleSubmit = async () => {
-    console.log('Submit button clicked - handleSubmit called');
-    
     if (!validateForm()) {
-      console.log('Form validation failed');
       toast({
         title: "Validation Error",
         description: "Please fill all required fields correctly.",
@@ -674,112 +675,144 @@ export default function UploadDesignContent() {
       return;
     }
 
-    console.log('Form validation passed, starting upload...');
     setIsUploading(true);
 
     try {
-      const formData = new FormData();
+      if (uploadMode === "bulk") {
+        // Bulk upload - use dedicated bulk upload endpoint
+        if (!bulkFile) {
+          throw new Error('Bulk upload file is required');
+        }
 
-      // Add text fields
-      formData.append('title', title.trim());
-      formData.append('description', description.trim());
-      const finalCategoryId = subcategoryId || categoryId;
-      if (!finalCategoryId) {
-        throw new Error('Category is required');
-      }
-      formData.append('category_id', String(finalCategoryId));
-      formData.append('product_plan_type', pricingType === "free" ? "free" : "basic");
+        const response = await apiClient.uploadDesignsBulk(bulkFile);
 
-      if (pricingType === "paid" && price) {
-        formData.append('price', price);
-      }
+        if (response.error) {
+          const errorMsg = response.error;
+          const validationErrs = response.validationErrors || [];
+          
+          if (validationErrs.length > 0) {
+            setBulkValidationErrors(validationErrs);
+            toast({
+              title: "Upload failed",
+              description: errorMsg,
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Upload failed",
+              description: errorMsg,
+              variant: "destructive",
+            });
+          }
+          return;
+        }
 
-      if (color.trim()) {
-        formData.append('color', color.trim());
-      }
+        if (!response.data) {
+          throw new Error('Upload completed but no data was returned. Please check your designer console.');
+        }
 
-      // Add design files
-      if (uploadMode === "single") {
+        // Backend returns immediately with task_id
+        // Processing happens in background
+        const taskId = response.data.data?.task_id;
+        const totalDesigns = response.data.data?.total_designs || bulkDesignCount;
+
+        toast({
+          title: "Bulk upload started successfully!",
+          description: `Your ${totalDesigns} design(s) are being processed in the background. You can track progress in the Designer Console.`,
+          duration: 5000,
+        });
+
+        // Reset bulk upload form
+        setBulkFile(null);
+        setBulkDesignCount(0);
+        setBulkValidationErrors([]);
+        setValidationErrors({});
+        setFileErrors({});
+
+      } else {
+        // Single design upload
+        const formData = new FormData();
+
+        // Add text fields
+        formData.append('title', title.trim());
+        formData.append('description', description.trim());
+        const finalCategoryId = subcategoryId || categoryId;
+        if (!finalCategoryId) {
+          throw new Error('Category is required');
+        }
+        formData.append('category_id', String(finalCategoryId));
+        formData.append('product_plan_type', pricingType === "free" ? "free" : "basic");
+
+        if (pricingType === "paid" && price) {
+          formData.append('price', price);
+        }
+
+        if (color.trim()) {
+          formData.append('color', color.trim());
+        }
+
+        // Add design files
         Object.entries(files).forEach(([fileType, file]) => {
           if (file) {
-            formData.append('design_files', file);
+            // For mockup files, rename to include "mockup" in filename for backend detection
+            if (fileType === 'mockup') {
+              const extension = file.name.split('.').pop() || 'jpg';
+              const mockupFile = new File([file], `mockup.${extension}`, { type: file.type });
+              formData.append('design_files', mockupFile);
+            } else {
+              formData.append('design_files', file);
+            }
           }
         });
-      } else if (bulkFile) {
-        formData.append('design_files', bulkFile);
+
+        // Add tags
+        selectedTagIds.forEach(tagId => {
+          formData.append('tags', String(tagId));
+        });
+
+        // Upload
+        const response = await apiClient.uploadDesign(formData);
+
+        if (response.error) {
+          throw new Error(response.error);
+        }
+
+        if (!response.data) {
+          throw new Error('Upload failed - no response from server');
+        }
+
+        const productId = response.data.product_id;
+        const platformId = response.data.platform_id;
+
+        // Show success toast immediately
+        toast({
+          title: "Design submitted successfully!",
+          description: `Your design has been submitted for review. Files are being processed in the background. Product ID: ${productId}, Platform ID: ${platformId}`,
+        });
+
+        // Reset form
+        setTitle("");
+        setDescription("");
+        setCategoryId(null);
+        setSubcategoryId(null);
+        setPrice("");
+        setColor("");
+        setSelectedTagIds([]);
+        setSelectedTags([]);
+        setTagInput("");
+        setFiles({
+          eps: null,
+          cdr: null,
+          jpg: null,
+          png: null,
+          mockup: null,
+        });
+        setValidationErrors({});
+        setFileErrors({});
       }
-
-      // Add tags
-      selectedTagIds.forEach(tagId => {
-        formData.append('tags', String(tagId));
-      });
-
-      console.log('Calling uploadDesign API...');
-      console.log('FormData prepared:', {
-        title: title.trim(),
-        categoryId: finalCategoryId,
-        pricingType,
-        tagCount: selectedTagIds.length,
-        fileCount: uploadMode === "single" ? Object.values(files).filter(f => f).length : (bulkFile ? 1 : 0)
-      });
-
-      // Upload
-      const response = await apiClient.uploadDesign(formData);
-      
-      console.log('API response received:', response);
-
-      if (response.error) {
-        console.error('API returned error:', response.error);
-        throw new Error(response.error);
-      }
-
-      if (!response.data) {
-        console.error('No data in response:', response);
-        throw new Error('Upload failed - no response from server');
-      }
-
-      const productId = response.data.product_id;
-      const platformId = response.data.platform_id;
-
-      console.log('Upload successful:', { productId, platformId });
-
-      // Show success toast immediately
-      toast({
-        title: "Design submitted successfully!",
-        description: `Your design has been submitted for review. Files are being processed in the background. Product ID: ${productId}, Platform ID: ${platformId}`,
-      });
-
-      // Reset form
-      setTitle("");
-      setDescription("");
-      setCategoryId(null);
-      setSubcategoryId(null);
-      setPrice("");
-      setColor("");
-      setSelectedTagIds([]);
-      setSelectedTags([]);
-      setTagInput("");
-      setFiles({
-        eps: null,
-        cdr: null,
-        jpg: null,
-        png: null,
-        mockup: null,
-      });
-      setBulkFile(null);
-      setBulkDesignCount(0);
-      setBulkValidationErrors([]);
-      setValidationErrors({});
-      setFileErrors({});
-
-      // Stay on upload design page - form is already reset
-      // Success toast message is shown above
-      // User can immediately upload another design if needed
 
     } catch (error: any) {
-      console.error('Upload error caught:', error);
       const errorMessage = error?.message || error?.error || "Failed to upload design. Please try again.";
-      console.error('Showing error toast:', errorMessage);
       toast({
         title: "Upload failed",
         description: errorMessage,
@@ -787,7 +820,6 @@ export default function UploadDesignContent() {
         duration: 5000,
       });
     } finally {
-      console.log('Setting isUploading to false');
       setIsUploading(false);
     }
   };
@@ -798,17 +830,77 @@ export default function UploadDesignContent() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Upload Your Design</h1>
         <p className="text-muted-foreground">
-          Provide the required details and files for your design submission. All uploaded designs will undergo a review before being published.
+          {uploadMode === "single" 
+            ? "Provide the required details and files for your design submission. All uploaded designs will undergo a review before being published."
+            : "Upload multiple designs at once using a zip file. All design information will be read from the metadata.xlsx file in your zip."}
         </p>
       </div>
 
-      {/* Design Details Section */}
+      {/* Upload Mode Selector */}
       <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Design Details</CardTitle>
-          <CardDescription>Provide the core information about your design</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4">
+            <Label className="text-base font-medium">Upload Mode:</Label>
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setUploadMode("single");
+                  // Reset bulk file when switching to single mode
+                  setBulkFile(null);
+                  setBulkDesignCount(0);
+                  setBulkValidationErrors([]);
+                }}
+                className={`px-4 py-2 rounded-md transition-colors ${
+                  uploadMode === "single"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background hover:bg-muted border border-border"
+                }`}
+              >
+                Single Design Upload
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUploadMode("bulk");
+                  // Reset single design fields when switching to bulk mode
+                  setTitle("");
+                  setDescription("");
+                  setCategoryId(null);
+                  setSubcategoryId(null);
+                  setPrice("");
+                  setColor("");
+                  setSelectedTagIds([]);
+                  setSelectedTags([]);
+                  setFiles({
+                    eps: null,
+                    cdr: null,
+                    jpg: null,
+                    png: null,
+                    mockup: null,
+                  });
+                }}
+                className={`px-4 py-2 rounded-md transition-colors ${
+                  uploadMode === "bulk"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background hover:bg-muted border border-border"
+                }`}
+              >
+                Bulk Upload
+              </button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Design Details Section - Only show for single upload */}
+      {uploadMode === "single" && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Design Details</CardTitle>
+            <CardDescription>Provide the core information about your design</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
@@ -1186,45 +1278,16 @@ export default function UploadDesignContent() {
           </div>
         </CardContent>
       </Card>
+      )}
 
-      {/* File Upload Section */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>File Upload</CardTitle>
-          <CardDescription>Upload your design files in the required formats</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Upload Mode Toggle */}
-          <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-            <Label>Upload Mode:</Label>
-            <div className="flex gap-4">
-              <button
-                type="button"
-                onClick={() => setUploadMode("single")}
-                className={`px-4 py-2 rounded-md transition-colors ${
-                  uploadMode === "single"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-background hover:bg-muted"
-                }`}
-              >
-                Single Design Upload
-              </button>
-              <button
-                type="button"
-                onClick={() => setUploadMode("bulk")}
-                className={`px-4 py-2 rounded-md transition-colors ${
-                  uploadMode === "bulk"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-background hover:bg-muted"
-                }`}
-              >
-                Bulk Upload
-              </button>
-            </div>
-          </div>
-
-          {/* Single Design Upload */}
-          {uploadMode === "single" && (
+      {/* File Upload Section - Only show for single upload */}
+      {uploadMode === "single" && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>File Upload</CardTitle>
+            <CardDescription>Upload your design files in the required formats</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Upload required file formats: .cdr, .eps, .png, .jpg. Mockup (.jpg or .png) is optional.
@@ -1295,41 +1358,52 @@ export default function UploadDesignContent() {
                 )}
               </div>
             </div>
-          )}
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Bulk Upload */}
-          {uploadMode === "bulk" && (
+      {/* Bulk Upload Section - Only show for bulk upload */}
+      {uploadMode === "bulk" && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Bulk Upload</CardTitle>
+            <CardDescription>Upload multiple designs at once using a zip file</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
             <div className="space-y-4">
-              <div className="bg-muted/30 border border-border rounded-lg p-4">
-                <h4 className="font-medium mb-2">Bulk Upload Requirements:</h4>
+              <div className="bg-muted/30 border border-border rounded-lg p-4 relative">
+                <div className="flex items-start justify-between gap-4 mb-2">
+                  <h4 className="font-medium">Bulk Upload Requirements:</h4>
+                  <Button 
+                    variant="outline" 
+                    size="default"
+                    onClick={downloadTemplate}
+                    disabled={isGeneratingTemplate}
+                    className="shrink-0"
+                  >
+                    {isGeneratingTemplate ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-5 h-5 mr-2" />
+                        Download Template
+                      </>
+                    )}
+                  </Button>
+                </div>
                 <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
                   <li>Upload a single .zip file</li>
                   <li>The zip must contain multiple design folders</li>
                   <li>Each folder represents one design</li>
                   <li>Each design folder must include all 4 required files: .eps, .cdr, .jpg, .png</li>
+                  <li>Optional: Add mockup.jpg or mockup.png to showcase your design</li>
                   <li>Include metadata.xlsx file at the root level</li>
                   <li>Maximum file size: 1GB (1024 MB)</li>
                 </ul>
               </div>
-
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={downloadTemplate}
-                disabled={isGeneratingTemplate}
-              >
-                {isGeneratingTemplate ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Bulk Upload Template
-                  </>
-                )}
-              </Button>
 
               <div className="p-4 rounded-lg bg-muted/50 border border-border">
                 <h4 className="font-medium text-sm mb-2">Folder Structure Requirements:</h4>
@@ -1339,7 +1413,8 @@ export default function UploadDesignContent() {
                   <div className="pl-8">├── design.eps</div>
                   <div className="pl-8">├── design.cdr</div>
                   <div className="pl-8">├── design.jpg</div>
-                  <div className="pl-8">└── design.png</div>
+                  <div className="pl-8">├── design.png</div>
+                  <div className="pl-8">└── mockup.jpg <span className="text-muted-foreground">(optional)</span></div>
                   <div className="pl-4">├── Design_002/</div>
                   <div className="pl-8">└── ...</div>
                   <div className="pl-4">└── Design_XXX/</div>
@@ -1353,13 +1428,41 @@ export default function UploadDesignContent() {
 
               <div className="space-y-2">
                 <Label htmlFor="bulkFile">Bulk Upload File (.zip) <span className="text-destructive">*</span></Label>
-                <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                  bulkFile && bulkValidationErrors.length === 0
-                    ? 'border-green-500 bg-green-500/5'
-                    : (fileErrors.bulk || bulkValidationErrors.length > 0)
-                    ? 'border-destructive bg-destructive/5'
-                    : 'border-border hover:border-primary'
-                }`}>
+                <div
+                  className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    isDragging
+                      ? 'border-primary bg-primary/10'
+                      : bulkFile && bulkValidationErrors.length === 0
+                      ? 'border-green-500 bg-green-500/5'
+                      : (fileErrors.bulk || bulkValidationErrors.length > 0)
+                      ? 'border-destructive bg-destructive/5'
+                      : 'border-border hover:border-primary'
+                  }`}
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(true);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(false);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(false);
+                    
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) {
+                      handleBulkFileUpload(file);
+                    }
+                  }}
+                >
                   <input
                     id="bulkFile"
                     type="file"
@@ -1417,8 +1520,8 @@ export default function UploadDesignContent() {
                       >
                         Change File
                       </Button>
-                      </div>
-                    ) : (
+                    </div>
+                  ) : (
                     <div className="space-y-3">
                       <div className="flex justify-center">
                         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -1434,8 +1537,8 @@ export default function UploadDesignContent() {
                       <p className="text-xs text-muted-foreground">
                         Maximum file size: 1GB (1024 MB)
                       </p>
-                      </div>
-                    )}
+                    </div>
+                  )}
                 </div>
 
                 {(fileErrors.bulk || bulkValidationErrors.length > 0) && (
@@ -1460,9 +1563,9 @@ export default function UploadDesignContent() {
                 )}
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Validation Errors */}
       {validationErrors.files && (

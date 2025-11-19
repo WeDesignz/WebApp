@@ -8,6 +8,22 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
 
+// Helper function to make absolute URL
+const makeAbsoluteUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+  if (apiBaseUrl && url.startsWith('/')) {
+    return `${apiBaseUrl}${url}`;
+  }
+  if (apiBaseUrl && !url.startsWith('/')) {
+    return `${apiBaseUrl}/${url}`;
+  }
+  return url;
+};
+
 interface CartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -127,11 +143,17 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                       className="bg-background border border-border rounded-xl p-4 group"
                     >
                       <div className="flex gap-4">
-                        <img
-                          src={item.image}
-                          alt={item.title}
-                          className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
-                        />
+                        <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
+                          <img
+                            src={makeAbsoluteUrl(item.image) || '/generated_images/Brand_Identity_Design_67fa7e1f.png'}
+                            alt={item.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                            }}
+                          />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold truncate mb-1">{item.title}</h3>
                           <p className="text-sm text-muted-foreground mb-1">by {item.designer}</p>

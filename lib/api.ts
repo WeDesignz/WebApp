@@ -1321,6 +1321,56 @@ export const apiClient = {
     }
   },
 
+  uploadDesignsBulk: async (zipFile: File): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append('zip_file', zipFile);
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
+    const baseUrl = getApiBaseUrl();
+    if (!baseUrl) {
+      return {
+        error: 'API base URL is not configured. Please set NEXT_PUBLIC_API_BASE_URL environment variable.',
+        errorDetails: {
+          type: ErrorType.NETWORK,
+          message: 'API base URL is not configured',
+          statusCode: 500,
+        },
+      };
+    }
+    
+    try {
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      // Don't set Content-Type for FormData - browser will set it automatically with boundary
+      
+      const response = await fetch(`${baseUrl}/api/catalog/upload-designs-bulk/`, {
+        method: 'POST',
+        headers,
+        body: formData,
+        credentials: 'include', // Include credentials for CORS
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        return {
+          error: errorData.error || errorData.detail || 'Failed to upload zip file',
+          errorDetails: errorData,
+          validationErrors: errorData.validation_errors,
+        };
+      }
+
+      const responseData = await response.json();
+      return { data: responseData };
+    } catch (error: any) {
+      return {
+        error: error.message || 'Network error occurred',
+        errorDetails: error,
+      };
+    }
+  },
+
   getDesignProcessingProgress: async (taskId: number): Promise<ApiResponse<any>> => {
     const baseUrl = getApiBaseUrl();
     if (!baseUrl) {

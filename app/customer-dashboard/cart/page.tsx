@@ -13,6 +13,22 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 
+// Helper function to make absolute URL
+const makeAbsoluteUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+  if (apiBaseUrl && url.startsWith('/')) {
+    return `${apiBaseUrl}${url}`;
+  }
+  if (apiBaseUrl && !url.startsWith('/')) {
+    return `${apiBaseUrl}/${url}`;
+  }
+  return url;
+};
+
 export default function CartPage() {
   const { cartItems, removeFromCart, moveToWishlist, getCartTotal, clearCart, isLoadingCart } = useCartWishlist();
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -329,11 +345,17 @@ export default function CartPage() {
                       className="mt-1"
                     />
                     
-                    <img
-                      src={item.image}
-                      alt={item.title}
-                      className="w-32 h-32 rounded-lg object-cover flex-shrink-0"
-                    />
+                    <div className="w-32 h-32 rounded-lg overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
+                      <img
+                        src={makeAbsoluteUrl(item.image) || '/generated_images/Brand_Identity_Design_67fa7e1f.png'}
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                        }}
+                      />
+                    </div>
 
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-semibold mb-2">{item.title}</h3>

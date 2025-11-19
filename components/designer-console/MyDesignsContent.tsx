@@ -59,6 +59,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Design {
   id: number;
@@ -122,6 +128,22 @@ const getTimeAgo = (date: string): string => {
   return `${Math.floor(diffInSeconds / 2592000)} months ago`;
 };
 
+// Helper function to make absolute URL
+const makeAbsoluteUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+  if (apiBaseUrl && url.startsWith('/')) {
+    return `${apiBaseUrl}${url}`;
+  }
+  if (apiBaseUrl && !url.startsWith('/')) {
+    return `${apiBaseUrl}/${url}`;
+  }
+  return url;
+};
+
 // Helper function to get image URL from design, prioritizing JPG images
 const getDesignImageUrl = (design: Design): string | null => {
   // Use media array (from ProductSerializer) or fallback to media_files
@@ -138,7 +160,7 @@ const getDesignImageUrl = (design: Design): string | null => {
   // First pass: Look for JPG/JPEG images
   for (const media of mediaArray) {
     if (media.media_type === 'image' || !media.media_type) {
-      const url = media.file_url || media.file;
+      const url = media.url || media.file_url || media.file;
       if (url) {
         const urlLower = url.toLowerCase();
         // Check if it's a JPG/JPEG file
@@ -152,7 +174,7 @@ const getDesignImageUrl = (design: Design): string | null => {
   // Second pass: Get first image (any format)
   for (const media of mediaArray) {
     if (media.media_type === 'image' || !media.media_type) {
-      const url = media.file_url || media.file;
+      const url = media.url || media.file_url || media.file;
       if (url) {
         return makeAbsoluteUrl(url);
       }
@@ -167,30 +189,6 @@ const getDesignImageUrl = (design: Design): string | null => {
   return null;
 };
 
-// Helper function to make relative URLs absolute
-const makeAbsoluteUrl = (url: string | null | undefined): string | null => {
-  if (!url) return null;
-  
-  // If already absolute, return as is
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-  
-  // If relative, prepend API base URL
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-  if (apiBaseUrl && url.startsWith('/')) {
-    return `${apiBaseUrl}${url}`;
-  }
-  
-  // If relative without leading slash, add it
-  if (apiBaseUrl && !url.startsWith('/')) {
-    return `${apiBaseUrl}/${url}`;
-  }
-  
-  // If no API base URL configured, return as is (might work if same origin)
-  return url;
-};
-
 export default function MyDesignsContent() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [searchQuery, setSearchQuery] = useState("");
@@ -201,6 +199,7 @@ export default function MyDesignsContent() {
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedDesign, setSelectedDesign] = useState<Design | null>(null);
   const [selectedDesigns, setSelectedDesigns] = useState<Set<number>>(new Set());
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [designToDelete, setDesignToDelete] = useState<Design | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
@@ -1049,6 +1048,87 @@ export default function MyDesignsContent() {
                   </div>
                 )}
 
+                {/* Media Files Section */}
+                <div>
+                  <h3 className="font-semibold mb-3">Media Files</h3>
+                  <div className="space-y-3">
+                    {((designDetail || selectedDesign).media_files || (designDetail || selectedDesign).media || []).length > 0 ? (
+                      ((designDetail || selectedDesign).media_files || (designDetail || selectedDesign).media || []).map((media: any, index: number) => {
+                        const fileUrl = media.url || media.file || media.file_url;
+                        const fileName = media.file_name || '';
+                        const fileNameLower = fileName.toLowerCase();
+                        const isImage = fileNameLower.endsWith('.jpg') || fileNameLower.endsWith('.jpeg') || fileNameLower.endsWith('.png') || fileNameLower.endsWith('.gif') || fileNameLower.endsWith('.webp');
+                        const isMockup = media.is_mockup || fileNameLower.includes('mockup');
+                        const fileType = fileNameLower.split('.').pop()?.toUpperCase() || 'FILE';
+                        
+                        // Build absolute URL
+                        const absoluteUrl = makeAbsoluteUrl(fileUrl);
+                        
+                        return (
+                          <div key={media.id || index} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30">
+                            {isImage && absoluteUrl ? (
+                              <div 
+                                className="w-16 h-16 rounded border border-border overflow-hidden bg-background flex-shrink-0 relative group cursor-pointer"
+                                onClick={() => setPreviewImageUrl(absoluteUrl)}
+                              >
+                                <img 
+                                  src={absoluteUrl} 
+                                  alt={fileName || `File ${index + 1}`}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <Eye className="w-5 h-5 text-white" />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="w-16 h-16 rounded border border-border bg-background flex items-center justify-center flex-shrink-0">
+                                <Download className="w-6 h-6 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm truncate">{fileName || `File ${index + 1}`}</span>
+                                {isMockup && (
+                                  <Badge variant="secondary" className="text-xs">Mockup</Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="outline" className="text-xs">{fileType}</Badge>
+                                {media.file_size && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {(media.file_size / (1024 * 1024)).toFixed(2)} MB
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {absoluteUrl && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const link = document.createElement('a');
+                                  link.href = absoluteUrl;
+                                  link.download = fileName || `file.${fileType.toLowerCase()}`;
+                                  link.target = '_blank';
+                                  link.click();
+                                }}
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No media files uploaded yet.</p>
+                    )}
+                  </div>
+                </div>
+
                 <div>
                   <h3 className="font-semibold mb-3">Performance</h3>
                   <div className="grid grid-cols-3 gap-4">
@@ -1157,6 +1237,28 @@ export default function MyDesignsContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Image Preview Dialog */}
+      <Dialog open={!!previewImageUrl} onOpenChange={(open) => !open && setPreviewImageUrl(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle>Image Preview</DialogTitle>
+          </DialogHeader>
+          <div className="p-6 flex items-center justify-center bg-muted/30">
+            {previewImageUrl && (
+              <img 
+                src={previewImageUrl} 
+                alt="Preview" 
+                className="max-w-full max-h-[70vh] object-contain rounded-lg"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
