@@ -281,7 +281,7 @@ export default function CartPage() {
       const productIds = cartItems
         .map(item => {
           // Use productId (camelCase) from CartItem interface
-          const productId = item.productId || item.product_id;
+          const productId = item.productId;
           if (!productId) {
             console.error('Cart item missing productId:', item);
             return null;
