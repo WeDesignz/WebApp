@@ -14,14 +14,22 @@ import {
   CheckCircle2,
   Loader2,
   AlertCircle,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import ReceiptModal from "@/components/customer-dashboard/ReceiptModal";
 import { PDFPurchase } from "./PDFDownloadModal";
 import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api";
+import { apiClient, catalogAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface Download {
@@ -43,12 +51,14 @@ interface Download {
 }
 
 export default function DownloadsContent() {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [pdfPurchases, setPdfPurchases] = useState<PDFPurchase[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [filter, setFilter] = useState<'all' | 'paid'>('all');
   const [downloadingProductId, setDownloadingProductId] = useState<number | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [hoveredProductId, setHoveredProductId] = useState<number | string | null>(null);
   const { toast } = useToast();
 
   // Fetch downloadable products from API
@@ -126,6 +136,21 @@ export default function DownloadsContent() {
   const totalDownloads = downloadsData?.total_downloads || 0;
   const paidDownloads = downloadsData?.paid_downloads || 0;
   const freeDownloads = transformedPDFDownloads.filter((d) => d.type === "free").length;
+
+  // Fetch product details when a product is selected
+  const { data: productDetail, isLoading: isLoadingProductDetail } = useQuery({
+    queryKey: ['productDetail', selectedProductId],
+    queryFn: async () => {
+      if (!selectedProductId) return null;
+      const response = await catalogAPI.getProductDetail(selectedProductId);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data?.product || null;
+    },
+    enabled: !!selectedProductId,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
 
   useEffect(() => {
     setIsMounted(true);
@@ -286,17 +311,17 @@ export default function DownloadsContent() {
             </Button>
             <Button
               size="sm"
-              variant={viewMode === "grid" ? "default" : "outline"}
-              onClick={() => setViewMode("grid")}
-            >
-              <Grid3x3 className="w-4 h-4" />
-            </Button>
-            <Button
-              size="sm"
               variant={viewMode === "list" ? "default" : "outline"}
               onClick={() => setViewMode("list")}
             >
               <List className="w-4 h-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "grid" ? "default" : "outline"}
+              onClick={() => setViewMode("grid")}
+            >
+              <Grid3x3 className="w-4 h-4" />
             </Button>
           </div>
         </div>
@@ -373,9 +398,11 @@ export default function DownloadsContent() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
+                    onMouseEnter={() => setHoveredProductId(download.id)}
+                    onMouseLeave={() => setHoveredProductId(null)}
                   >
                     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-                      <div className="aspect-video bg-muted relative">
+                      <div className="aspect-video bg-muted relative group">
                         {download.thumbnail ? (
                           <img 
                             src={download.thumbnail} 
@@ -391,6 +418,19 @@ export default function DownloadsContent() {
                         <Badge className="absolute top-2 right-2">
                           {download.type || 'paid'}
                         </Badge>
+                        {download.productId && hoveredProductId === download.id && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="bg-white/90 hover:bg-white"
+                              onClick={() => setSelectedProductId(download.productId!)}
+                            >
+                              <Eye className="w-4 h-4 mr-2" />
+                              View Details
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       <div className="p-4 space-y-3">
                         <h3 className="font-semibold line-clamp-1">
@@ -444,10 +484,12 @@ export default function DownloadsContent() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
+                    onMouseEnter={() => setHoveredProductId(download.id)}
+                    onMouseLeave={() => setHoveredProductId(null)}
                   >
                     <Card className="p-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-20 h-20 bg-muted rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        <div className="w-20 h-20 bg-muted rounded flex items-center justify-center flex-shrink-0 overflow-hidden relative group">
                           {download.thumbnail ? (
                             <img 
                               src={download.thumbnail} 
@@ -459,6 +501,19 @@ export default function DownloadsContent() {
                             />
                           ) : (
                             <FileImage className="w-8 h-8 text-muted-foreground/30" />
+                          )}
+                          {download.productId && hoveredProductId === download.id && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="bg-white/90 hover:bg-white h-8"
+                                onClick={() => setSelectedProductId(download.productId!)}
+                              >
+                                <Eye className="w-3 h-3 mr-1" />
+                                View
+                              </Button>
+                            </div>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -638,6 +693,137 @@ export default function DownloadsContent() {
         onClose={() => setSelectedReceipt(null)}
         receipt={selectedReceipt}
       />
+
+      {/* Product Detail Modal */}
+      <Dialog open={!!selectedProductId} onOpenChange={(open) => !open && setSelectedProductId(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {isLoadingProductDetail ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : productDetail ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{productDetail.title || 'Product Details'}</DialogTitle>
+                <DialogDescription>
+                  View all details about this product
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-6 mt-4">
+                {/* Product Image */}
+                {productDetail.media && productDetail.media.length > 0 && (
+                  <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+                    <img
+                      src={productDetail.media[0]?.file_url || productDetail.media[0]?.url || productDetail.media[0]?.file}
+                      alt={productDetail.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Product Information */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-1">Product ID</h3>
+                    <p className="text-sm">{productDetail.id}</p>
+                  </div>
+                  {productDetail.product_number && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-1">Design Number</h3>
+                      <p className="text-sm">{productDetail.product_number}</p>
+                    </div>
+                  )}
+                  {productDetail.category && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-1">Category</h3>
+                      <p className="text-sm">{productDetail.category?.name || productDetail.category}</p>
+                    </div>
+                  )}
+                  {productDetail.product_plan_type && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-1">Plan Type</h3>
+                      <Badge variant="secondary">{productDetail.product_plan_type}</Badge>
+                    </div>
+                  )}
+                  {productDetail.price && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-1">Price</h3>
+                      <p className="text-sm font-semibold">₹{productDetail.price}</p>
+                    </div>
+                  )}
+                  {productDetail.status && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-1">Status</h3>
+                      <Badge variant={productDetail.status === 'active' ? 'default' : 'secondary'}>
+                        {productDetail.status}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+
+                {/* Description */}
+                {productDetail.description && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">Description</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {productDetail.description}
+                    </p>
+                  </div>
+                )}
+
+                {/* Media Files */}
+                {productDetail.media && productDetail.media.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                      Media Files ({productDetail.media.length})
+                    </h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      {productDetail.media.map((media: any, idx: number) => (
+                        <div key={idx} className="aspect-square bg-muted rounded overflow-hidden">
+                          <img
+                            src={media.file_url || media.url || media.file}
+                            alt={`Media ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tags */}
+                {productDetail.tags && productDetail.tags.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">Tags</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {productDetail.tags.map((tag: any, idx: number) => (
+                        <Badge key={idx} variant="outline">
+                          {tag.name || tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-12">
+              <AlertCircle className="w-16 h-16 mx-auto mb-4 text-destructive" />
+              <h3 className="text-xl font-semibold mb-2">Product not found</h3>
+              <p className="text-muted-foreground">
+                Unable to load product details
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
