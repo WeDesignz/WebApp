@@ -113,7 +113,7 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
         amount: amount,
         currency: 'INR',
         description: `Custom Order: ${title}`,
-        order_id: orderId, // Link payment to order
+        order_id: orderId.toString(), // Link payment to order
       });
 
       if (paymentOrderResponse.error || !paymentOrderResponse.data) {

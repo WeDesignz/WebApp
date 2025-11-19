@@ -228,7 +228,7 @@ export default function PlansContent() {
         amount: parseFloat(plan.price.toString()),
         currency: 'INR',
         description: `Subscription: ${plan.plan_name_display || plan.plan_name} - ${plan.plan_duration}`,
-        order_id: orderId, // Link payment to order
+        order_id: orderId.toString(), // Link payment to order
       });
 
       if (paymentOrderResponse.error || !paymentOrderResponse.data) {
