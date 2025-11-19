@@ -174,7 +174,7 @@ export default function CartPage() {
       }
 
       if (response.data) {
-        setCouponApplied(true);
+      setCouponApplied(true);
         const couponInfoData = {
           discount_amount: response.data.discount_amount || 0,
           coupon_name: response.data.coupon?.name || couponCode.trim(),
@@ -269,10 +269,50 @@ export default function CartPage() {
         return;
       }
 
-      // Step 1: Create payment order
+      // Step 1: Create order first
+      // Extract product IDs and convert to integers
+      const productIds = cartItems
+        .map(item => {
+          // Use productId (camelCase) from CartItem interface
+          const productId = item.productId || item.product_id;
+          if (!productId) {
+            console.error('Cart item missing productId:', item);
+            return null;
+          }
+          const id = parseInt(productId.toString(), 10);
+          if (isNaN(id)) {
+            console.error('Invalid product ID:', productId, 'for item:', item);
+            return null;
+          }
+          return id;
+        })
+        .filter((id): id is number => id !== null);
+
+      if (productIds.length === 0) {
+        throw new Error('No valid product IDs found in cart');
+      }
+
+      if (productIds.length !== cartItems.length) {
+        throw new Error('Some cart items have invalid product IDs');
+      }
+
+      const orderResponse = await apiClient.createOrder({
+        product_ids: productIds,
+        total_amount: finalAmount,
+        coupon_code: couponApplied ? couponCode : undefined,
+      });
+
+      if (orderResponse.error || !orderResponse.data) {
+        throw new Error(orderResponse.error || 'Failed to create order');
+      }
+
+      const orderId = orderResponse.data.order_id || orderResponse.data.id;
+
+      // Step 2: Create payment order and associate with order
       const paymentOrderResponse = await apiClient.createPaymentOrder({
         amount: finalAmount,
         currency: 'INR',
+        order_id: orderId,
         description: `Payment for ${cartItems.length} item(s)`,
       });
 
@@ -288,7 +328,7 @@ export default function CartPage() {
         throw new Error('Razorpay payment gateway is not configured. Please contact support.');
       }
 
-      // Step 2: Initialize Razorpay checkout
+      // Step 3: Initialize Razorpay checkout
       const paymentResult = await initializeRazorpayCheckout({
         key: razorpayKey,
         amount: finalAmount * 100, // Convert rupees to paise for Razorpay
@@ -305,7 +345,7 @@ export default function CartPage() {
         throw new Error(paymentResult.error || 'Payment failed');
       }
 
-      // Step 3: Capture payment
+      // Step 4: Capture payment
       const captureResponse = await apiClient.capturePayment({
         payment_id: payment_id,
         razorpay_payment_id: paymentResult.razorpay_payment_id!,
@@ -319,19 +359,12 @@ export default function CartPage() {
             (captureResponse.data?.message && captureResponse.data.message.toLowerCase().includes('already captured'))) {
           // Payment already captured, continue with checkout
         } else {
-          throw new Error(captureResponse.error || 'Failed to capture payment');
+        throw new Error(captureResponse.error || 'Failed to capture payment');
         }
       }
 
-      // Step 4: Complete purchase
-      const purchaseResponse = await apiClient.purchaseCart({
-        payment_method: 'razorpay',
-        coupon_code: couponApplied ? couponCode : undefined,
-      });
-
-      if (purchaseResponse.error) {
-        throw new Error(purchaseResponse.error);
-      }
+      // Step 5: Order status is already updated to 'success' when payment is captured
+      // No need to call purchaseCart again as order was already created in Step 1
 
       // Clear cart and refresh
       await queryClient.invalidateQueries({ queryKey: ['cart'] });

@@ -156,8 +156,8 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         } catch (error) {
           // Ignore localStorage errors
         }
-        toast({
-          title: "Coupon applied",
+      toast({
+        title: "Coupon applied",
           description: `Discount of ${formatPrice(response.data.discount_amount || 0)} applied!`,
         });
       }
@@ -374,14 +374,14 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                     <span className="font-semibold">{formatPrice(getCartTotal())}</span>
                   </div>
                   {couponApplied && couponInfo && (
-                    <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">
                         Discount {couponInfo.coupon_type === 'percentage' 
                           ? `(${((discount / (cartSummary?.total_amount || getCartTotal())) * 100).toFixed(0)}%)`
                           : `(${couponInfo.coupon_name})`}
                       </span>
                       <span className="text-success">-{formatPrice(discount)}</span>
-                    </div>
+                  </div>
                   )}
                   {cartSummary?.will_be_free && (
                     <div className="p-3 bg-success/5 border border-success/20 rounded-lg">

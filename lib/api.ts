@@ -625,6 +625,17 @@ export const apiClient = {
     return apiRequest<any>(`/api/orders/orders/${orderId}/`);
   },
 
+  createOrder: async (data: {
+    product_ids: number[];
+    total_amount: number;
+    coupon_code?: string;
+  }) => {
+    return apiRequest('/api/orders/create/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   purchaseCart: async (data: {
     payment_method: 'razorpay' | 'wallet';
     address_id?: number;
