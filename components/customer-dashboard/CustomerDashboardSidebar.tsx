@@ -16,6 +16,7 @@ import {
   ChevronRight,
   CreditCard,
   ShoppingBag,
+  Heart,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ const menuItems: { icon: any; label: string; view: DashboardView }[] = [
   { icon: LayoutDashboard, label: "Dashboard", view: "dashboard" },
   { icon: Download, label: "My Downloads", view: "downloads" },
   { icon: ShoppingBag, label: "My Orders", view: "orders" },
+  { icon: Heart, label: "Wishlist", view: "wishlist" },
   { icon: Grid3x3, label: "Categories", view: "categories" },
   { icon: CreditCard, label: "Plans", view: "plans" },
   { icon: HelpCircle, label: "Support", view: "support" },

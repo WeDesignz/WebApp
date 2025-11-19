@@ -6,6 +6,22 @@ import { Button } from "@/components/ui/button";
 import { useCartWishlist } from "@/contexts/CartWishlistContext";
 import { useToast } from "@/hooks/use-toast";
 
+// Helper function to make absolute URL
+const makeAbsoluteUrl = (url: string | null | undefined): string => {
+  if (!url) return '/placeholder-image.png';
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+  if (apiBaseUrl && url.startsWith('/')) {
+    return `${apiBaseUrl}${url}`;
+  }
+  if (apiBaseUrl && !url.startsWith('/')) {
+    return `${apiBaseUrl}/${url}`;
+  }
+  return url;
+};
+
 interface QuickViewModalProps {
   item: any;
   isOpen: boolean;
@@ -13,7 +29,7 @@ interface QuickViewModalProps {
 }
 
 export default function QuickViewModal({ item, isOpen, onClose }: QuickViewModalProps) {
-  const { addToCart, addToWishlist, isInCart, isInWishlist } = useCartWishlist();
+  const { addToCart, addToWishlist, removeFromWishlist, isInCart, isInWishlist } = useCartWishlist();
   const { toast } = useToast();
 
   if (!item) return null;
@@ -50,8 +66,16 @@ export default function QuickViewModal({ item, isOpen, onClose }: QuickViewModal
     }
   };
 
-  const handleAddToWishlist = () => {
-    if (!isInWishlist(item.productId)) {
+  const handleToggleWishlist = () => {
+    if (isInWishlist(item.productId)) {
+      // Remove from wishlist
+      removeFromWishlist(item.id);
+      toast({
+        title: "Removed from wishlist",
+        description: `${item.title} has been removed from your wishlist.`,
+      });
+    } else {
+      // Add to wishlist
       addToWishlist(item);
       toast({
         title: "Added to wishlist",
@@ -72,13 +96,13 @@ export default function QuickViewModal({ item, isOpen, onClose }: QuickViewModal
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
           />
           
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto pointer-events-none">
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: "spring", duration: 0.5 }}
-              className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-4xl my-8 pointer-events-auto"
+              className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-4xl my-8 pointer-events-auto max-h-[90vh] overflow-y-auto"
             >
               <div className="relative">
                 <button
@@ -91,9 +115,12 @@ export default function QuickViewModal({ item, isOpen, onClose }: QuickViewModal
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
                   <div className="relative aspect-square rounded-xl overflow-hidden bg-muted">
                     <img
-                      src={item.image}
+                      src={makeAbsoluteUrl(item.image)}
                       alt={item.title}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/placeholder-image.png';
+                      }}
                     />
                     {item.isPremium && (
                       <div className="absolute top-4 left-4">
@@ -158,7 +185,7 @@ export default function QuickViewModal({ item, isOpen, onClose }: QuickViewModal
                         <Button
                           size="icon"
                           variant="outline"
-                          onClick={handleAddToWishlist}
+                          onClick={handleToggleWishlist}
                           className="rounded-full"
                         >
                           <Heart 

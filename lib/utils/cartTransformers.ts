@@ -6,18 +6,42 @@
 import { CartItem, WishlistItem } from '@/contexts/CartWishlistContext';
 
 /**
+ * Helper function to make absolute URL
+ */
+const makeAbsoluteUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+  if (apiBaseUrl && url.startsWith('/')) {
+    return `${apiBaseUrl}${url}`;
+  }
+  if (apiBaseUrl && !url.startsWith('/')) {
+    return `${apiBaseUrl}/${url}`;
+  }
+  return url;
+};
+
+/**
  * Transform backend cart item to frontend CartItem format
  */
 export function transformCartItem(apiCartItem: any): CartItem {
   const product = apiCartItem.product || {};
   
-  // Extract media URLs
+  // Extract media URLs - handle different media structures
   const mediaUrls = (product.media || []).map((mediaItem: any) => {
     if (typeof mediaItem === 'string') {
-      return mediaItem;
+      return makeAbsoluteUrl(mediaItem);
     }
-    return mediaItem?.file?.url || mediaItem?.url || '';
-  }).filter((url: string) => url);
+    // Try different possible URL properties
+    const url = mediaItem?.file_url || 
+                mediaItem?.url || 
+                mediaItem?.file?.url || 
+                mediaItem?.file ||
+                '';
+    return makeAbsoluteUrl(url);
+  }).filter((url: string | null): url is string => !!url);
 
   // Extract category name
   const categoryName = product.category?.name || product.category || 'Uncategorized';
@@ -54,13 +78,19 @@ export function transformCartItem(apiCartItem: any): CartItem {
 export function transformWishlistItem(apiCartItem: any): WishlistItem {
   const product = apiCartItem.product || {};
   
-  // Extract media URLs
+  // Extract media URLs - handle different media structures
   const mediaUrls = (product.media || []).map((mediaItem: any) => {
     if (typeof mediaItem === 'string') {
-      return mediaItem;
+      return makeAbsoluteUrl(mediaItem);
     }
-    return mediaItem?.file?.url || mediaItem?.url || '';
-  }).filter((url: string) => url);
+    // Try different possible URL properties
+    const url = mediaItem?.file_url || 
+                mediaItem?.url || 
+                mediaItem?.file?.url || 
+                mediaItem?.file ||
+                '';
+    return makeAbsoluteUrl(url);
+  }).filter((url: string | null): url is string => !!url);
 
   // Extract category name
   const categoryName = product.category?.name || product.category || 'Uncategorized';

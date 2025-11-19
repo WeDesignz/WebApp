@@ -15,9 +15,10 @@ import FAQContent from "./FAQContent";
 import CategoriesContent from "./CategoriesContent";
 import ProfileContent from "./ProfileContent";
 import AccountsContent from "./AccountsContent";
+import WishlistContent from "./WishlistContent";
 import LogoutModal from "./LogoutModal";
 
-export type DashboardView = "dashboard" | "downloads" | "orders" | "categories" | "freelancers" | "plans" | "support" | "notifications" | "faq" | "profile" | "accounts";
+export type DashboardView = "dashboard" | "downloads" | "orders" | "categories" | "freelancers" | "plans" | "support" | "notifications" | "faq" | "profile" | "accounts" | "wishlist";
 
 export default function CustomerDashboard() {
   const searchParams = useSearchParams();
@@ -35,7 +36,7 @@ export default function CustomerDashboard() {
   // Check for view query parameter on mount
   useEffect(() => {
     const viewParam = searchParams.get('view');
-    if (viewParam && ['dashboard', 'downloads', 'orders', 'categories', 'freelancers', 'plans', 'support', 'notifications', 'faq', 'profile', 'accounts'].includes(viewParam)) {
+    if (viewParam && ['dashboard', 'downloads', 'orders', 'categories', 'freelancers', 'plans', 'support', 'notifications', 'faq', 'profile', 'accounts', 'wishlist'].includes(viewParam)) {
       setActiveView(viewParam as DashboardView);
     }
     setIsInitialized(true);
@@ -68,6 +69,8 @@ export default function CustomerDashboard() {
         return <DownloadsContent />;
       case "orders":
         return <OrdersContent />;
+      case "wishlist":
+        return <WishlistContent />;
       case "plans":
         return <PlansContent />;
       case "support":
