@@ -417,12 +417,10 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
           return;
         }
         
-        // Check for mockup - ONLY if is_mockup flag is true OR filename contains "mockup"
-        // Don't check metadata string as it might have false positives
-        const isMockup = isMockupFlag ||
-                        fileNameOnly.includes('mockup') || 
-                        fileName.includes('mockup') ||
-                        urlLower.includes('mockup');
+        // Check for mockup - ONLY if is_mockup flag is true OR filename base is exactly "mockup"
+        // Mockup files are explicitly named "mockup.jpg" or "mockup.png"
+        const fileNameBase = fileNameOnly.replace(/\.[^/.]+$/, '');
+        const isMockup = isMockupFlag || fileNameBase === 'mockup';
         
         if (isMockup) {
           console.log('[EditDesign] Found MOCKUP file:', { mediaType, fileName, url, isMockup, isMockupFlag });
