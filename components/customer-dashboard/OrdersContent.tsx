@@ -956,6 +956,18 @@ function CustomOrderCard({ order, onOpenChat, onViewDetails, onViewDeliverables 
           </div>
         </div>
         <div className="flex gap-2">
+          {onViewDetails && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => onViewDetails(order)}
+              className="hover:bg-primary/10 hover:border-primary/30 transition-colors"
+              title="View Details"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Details
+            </Button>
+          )}
           <Button 
             variant="outline" 
             size="sm" 
@@ -965,22 +977,12 @@ function CustomOrderCard({ order, onOpenChat, onViewDetails, onViewDeliverables 
             <MessageCircle className="w-4 h-4 mr-2" />
             Chat
           </Button>
-          {onViewDetails && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => onViewDetails(order)}
-              className="hover:bg-muted transition-colors"
-              title="View Details"
-            >
-              <Eye className="w-4 h-4" />
-            </Button>
-          )}
           {isCompleted && onViewDeliverables && (
             <Button 
+              variant="outline" 
               size="sm" 
               onClick={() => onViewDeliverables(order)}
-              className="bg-primary hover:bg-primary/90 transition-colors shadow-sm hover:shadow-md"
+              className="hover:bg-primary/10 hover:border-primary/30 transition-colors"
             >
               <Download className="w-4 h-4 mr-2" />
               View Deliverables
