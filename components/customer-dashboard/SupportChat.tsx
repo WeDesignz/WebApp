@@ -69,6 +69,8 @@ export default function SupportChat({ open, onClose, orderId, orderTitle }: Supp
     onSuccess: () => {
       // Refresh comments after sending
       queryClient.invalidateQueries({ queryKey: ['orderComments', orderId] });
+      // Invalidate unread count query
+      queryClient.invalidateQueries({ queryKey: ['orderComments', orderId, 'unread'] });
       setNewMessage("");
       setSelectedFile(null);
       if (fileInputRef.current) {
@@ -96,11 +98,47 @@ export default function SupportChat({ open, onClose, orderId, orderTitle }: Supp
     } : undefined
   })) || [];
 
+  // Scroll to bottom when messages change or chat is opened
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (open && scrollRef.current) {
+      // Use setTimeout to ensure DOM is fully rendered
+      setTimeout(() => {
+        if (scrollRef.current) {
+          // ScrollArea component wraps content in a viewport div
+          const viewport = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+          if (viewport) {
+            viewport.scrollTop = viewport.scrollHeight;
+          } else {
+            // Fallback: try to find any scrollable element
+            const scrollable = scrollRef.current.querySelector('[style*="overflow"]') as HTMLElement;
+            if (scrollable) {
+              scrollable.scrollTop = scrollable.scrollHeight;
+            }
+          }
+        }
+      }, 200);
     }
-  }, [messages]);
+  }, [messages, open]);
+
+  // Mark messages as read when chat modal is opened
+  useEffect(() => {
+    if (open && orderId) {
+      // Call API to mark messages as read on backend (creates read receipts)
+      apiClient.markOrderCommentsAsRead(Number(orderId))
+        .then(() => {
+          // Invalidate unread count query to update counters immediately
+          queryClient.invalidateQueries({ queryKey: ['orderComments', orderId, 'unread'] });
+          // Also refetch comments to get updated is_read status
+          queryClient.invalidateQueries({ queryKey: ['orderComments', orderId] });
+        })
+        .catch((error: any) => {
+          // Only log non-404 errors (endpoint may not exist yet)
+          if (error?.statusCode !== 404) {
+            console.error('Error marking messages as read:', error);
+          }
+        });
+    }
+  }, [open, orderId, queryClient]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {

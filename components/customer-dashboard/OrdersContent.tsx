@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Clock,
@@ -27,6 +28,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Order {
   id: number | string;
@@ -57,6 +60,8 @@ interface CustomRequest {
 }
 
 export default function OrdersContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [selectedCustomRequest, setSelectedCustomRequest] = useState<CustomRequest | null>(null);
   const [selectedCustomOrderForDetails, setSelectedCustomOrderForDetails] = useState<Order | null>(null);
@@ -68,6 +73,24 @@ export default function OrdersContent() {
   const [deliverablesModalOpen, setDeliverablesModalOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Get active tab from URL query parameter, default to "all"
+  const activeTab = searchParams.get('tab') || 'all';
+  const validTabs = ['all', 'products', 'subscription', 'custom'];
+  const currentTab = validTabs.includes(activeTab) ? activeTab : 'all';
+
+  // Handle tab change
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === 'all') {
+      // Remove tab param for "all" (default)
+      params.delete('tab');
+    } else {
+      params.set('tab', value);
+    }
+    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    router.replace(newUrl, { scroll: false });
+  };
 
   // Fetch orders from API
   const { data: ordersData, isLoading: isLoadingOrders, error: ordersError } = useQuery({
@@ -222,7 +245,7 @@ export default function OrdersContent() {
           </Button>
         </div>
 
-        <Tabs defaultValue="all" className="w-full">
+        <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
           <TabsList>
             <TabsTrigger value="all">All Orders</TabsTrigger>
             <TabsTrigger value="products">Product Orders</TabsTrigger>
@@ -243,22 +266,30 @@ export default function OrdersContent() {
                   {cartOrders.length > 0 && (
                     <div className="space-y-4">
                       <h2 className="text-xl font-semibold">Cart Orders</h2>
-                      {cartOrders.map((order, index) => (
-                        <motion.div
-                          key={`cart-order-${order.id}`}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                        >
-                          <CartOrderCard
-                            order={order}
-                            onOpenChat={() => {
-                              setSelectedOrder(order);
-                              setChatOpen(true);
-                            }}
-                          />
-                        </motion.div>
-                      ))}
+                      {cartOrders.map((order, index) => {
+                        const CartOrderCardWithUnread = () => {
+                          const { user } = useAuth();
+                          const unreadCount = useUnreadMessages(order.id?.toString() || null, user?.id);
+                          return (
+                            <motion.div
+                              key={`cart-order-${order.id}`}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.1 }}
+                            >
+                              <CartOrderCard
+                                order={order}
+                                onOpenChat={() => {
+                                  setSelectedOrder(order);
+                                  setChatOpen(true);
+                                }}
+                                unreadCount={unreadCount}
+                              />
+                            </motion.div>
+                          );
+                        };
+                        return <CartOrderCardWithUnread key={`cart-order-${order.id}`} />;
+                      })}
                     </div>
                   )}
 
@@ -266,22 +297,30 @@ export default function OrdersContent() {
                   {subscriptionOrders.length > 0 && (
                     <div className="space-y-4 mt-6">
                       <h2 className="text-xl font-semibold">Subscription Orders</h2>
-                      {subscriptionOrders.map((order, index) => (
-                        <motion.div
-                          key={`subscription-order-${order.id}`}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: (cartOrders.length + index) * 0.1 }}
-                        >
-                          <SubscriptionOrderCard
-                            order={order}
-                            onOpenChat={() => {
-                              setSelectedOrder(order);
-                              setChatOpen(true);
-                            }}
-                          />
-                        </motion.div>
-                      ))}
+                      {subscriptionOrders.map((order, index) => {
+                        const SubscriptionOrderCardWithUnread = () => {
+                          const { user } = useAuth();
+                          const unreadCount = useUnreadMessages(order.id?.toString() || null, user?.id);
+                          return (
+                            <motion.div
+                              key={`subscription-order-${order.id}`}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: (cartOrders.length + index) * 0.1 }}
+                            >
+                              <SubscriptionOrderCard
+                                order={order}
+                                onOpenChat={() => {
+                                  setSelectedOrder(order);
+                                  setChatOpen(true);
+                                }}
+                                unreadCount={unreadCount}
+                              />
+                            </motion.div>
+                          );
+                        };
+                        return <SubscriptionOrderCardWithUnread key={`subscription-order-${order.id}`} />;
+                      })}
                     </div>
                   )}
 
@@ -289,15 +328,18 @@ export default function OrdersContent() {
                   {customOrders.length > 0 && (
                     <div className="space-y-4 mt-6">
                       <h2 className="text-xl font-semibold">Custom Orders</h2>
-                      {customOrders.map((order, index) => (
-                        <motion.div
-                          key={`custom-order-${order.id}`}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: (cartOrders.length + subscriptionOrders.length + index) * 0.1 }}
-                        >
-                          <CustomOrderCard
+                      {customOrders.map((order, index) => {
+                        const UnreadCounter = ({ orderId }: { orderId: string }) => {
+                          const { user } = useAuth();
+                          const unreadCount = useUnreadMessages(orderId, user?.id);
+                          return null; // This component is just for the hook, we'll use the count in the card
+                        };
+                        return (
+                          <CustomOrderCardWithUnread
+                            key={`custom-order-${order.id}`}
                             order={order}
+                            index={index}
+                            totalPrevious={cartOrders.length + subscriptionOrders.length}
                             onOpenChat={() => {
                               setSelectedOrder(order);
                               setChatOpen(true);
@@ -311,8 +353,8 @@ export default function OrdersContent() {
                               setDeliverablesModalOpen(true);
                             }}
                           />
-                        </motion.div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
@@ -365,22 +407,28 @@ export default function OrdersContent() {
                 </Card>
               ) : (
                 productOrders.map((order, index) => {
-                  return (
-                    <motion.div
-                      key={order.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                    >
-                      <CartOrderCard
-                        order={order}
-                        onOpenChat={() => {
-                          setSelectedOrder(order);
-                          setChatOpen(true);
-                        }}
-                      />
-                    </motion.div>
-                  );
+                  const CartOrderCardWithUnread = () => {
+                    const { user } = useAuth();
+                    const unreadCount = useUnreadMessages(order.id?.toString() || null, user?.id);
+                    return (
+                      <motion.div
+                        key={`product-order-${order.id}`}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                      >
+                        <CartOrderCard
+                          order={order}
+                          onOpenChat={() => {
+                            setSelectedOrder(order);
+                            setChatOpen(true);
+                          }}
+                          unreadCount={unreadCount}
+                        />
+                      </motion.div>
+                    );
+                  };
+                  return <CartOrderCardWithUnread key={`product-order-${order.id}`} />;
                 })
               );
             })()}
@@ -410,22 +458,30 @@ export default function OrdersContent() {
                   </p>
                 </Card>
               ) : (
-                subscriptionOrders.map((order, index) => (
-                  <motion.div
-                    key={order.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <SubscriptionOrderCard
-                      order={order}
-                      onOpenChat={() => {
-                        setSelectedOrder(order);
-                        setChatOpen(true);
-                      }}
-                    />
-                  </motion.div>
-                ))
+                subscriptionOrders.map((order, index) => {
+                  const SubscriptionOrderCardWithUnread = () => {
+                    const { user } = useAuth();
+                    const unreadCount = useUnreadMessages(order.id?.toString() || null, user?.id);
+                    return (
+                      <motion.div
+                        key={`subscription-order-${order.id}`}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                      >
+                        <SubscriptionOrderCard
+                          order={order}
+                          onOpenChat={() => {
+                            setSelectedOrder(order);
+                            setChatOpen(true);
+                          }}
+                          unreadCount={unreadCount}
+                        />
+                      </motion.div>
+                    );
+                  };
+                  return <SubscriptionOrderCardWithUnread key={`subscription-order-${order.id}`} />;
+                })
               );
             })()}
           </TabsContent>
@@ -490,7 +546,11 @@ export default function OrdersContent() {
       {selectedOrder && (
         <SupportChat
           open={chatOpen}
-          onClose={() => setChatOpen(false)}
+          onClose={() => {
+            setChatOpen(false);
+            // Invalidate unread count query when modal closes to update counters
+            queryClient.invalidateQueries({ queryKey: ['orderComments', selectedOrder.id.toString(), 'unread'] });
+          }}
           orderId={selectedOrder.id.toString()}
           orderTitle={selectedOrder.title || 'Order'}
         />
@@ -688,13 +748,14 @@ export default function OrdersContent() {
 }
 
 // Base order card component with shared logic
-function BaseOrderCard({ order, onOpenChat, orderTypeLabel, iconColor, bgColor, borderColor }: { 
+function BaseOrderCard({ order, onOpenChat, orderTypeLabel, iconColor, bgColor, borderColor, unreadCount = 0 }: { 
   order: Order; 
   onOpenChat: () => void;
   orderTypeLabel: string;
   iconColor: string;
   bgColor: string;
   borderColor: string;
+  unreadCount?: number;
 }) {
   const getStatusConfig = () => {
     switch (order.status) {
@@ -796,15 +857,25 @@ function BaseOrderCard({ order, onOpenChat, orderTypeLabel, iconColor, bgColor, 
           </div>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={onOpenChat}
-            className="hover:bg-primary/10 hover:border-primary/30 transition-colors"
-          >
-            <MessageCircle className="w-4 h-4 mr-2" />
-            Chat
-          </Button>
+          <div className="relative inline-block">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onOpenChat}
+              className="hover:bg-primary/10 hover:border-primary/30 transition-colors"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Chat
+            </Button>
+            {unreadCount > 0 ? (
+              <span 
+                className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px] px-1 z-50 shadow-lg ring-2 ring-white dark:ring-gray-900 pointer-events-none"
+                style={{ lineHeight: '1.25rem' }}
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            ) : null}
+          </div>
           {isCompleted && (
             <Button 
               size="sm"
@@ -821,7 +892,7 @@ function BaseOrderCard({ order, onOpenChat, orderTypeLabel, iconColor, bgColor, 
 }
 
 // Cart Order Card
-function CartOrderCard({ order, onOpenChat }: { order: Order; onOpenChat: () => void }) {
+function CartOrderCard({ order, onOpenChat, unreadCount = 0 }: { order: Order; onOpenChat: () => void; unreadCount?: number }) {
   return (
     <BaseOrderCard
       order={order}
@@ -830,12 +901,13 @@ function CartOrderCard({ order, onOpenChat }: { order: Order; onOpenChat: () => 
       iconColor="from-blue-500 to-indigo-500"
       bgColor="from-blue-500/10 to-indigo-500/10"
       borderColor="border-blue-500/20"
+      unreadCount={unreadCount}
     />
   );
 }
 
 // Subscription Order Card
-function SubscriptionOrderCard({ order, onOpenChat }: { order: Order; onOpenChat: () => void }) {
+function SubscriptionOrderCard({ order, onOpenChat, unreadCount = 0 }: { order: Order; onOpenChat: () => void; unreadCount?: number }) {
   return (
     <BaseOrderCard
       order={order}
@@ -844,16 +916,54 @@ function SubscriptionOrderCard({ order, onOpenChat }: { order: Order; onOpenChat
       iconColor="from-purple-500 to-pink-500"
       bgColor="from-purple-500/10 to-pink-500/10"
       borderColor="border-purple-500/20"
+      unreadCount={unreadCount}
     />
   );
 }
 
-// Custom Order Card
-function CustomOrderCard({ order, onOpenChat, onViewDetails, onViewDeliverables }: { 
+// Custom Order Card with Unread Counter
+function CustomOrderCardWithUnread({ 
+  order, 
+  onOpenChat, 
+  onViewDetails, 
+  onViewDeliverables,
+  index,
+  totalPrevious
+}: { 
   order: Order; 
   onOpenChat: () => void;
   onViewDetails?: (order: Order) => void;
   onViewDeliverables?: (order: Order) => void;
+  index: number;
+  totalPrevious: number;
+}) {
+  const { user } = useAuth();
+  const unreadCount = useUnreadMessages(order.id?.toString() || null, user?.id);
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: (totalPrevious + index) * 0.1 }}
+    >
+      <CustomOrderCard
+        order={order}
+        onOpenChat={onOpenChat}
+        onViewDetails={onViewDetails}
+        onViewDeliverables={onViewDeliverables}
+        unreadCount={unreadCount}
+      />
+    </motion.div>
+  );
+}
+
+// Custom Order Card
+function CustomOrderCard({ order, onOpenChat, onViewDetails, onViewDeliverables, unreadCount = 0 }: { 
+  order: Order; 
+  onOpenChat: () => void;
+  onViewDetails?: (order: Order) => void;
+  onViewDeliverables?: (order: Order) => void;
+  unreadCount?: number;
 }) {
   const customDetails = order.custom_order_details;
   const getStatusConfig = () => {
@@ -968,15 +1078,25 @@ function CustomOrderCard({ order, onOpenChat, onViewDetails, onViewDeliverables 
               Details
             </Button>
           )}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={onOpenChat}
-            className="hover:bg-primary/10 hover:border-primary/30 transition-colors"
-          >
-            <MessageCircle className="w-4 h-4 mr-2" />
-            Chat
-          </Button>
+          <div className="relative inline-block">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onOpenChat}
+              className="hover:bg-primary/10 hover:border-primary/30 transition-colors"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Chat
+            </Button>
+            {unreadCount > 0 ? (
+              <span 
+                className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px] px-1 z-50 shadow-lg ring-2 ring-white dark:ring-gray-900 pointer-events-none"
+                style={{ lineHeight: '1.25rem' }}
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            ) : null}
+          </div>
           {isCompleted && onViewDeliverables && (
             <Button 
               variant="outline" 
@@ -995,7 +1115,7 @@ function CustomOrderCard({ order, onOpenChat, onViewDetails, onViewDeliverables 
 }
 
 // Keep old OrderCard for backward compatibility (used in products tab)
-function OrderCard({ order, onOpenChat }: { order: Order; onOpenChat: () => void }) {
+function OrderCard({ order, onOpenChat, unreadCount = 0 }: { order: Order; onOpenChat: () => void; unreadCount?: number }) {
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
 
   // Calculate delivery time for custom orders (1 hour = 3600000 ms)
@@ -1153,14 +1273,24 @@ function OrderCard({ order, onOpenChat }: { order: Order; onOpenChat: () => void
         </div>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onOpenChat}
-          >
-            <MessageCircle className="w-4 h-4 mr-2" />
-            Chat
-          </Button>
+          <div className="relative inline-block">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenChat}
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Chat
+            </Button>
+            {unreadCount > 0 ? (
+              <span 
+                className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px] px-1 z-50 shadow-lg ring-2 ring-white dark:ring-gray-900 pointer-events-none"
+                style={{ lineHeight: '1.25rem' }}
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            ) : null}
+          </div>
           {(order.status === "success" || order.status === "completed") && (
             <Button size="sm">
               View Design

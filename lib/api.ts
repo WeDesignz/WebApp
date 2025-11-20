@@ -2469,6 +2469,17 @@ export const apiClient = {
     });
   },
 
+  /**
+   * Mark order comments as read
+   */
+  markOrderCommentsAsRead: async (orderId: number | string): Promise<ApiResponse<{
+    message: string;
+  }>> => {
+    return apiRequest(`/api/orders/order/${orderId}/comments/mark_read/`, {
+      method: 'POST',
+    });
+  },
+
   // ==================== NOTIFICATIONS ====================
   
   /**
