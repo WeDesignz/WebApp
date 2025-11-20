@@ -721,12 +721,6 @@ export const apiClient = {
     });
   },
 
-  addMobileNumber: async (mobile: string) => {
-    return apiRequest('/api/auth/add-mobile-number/', {
-      method: 'POST',
-      body: JSON.stringify({ mobile_number: mobile }),
-    });
-  },
 
   // Catalog methods
   ...catalogAPI,
