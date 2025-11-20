@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShoppingCart, Download, CreditCard, Heart, Loader2, Tag, Image as ImageIcon, Package, Hash, Palette, DollarSign, Info } from "lucide-react";
+import { X, ShoppingCart, Download, CreditCard, Heart, Loader2, Tag, Image as ImageIcon, Package, Hash, Palette, DollarSign, Info, Eye, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartWishlist } from "@/contexts/CartWishlistContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { catalogAPI } from "@/lib/api";
+import { catalogAPI, apiClient } from "@/lib/api";
 import { transformProduct, type TransformedProduct } from "@/lib/utils/transformers";
+import { useRouter } from "next/navigation";
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -20,7 +21,12 @@ interface ProductModalProps {
 export default function ProductModal({ isOpen, onClose, hasActivePlan, product: initialProduct }: ProductModalProps) {
   const { addToCart, addToWishlist, isInWishlist } = useCartWishlist();
   const { toast } = useToast();
+  const router = useRouter();
+  const [selectedImageType, setSelectedImageType] = useState<'mockup' | 'design'>('mockup');
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [hoveredThumbnailIndex, setHoveredThumbnailIndex] = useState<number | null>(null);
 
   // Fetch detailed product data when modal opens
   const { data: productData, isLoading: isLoadingProduct, error: productError } = useQuery({
@@ -44,12 +50,74 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
   const product = productData?.transformed || initialProduct;
   const rawProduct = productData?.raw || null;
 
-  // Reset selected image when modal opens or product changes
+  // Organize media by type: mockup vs design (JPG/PNG)
+  const organizeMediaByType = () => {
+    const mediaArray = rawProduct?.media || product.media || [];
+    const mockupImages: { url: string; index: number }[] = [];
+    const designImages: { url: string; index: number }[] = [];
+
+    mediaArray.forEach((mediaItem: any, index: number) => {
+      let url = '';
+      let isMockup = false;
+      let isDesign = false;
+
+      if (typeof mediaItem === 'string') {
+        url = mediaItem;
+      } else {
+        url = mediaItem?.url || mediaItem?.file || '';
+        const fileName = (mediaItem?.file_name || '').toLowerCase();
+        const urlLower = url.toLowerCase();
+        
+        // Check if it's a mockup
+        isMockup = mediaItem?.is_mockup === true || 
+                   mediaItem?.is_mockup === 'true' || 
+                   mediaItem?.is_mockup === 1 ||
+                   fileName.includes('mockup') ||
+                   urlLower.includes('mockup');
+        
+        // Check if it's a design image (JPG or PNG)
+        isDesign = fileName.endsWith('.jpg') || 
+                   fileName.endsWith('.jpeg') || 
+                   fileName.endsWith('.png') ||
+                   urlLower.includes('.jpg') ||
+                   urlLower.includes('.jpeg') ||
+                   urlLower.includes('.png');
+      }
+
+      if (url && url.trim() !== '') {
+        if (isMockup) {
+          mockupImages.push({ url, index });
+        } else if (isDesign) {
+          designImages.push({ url, index });
+        }
+      }
+    });
+
+    return { mockupImages, designImages };
+  };
+
+  const { mockupImages, designImages } = organizeMediaByType();
+  
+  // Get current images based on selected type
+  const currentImages = selectedImageType === 'mockup' ? mockupImages : designImages;
+  
+  // Ensure selected image index is valid
   useEffect(() => {
     if (isOpen) {
       setSelectedImageIndex(0);
+      // Auto-select mockup if available, otherwise design
+      if (mockupImages.length > 0) {
+        setSelectedImageType('mockup');
+      } else if (designImages.length > 0) {
+        setSelectedImageType('design');
+      }
     }
-  }, [isOpen, product.id]);
+  }, [isOpen, product.id, mockupImages.length, designImages.length]);
+
+  // Reset index when switching image type
+  useEffect(() => {
+    setSelectedImageIndex(0);
+  }, [selectedImageType]);
 
   const handleAddToCart = async (subProduct?: any) => {
     const cartItem = {
@@ -66,6 +134,74 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
       color: subProduct?.color,
     };
     await addToCart(cartItem);
+  };
+
+  const handleBuyNow = async () => {
+    try {
+      await handleAddToCart();
+      // Redirect to cart page after adding to cart
+      router.push('/customer-dashboard/cart');
+      onClose(); // Close the modal
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+    }
+  };
+
+  const handleDownloadFree = async () => {
+    if (isDownloading) return;
+    
+    setIsDownloading(true);
+    try {
+      const blob = await apiClient.downloadProductZip(product.id);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${product.title?.replace(/[^a-z0-9]/gi, '_') || 'design'}_${product.id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Download started",
+        description: "Your design files are being downloaded as a ZIP file.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Download failed",
+        description: error.message || "Failed to download design files.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  // Check if product is free (price is 0 or null, or product_plan_type is 'free')
+  const isFree = () => {
+    // Check product_plan_type first
+    if (product.product_plan_type?.toLowerCase() === 'free' || rawProduct?.product_plan_type?.toLowerCase() === 'free') {
+      return true;
+    }
+    
+    // Check main product price
+    const mainPrice = rawProduct?.price || product.sub_products[0]?.price || 0;
+    if (mainPrice === 0 || mainPrice === null || mainPrice === undefined) {
+      return true;
+    }
+    
+    // Check all sub_products prices - if all are 0, product is free
+    if (product.sub_products && product.sub_products.length > 0) {
+      const allFree = product.sub_products.every((sp: any) => {
+        const spPrice = sp.price || 0;
+        return spPrice === 0 || spPrice === null || spPrice === undefined;
+      });
+      return allFree;
+    }
+    
+    return false;
   };
 
   const handleAddToWishlist = async () => {
@@ -171,52 +307,108 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                   <div className="flex flex-col lg:flex-row gap-6 p-6">
                     {/* Left Side - Image Gallery */}
                     <div className="lg:w-2/5 space-y-4">
+                      {/* Image Type Tabs */}
+                      {(mockupImages.length > 0 || designImages.length > 0) && (
+                        <div className="flex gap-2 bg-muted/50 p-1 rounded-lg">
+                          {mockupImages.length > 0 && (
+                            <button
+                              onClick={() => setSelectedImageType('mockup')}
+                              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                                selectedImageType === 'mockup'
+                                  ? 'bg-background text-primary shadow-sm'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              Mockup {mockupImages.length > 1 && `(${mockupImages.length})`}
+                            </button>
+                          )}
+                          {designImages.length > 0 && (
+                            <button
+                              onClick={() => setSelectedImageType('design')}
+                              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                                selectedImageType === 'design'
+                                  ? 'bg-background text-primary shadow-sm'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              Design {designImages.length > 1 && `(${designImages.length})`}
+                            </button>
+                          )}
+                        </div>
+                      )}
+
                       {/* Main Image */}
                       <div className="relative aspect-square rounded-xl overflow-hidden bg-muted border border-border">
-                        {product.media && product.media.length > 0 && product.media[selectedImageIndex] ? (
+                        {currentImages.length > 0 && currentImages[selectedImageIndex] ? (
                           <img
-                            src={product.media[selectedImageIndex]}
-                            alt={product.title}
-                            className="w-full h-full object-cover"
+                            src={currentImages[selectedImageIndex].url}
+                            alt={`${product.title} - ${selectedImageType === 'mockup' ? 'Mockup' : 'Design'} ${selectedImageIndex + 1}`}
+                            className="w-full h-full object-contain"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
                             }}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <div className="text-center">
-                              <svg className="w-16 h-16 mx-auto mb-2 text-muted-foreground/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                              <p className="text-sm text-muted-foreground">No image available</p>
+                              <ImageIcon className="w-16 h-16 mx-auto mb-2 text-muted-foreground/30" />
+                              <p className="text-sm text-muted-foreground">
+                                No {selectedImageType === 'mockup' ? 'mockup' : 'design'} image available
+                              </p>
                             </div>
                           </div>
                         )}
                       </div>
                       
                       {/* Thumbnail Gallery */}
-                      {product.media.length > 1 && (
-                        <div className="flex gap-2 overflow-x-auto pb-2">
-                          {product.media.map((mediaUrl, index) => (
-                            <button
-                              key={index}
-                              onClick={() => setSelectedImageIndex(index)}
-                              className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
-                                selectedImageIndex === index 
-                                  ? 'border-primary ring-2 ring-primary/20' 
-                                  : 'border-border hover:border-primary/50'
-                              }`}
-                            >
-                              <img
-                                src={mediaUrl}
-                                alt={`${product.title} - Image ${index + 1}`}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
-                                }}
-                              />
-                            </button>
-                          ))}
+                      {currentImages.length > 1 && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            {selectedImageType === 'mockup' ? 'Mockup' : 'Design'} Images
+                          </p>
+                          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                            {currentImages.map((image, index) => (
+                              <div
+                                key={index}
+                                className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all cursor-pointer group"
+                                onMouseEnter={() => setHoveredThumbnailIndex(index)}
+                                onMouseLeave={() => setHoveredThumbnailIndex(null)}
+                              >
+                                <button
+                                  onClick={() => setSelectedImageIndex(index)}
+                                  className={`w-full h-full relative ${
+                                    selectedImageIndex === index 
+                                      ? 'border-primary ring-2 ring-primary/20 scale-105' 
+                                      : 'border-border hover:border-primary/50'
+                                  }`}
+                                >
+                                  <img
+                                    src={image.url}
+                                    alt={`${product.title} - ${selectedImageType === 'mockup' ? 'Mockup' : 'Design'} ${index + 1}`}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                                    }}
+                                  />
+                                </button>
+                                
+                                {/* Eye Icon Overlay on Hover */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPreviewImage(image.url);
+                                  }}
+                                  className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center transition-all duration-200 z-10 ${
+                                    hoveredThumbnailIndex === index 
+                                      ? 'opacity-100 pointer-events-auto' 
+                                      : 'opacity-0 pointer-events-none'
+                                  }`}
+                                >
+                                  <Eye className="w-6 h-6 text-white drop-shadow-lg" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -345,21 +537,43 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                     </>
                   ) : (
                     <>
-                      <Button 
-                        variant="outline" 
-                        className="flex-1 rounded-full h-12 text-base font-semibold"
-                        onClick={() => handleAddToCart()}
-                      >
-                        <ShoppingCart className="w-5 h-5 mr-2" />
-                        Add to Cart
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        className="flex-1 rounded-full h-12 text-base font-semibold"
-                        onClick={() => handleAddToCart()}
-                      >
-                        Buy Now
-                      </Button>
+                      {isFree() ? (
+                        <Button 
+                          className="flex-1 rounded-full h-12 text-base font-semibold"
+                          onClick={handleDownloadFree}
+                          disabled={isDownloading}
+                        >
+                          {isDownloading ? (
+                            <>
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                              Downloading...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-5 h-5 mr-2" />
+                              Download Free
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <>
+                          <Button 
+                            variant="outline" 
+                            className="flex-1 rounded-full h-12 text-base font-semibold"
+                            onClick={() => handleAddToCart()}
+                          >
+                            <ShoppingCart className="w-5 h-5 mr-2" />
+                            Add to Cart
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="flex-1 rounded-full h-12 text-base font-semibold"
+                            onClick={handleBuyNow}
+                          >
+                            Buy Now
+                          </Button>
+                        </>
+                      )}
                       <Button className="flex-1 rounded-full h-12 text-base font-semibold bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90">
                         <CreditCard className="w-5 h-5 mr-2" />
                         Purchase Plan
@@ -372,6 +586,46 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
               )}
             </motion.div>
           </div>
+
+          {/* Full Preview Modal */}
+          <AnimatePresence>
+            {previewImage && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setPreviewImage(null)}
+                  className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+                >
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center"
+                  >
+                    <button
+                      onClick={() => setPreviewImage(null)}
+                      className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
+                      aria-label="Close preview"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                    
+                    <img
+                      src={previewImage}
+                      alt={`${product.title} - Full Preview`}
+                      className="max-w-full max-h-full object-contain rounded-lg"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                      }}
+                    />
+                  </motion.div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </>
       )}
     </AnimatePresence>

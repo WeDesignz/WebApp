@@ -21,6 +21,7 @@ import { apiClient } from "@/lib/api";
 import { initializeRazorpayCheckout } from "@/lib/payment";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 
 interface PDFDownloadModalProps {
   isOpen: boolean;
@@ -44,10 +45,6 @@ export interface PDFPurchase {
   selectedDesignIds?: number[];
 }
 
-const PDF_OPTIONS = [50, 100, 200, 300, 400, 500];
-const PRICE_PER_DESIGN_SELECTED = 4;
-const PRICE_PER_DESIGN_FIRSTN = 2;
-
 export default function PDFDownloadModal({
   isOpen,
   onClose,
@@ -63,11 +60,45 @@ export default function PDFDownloadModal({
   const [isMounted, setIsMounted] = useState(false);
   const [currentDownloadId, setCurrentDownloadId] = useState<number | null>(null);
   const [pricingInfo, setPricingInfo] = useState<any>(null);
+  const [pdfConfig, setPdfConfig] = useState<{
+    free_pdf_designs_count: number;
+    paid_pdf_designs_options: number[];
+    pricing: {
+      first_n_per_design: number;
+      selected_per_design: number;
+    };
+  } | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const isAuthenticated = !!user;
+
+  // Fetch PDF configuration when modal opens
+  const { data: configData } = useQuery({
+    queryKey: ['pdfConfig'],
+    queryFn: async () => {
+      const response = await apiClient.getPDFConfig();
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    enabled: isOpen,
+    staleTime: 5 * 60 * 1000, // 5 minutes - config doesn't change often
+  });
+
+  // Update state when config is loaded
+  useEffect(() => {
+    if (configData) {
+      setPdfConfig(configData);
+      // Set default quantity to first option in paid PDF options
+      if (configData.paid_pdf_designs_options && configData.paid_pdf_designs_options.length > 0) {
+        setQuantity(configData.paid_pdf_designs_options[0]);
+      }
+    }
+  }, [configData]);
 
   // Check eligibility when modal opens
   const { data: eligibilityData } = useQuery({
@@ -176,23 +207,18 @@ export default function PDFDownloadModal({
   }, [pdfStatus, toast, queryClient]);
 
   const calculatePrice = () => {
-    if (!freePDFUsed && quantity === 50 && isAuthenticated) {
+    if (!pdfConfig) return 0;
+    
+    const freeDesignsCount = pdfConfig.free_pdf_designs_count;
+    if (!freePDFUsed && quantity === freeDesignsCount && isAuthenticated) {
       return 0; // Free PDF
     }
     
-    // Use pricing from API if available
-    if (pricingInfo) {
-      const pricePerDesign = selectionType === "selected" 
-        ? pricingInfo.price_per_design_selected || PRICE_PER_DESIGN_SELECTED
-        : pricingInfo.price_per_design_firstn || PRICE_PER_DESIGN_FIRSTN;
-      return quantity * pricePerDesign;
-    }
-    
-    // Fallback to default pricing
+    // Use pricing from config
     if (selectionType === "selected") {
-      return quantity * PRICE_PER_DESIGN_SELECTED;
+      return quantity * pdfConfig.pricing.selected_per_design;
     }
-    return quantity * PRICE_PER_DESIGN_FIRSTN;
+    return quantity * pdfConfig.pricing.first_n_per_design;
   };
 
   const handlePurchase = async () => {
@@ -205,21 +231,36 @@ export default function PDFDownloadModal({
       return;
     }
 
+    const freeDesignsCount = pdfConfig?.free_pdf_designs_count || 50;
+    const downloadType = !freePDFUsed && quantity === freeDesignsCount ? "free" : "paid";
+    const canUseFreeNow = !freePDFUsed && quantity === freeDesignsCount && isAuthenticated;
+    
+    // If it's a free PDF, redirect to the dedicated selection page
+    if (downloadType === "free" && canUseFreeNow) {
+      onClose(); // Close the modal first
+      router.push('/customer-dashboard/download-mock-pdf');
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
-      const downloadType = !freePDFUsed && quantity === 50 ? "free" : "paid";
       const price = calculatePrice();
 
       // Step 1: Create PDF request
+      // Note: For now, we only support "search_results" (firstN) selection
+      // "specific" selection requires actual product selection which is not implemented in this modal
+      // Users will be redirected to a new page for specific product selection
+      // Always use "search_results" to avoid validation errors
       const createResponse = await apiClient.createPDFRequest({
         download_type: downloadType,
         total_pages: quantity,
-        selection_type: selectionType === "firstN" ? "search_results" : "specific",
+        selection_type: "search_results", // Always use search_results for this modal
         search_filters: {
           q: searchQuery,
           category: selectedCategory !== "all" ? selectedCategory : undefined,
         },
+        // Don't send selected_products when using search_results
       });
 
       if (createResponse.error || !createResponse.data) {
@@ -317,8 +358,40 @@ export default function PDFDownloadModal({
 
   if (!isOpen) return null;
 
+  // Calculate download type
+  const freeDesignsCount = pdfConfig?.free_pdf_designs_count || 50;
+  const downloadType = !freePDFUsed && quantity === freeDesignsCount ? "free" : "paid";
+
+  // Show loading state while config is being fetched
+  if (!pdfConfig) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md p-6"
+          >
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+            <p className="text-center text-muted-foreground">Loading PDF configuration...</p>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
   const price = calculatePrice();
-  const canUseFree = !freePDFUsed && quantity === 50 && isAuthenticated;
+  const canUseFree = !freePDFUsed && quantity === freeDesignsCount && isAuthenticated;
 
   return (
     <AnimatePresence>
@@ -420,7 +493,7 @@ export default function PDFDownloadModal({
                 Number of Designs
               </label>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                {PDF_OPTIONS.map((opt) => (
+                {(pdfConfig?.paid_pdf_designs_options || [50, 100, 200, 300, 400, 500]).map((opt) => (
                   <button
                     key={opt}
                     onClick={() => setQuantity(opt)}
@@ -437,12 +510,12 @@ export default function PDFDownloadModal({
               </div>
             </div>
 
-            {/* Selection Type */}
+            {/* Selection Type - Note: Specific selection will be available on the dedicated page */}
             <div>
               <label className="text-base font-semibold mb-3 block">
                 Selection Method
               </label>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <button
                   onClick={() => setSelectionType("firstN")}
                   className={`p-4 rounded-lg border-2 transition-all text-left ${
@@ -456,25 +529,17 @@ export default function PDFDownloadModal({
                     First {quantity} designs from search results
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    ₹{PRICE_PER_DESIGN_FIRSTN} per design
+                    ₹{pdfConfig?.pricing.first_n_per_design || 2} per design
                   </div>
                 </button>
-                <button
-                  onClick={() => setSelectionType("selected")}
-                  className={`p-4 rounded-lg border-2 transition-all text-left ${
-                    selectionType === "selected"
-                      ? "border-primary bg-primary/10"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <div className="font-semibold mb-1">Select Designs</div>
-                  <div className="text-sm text-muted-foreground mb-2">
-                    Choose specific {quantity} designs
+                {/* Note: Specific product selection will be available on the dedicated free PDF page */}
+                {downloadType === "free" && (
+                  <div className="p-4 rounded-lg border-2 border-dashed border-muted bg-muted/10 text-center">
+                    <div className="text-sm text-muted-foreground">
+                      To select specific designs, use the "Get Free PDF" option which will redirect you to a selection page.
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    ₹{PRICE_PER_DESIGN_SELECTED} per design
-                  </div>
-                </button>
+                )}
               </div>
             </div>
 
@@ -497,7 +562,7 @@ export default function PDFDownloadModal({
                       <span className="font-semibold">Total</span>
                       <div className="flex items-center gap-2">
                         <span className="text-lg line-through text-muted-foreground">
-                          ₹{quantity * (selectionType === "selected" ? PRICE_PER_DESIGN_SELECTED : PRICE_PER_DESIGN_FIRSTN)}
+                          ₹{quantity * (selectionType === "selected" ? (pdfConfig?.pricing.selected_per_design || 4) : (pdfConfig?.pricing.first_n_per_design || 2))}
                         </span>
                         <span className="text-2xl font-bold text-green-500">FREE</span>
                       </div>
@@ -511,7 +576,7 @@ export default function PDFDownloadModal({
                     <div className="flex items-center justify-between">
                       <span className="font-semibold">Price per Design</span>
                       <span className="font-semibold">
-                        ₹{selectionType === "selected" ? PRICE_PER_DESIGN_SELECTED : PRICE_PER_DESIGN_FIRSTN}
+                        ₹{selectionType === "selected" ? (pdfConfig?.pricing.selected_per_design || 4) : (pdfConfig?.pricing.first_n_per_design || 2)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between mt-2">

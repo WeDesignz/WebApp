@@ -81,12 +81,11 @@ export default function ProfileContent() {
   const [formData, setFormData] = useState({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
-    email: user?.email || "",
-    mobileNumber: user?.mobileNumber || "",
     username: user?.username || "",
     dateOfBirth: "",
     bio: "",
   });
+  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
 
   // Fetch user profile with bio and mobile number
   const { data: userProfileData } = useQuery({
@@ -132,14 +131,15 @@ export default function ProfileContent() {
 
   // Load initial values from user profile and designer profile
   useEffect(() => {
-    if (userProfileData) {
-      const primaryMobile = userProfileData.mobile_numbers?.find((m: any) => m.is_primary);
+    if (user) {
       setFormData((prev) => ({
         ...prev,
-        mobileNumber: primaryMobile?.mobile_number || user?.mobileNumber || "",
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        username: user.username || "",
       }));
     }
-  }, [userProfileData, user]);
+  }, [user]);
 
   useEffect(() => {
     if (designerProfileData) {
@@ -155,9 +155,32 @@ export default function ProfileContent() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload an image file",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please upload an image smaller than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setProfilePhotoFile(file);
+      
+      // Show preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setProfileImage(reader.result as string);
@@ -169,12 +192,28 @@ export default function ProfileContent() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Update profile via API
+      // Upload profile photo if changed
+      if (profilePhotoFile) {
+        const photoResponse = await apiClient.uploadProfilePhoto(profilePhotoFile);
+        if (photoResponse.error) {
+          toast({
+            title: "Photo upload failed",
+            description: photoResponse.error || "Failed to upload profile photo",
+            variant: "destructive",
+          });
+          // Continue with profile update even if photo upload fails
+        } else {
+          toast({
+            title: "Photo uploaded",
+            description: "Profile photo has been updated successfully.",
+          });
+        }
+      }
+      
+      // Update profile via API (without mobile_number)
       const response = await apiClient.updateProfile({
         first_name: formData.firstName,
         last_name: formData.lastName,
-        username: formData.username,
-        mobile_number: formData.mobileNumber,
         bio: formData.bio,
         date_of_birth: formData.dateOfBirth || undefined,
       });
@@ -190,8 +229,6 @@ export default function ProfileContent() {
           ...user!,
           firstName: formData.firstName,
           lastName: formData.lastName,
-          username: formData.username,
-          mobileNumber: formData.mobileNumber,
         });
       }
 
@@ -199,6 +236,7 @@ export default function ProfileContent() {
       await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
       await queryClient.invalidateQueries({ queryKey: ['designerProfile'] });
 
+      setProfilePhotoFile(null);
       setIsEditing(false);
       toast({
         title: "Profile updated",
@@ -216,16 +254,15 @@ export default function ProfileContent() {
   };
 
   const handleCancel = () => {
-    const primaryMobile = userProfileData?.mobile_numbers?.find((m: any) => m.is_primary);
     setFormData({
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
-      email: user?.email || "",
-      mobileNumber: primaryMobile?.mobile_number || user?.mobileNumber || "",
       username: user?.username || "",
       dateOfBirth: "",
       bio: designerProfileData?.bio || "",
     });
+    setProfilePhotoFile(null);
+    setProfileImage(null);
     setIsEditing(false);
   };
 
@@ -348,9 +385,10 @@ export default function ProfileContent() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold">
-                    {formData.firstName} {formData.lastName}
+                    {formData.firstName || user?.firstName || ''} {formData.lastName || user?.lastName || ''}
                   </h3>
-                  <p className="text-sm text-muted-foreground">{formData.email}</p>
+                  <p className="text-sm text-muted-foreground">{user?.email || ''}</p>
+                  <p className="text-sm text-muted-foreground">@{formData.username || user?.username || ''}</p>
                   {isEditing && (
                     <p className="text-xs text-muted-foreground mt-1">
                       Click the camera icon to upload a new profile picture
@@ -401,10 +439,11 @@ export default function ProfileContent() {
                     id="username"
                     name="username"
                     value={formData.username}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    placeholder="Choose a username"
+                    disabled={true}
+                    placeholder="System generated"
+                    className="bg-muted/50"
                   />
+                  <p className="text-xs text-muted-foreground">Username is system-generated and cannot be changed</p>
                 </div>
 
                 <div className="space-y-2">
@@ -423,53 +462,6 @@ export default function ProfileContent() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">
-                    Email Address <span className="text-destructive">*</span>
-                  </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      className="pl-10"
-                    />
-                  </div>
-                  {user?.emailVerified && (
-                    <p className="text-xs text-green-600 flex items-center gap-1">
-                      <Check className="w-3 h-3" />
-                      Email verified
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="mobileNumber">
-                    Mobile Number <span className="text-destructive">*</span>
-                  </Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="mobileNumber"
-                      name="mobileNumber"
-                      type="tel"
-                      value={formData.mobileNumber}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      className="pl-10"
-                    />
-                  </div>
-                  {user?.mobileVerified && (
-                    <p className="text-xs text-green-600 flex items-center gap-1">
-                      <Check className="w-3 h-3" />
-                      Mobile verified
-                    </p>
-                  )}
-                </div>
               </div>
 
               {/* Bio */}
@@ -489,6 +481,12 @@ export default function ProfileContent() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Email Management */}
+        <EmailManagementSection />
+
+        {/* Mobile Numbers Management */}
+        <MobileNumbersSection />
 
         {/* Address Management */}
         <Card>
@@ -576,9 +574,6 @@ export default function ProfileContent() {
         {/* Security Settings */}
         <SecuritySection />
 
-        {/* Email Management */}
-        <EmailManagementSection />
-
         {/* Address Form Modal */}
         <AddressFormModal
           isOpen={isAddressModalOpen}
@@ -657,8 +652,16 @@ function SecuritySection() {
 
     setIsChangingPassword(true);
     try {
-      // TODO: Implement API call to change password
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await apiClient.changePassword({
+        old_password: passwordData.currentPassword,
+        new_password: passwordData.newPassword,
+        confirm_password: passwordData.confirmPassword,
+      });
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
       setPasswordData({
         currentPassword: "",
         newPassword: "",
@@ -1089,7 +1092,7 @@ function EmailManagementSection() {
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      {!email.is_primary && (
+                      {!email.is_primary && email.is_verified && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1097,6 +1100,11 @@ function EmailManagementSection() {
                         >
                           Set Primary
                         </Button>
+                      )}
+                      {!email.is_primary && !email.is_verified && (
+                        <p className="text-xs text-muted-foreground">
+                          Verify to set as primary
+                        </p>
                       )}
                       {!email.is_verified && (
                         <Button
@@ -1218,6 +1226,349 @@ function EmailManagementSection() {
               </Button>
               <Button
                 onClick={handleVerifyEmail}
+                className="flex-1"
+                disabled={isVerifying || otp.length !== 6}
+              >
+                {isVerifying ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  "Verify"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// Mobile Numbers Management Section Component
+interface MobileNumber {
+  id: number;
+  mobile_number: string;
+  is_verified: boolean;
+  is_primary: boolean;
+  created_at: string;
+}
+
+function MobileNumbersSection() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
+  const [verifyingMobile, setVerifyingMobile] = useState<string | null>(null);
+  const [otp, setOtp] = useState("");
+  const [newMobileNumber, setNewMobileNumber] = useState("");
+  const [isAddingMobile, setIsAddingMobile] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  // Fetch mobile numbers from user profile
+  const { data: userProfileData, isLoading: isLoadingMobiles } = useQuery({
+    queryKey: ['userProfile', 'mobileNumbers'],
+    queryFn: async () => {
+      const response = await apiClient.getUserProfile();
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    staleTime: 30 * 1000,
+  });
+
+  const mobileNumbers: MobileNumber[] = userProfileData?.mobile_numbers || [];
+
+  const handleAddMobileNumber = async () => {
+    if (!newMobileNumber.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a mobile number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAddingMobile(true);
+    try {
+      const response = await apiClient.addMobileNumber({
+        mobile_number: newMobileNumber.trim(),
+      });
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      // OTP will be sent automatically, show verification modal
+      setVerifyingMobile(newMobileNumber.trim());
+      setNewMobileNumber("");
+      setIsMobileModalOpen(false);
+      
+      toast({
+        title: "Mobile number added",
+        description: "Please verify your mobile number with the OTP sent to your phone.",
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add mobile number",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingMobile(false);
+    }
+  };
+
+  const handleVerifyMobileNumber = async () => {
+    if (!verifyingMobile || !otp.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter the OTP",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsVerifying(true);
+    try {
+      const response = await apiClient.verifyMobileNumber({
+        mobile_number: verifyingMobile,
+        otp: otp.trim(),
+      });
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      toast({
+        title: "Mobile number verified",
+        description: "Your mobile number has been verified successfully.",
+      });
+
+      setVerifyingMobile(null);
+      setOtp("");
+      await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      await queryClient.invalidateQueries({ queryKey: ['user'] });
+    } catch (error: any) {
+      toast({
+        title: "Verification failed",
+        description: error.message || "Invalid OTP. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResendOTP = async (mobileNumber: string) => {
+    try {
+      await apiClient.resendOTP({
+        mobile_number: mobileNumber,
+        otp_for: 'mobile_verification',
+      });
+      toast({
+        title: "OTP sent",
+        description: "A new OTP has been sent to your mobile number.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resend OTP",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Phone className="w-6 h-6 text-primary" />
+              <div>
+                <CardTitle className="text-2xl">Mobile Numbers</CardTitle>
+                <CardDescription>
+                  Manage your mobile numbers and verification status
+                </CardDescription>
+              </div>
+            </div>
+            <Button onClick={() => setIsMobileModalOpen(true)} size="sm">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Mobile Number
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          {isLoadingMobiles ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : mobileNumbers.length === 0 ? (
+            <div className="text-center py-8">
+              <Phone className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
+              <h3 className="text-lg font-semibold mb-2">No mobile numbers</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Add a mobile number to get started
+              </p>
+              <Button onClick={() => setIsMobileModalOpen(true)} variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Mobile Number
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {mobileNumbers.map((mobile) => (
+                <motion.div
+                  key={mobile.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 border border-border rounded-lg hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="font-semibold">{mobile.mobile_number}</p>
+                        {mobile.is_primary && (
+                          <Badge variant="secondary" className="bg-primary/10 text-primary">
+                            Primary
+                          </Badge>
+                        )}
+                        {mobile.is_verified ? (
+                          <Badge variant="secondary" className="bg-green-500/10 text-green-600">
+                            <Check className="w-3 h-3 mr-1" />
+                            Verified
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600">
+                            Unverified
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Added {new Date(mobile.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {!mobile.is_verified && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setVerifyingMobile(mobile.mobile_number);
+                            setOtp("");
+                          }}
+                        >
+                          Verify
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add Mobile Number Modal */}
+      <Dialog open={isMobileModalOpen} onOpenChange={setIsMobileModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Mobile Number</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newMobileNumber">Mobile Number</Label>
+              <Input
+                id="newMobileNumber"
+                type="tel"
+                value={newMobileNumber}
+                onChange={(e) => setNewMobileNumber(e.target.value)}
+                placeholder="+1234567890"
+              />
+              <p className="text-xs text-muted-foreground">
+                Include country code (e.g., +1 for US)
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsMobileModalOpen(false);
+                  setNewMobileNumber("");
+                }}
+                className="flex-1"
+                disabled={isAddingMobile}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddMobileNumber}
+                className="flex-1"
+                disabled={isAddingMobile || !newMobileNumber.trim()}
+              >
+                {isAddingMobile ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add Mobile Number"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Verify Mobile Number Modal */}
+      <Dialog open={!!verifyingMobile} onOpenChange={() => setVerifyingMobile(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Verify Mobile Number</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Enter the 6-digit OTP sent to <strong>{verifyingMobile}</strong>
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="otp">OTP</Label>
+              <Input
+                id="otp"
+                type="text"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="Enter 6-digit OTP"
+                maxLength={6}
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setVerifyingMobile(null);
+                  setOtp("");
+                }}
+                className="flex-1"
+                disabled={isVerifying}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => verifyingMobile && handleResendOTP(verifyingMobile)}
+                disabled={isVerifying}
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Resend
+              </Button>
+              <Button
+                onClick={handleVerifyMobileNumber}
                 className="flex-1"
                 disabled={isVerifying || otp.length !== 6}
               >

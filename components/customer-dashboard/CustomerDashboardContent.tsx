@@ -19,6 +19,25 @@ interface ContentProps {
 
 type Product = TransformedProduct;
 
+// Helper function to check if a product is free
+const isProductFree = (product: Product): boolean => {
+  // Check product_plan_type first
+  if (product.product_plan_type?.toLowerCase() === 'free') {
+    return true;
+  }
+  
+  // Check sub_products prices - if all are 0, product is free
+  if (product.sub_products && product.sub_products.length > 0) {
+    const allFree = product.sub_products.every((sp: any) => {
+      const spPrice = sp.price || 0;
+      return spPrice === 0 || spPrice === null || spPrice === undefined;
+    });
+    return allFree;
+  }
+  
+  return false;
+};
+
 const categoryCards = [
   { id: "jerseys", title: "Jerseys", icon: "👕", color: "from-blue-500/10 to-cyan-500/10" },
   { id: "vectors", title: "Vectors", icon: "🎨", color: "from-purple-500/10 to-pink-500/10" },
@@ -121,37 +140,11 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
     }
   };
 
-  const handleFreePDFClaim = async () => {
-    setIsClaimingFreePDF(true);
-    
-    // Simulate processing
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    const purchase: PDFPurchase = {
-      id: `PDF-FREE-${Date.now()}`,
-      type: "free",
-      quantity: 50,
-      selectionType: "firstN",
-      price: 0,
-      searchQuery,
-      category: selectedCategory,
-      purchasedAt: new Date().toISOString(),
-      downloaded: false,
-    };
-
-    // Mark free PDF as used
-    localStorage.setItem("freePDFUsed", "true");
-    setFreePDFUsed(true);
-
-    // Save purchase to localStorage
-    const existingPurchases = JSON.parse(
-      localStorage.getItem("pdfPurchases") || "[]"
-    );
-    existingPurchases.push(purchase);
-    localStorage.setItem("pdfPurchases", JSON.stringify(existingPurchases));
-
-    handlePDFPurchaseComplete(purchase);
-    setIsClaimingFreePDF(false);
+  const handleFreePDFClaim = () => {
+    // Redirect to PDF design selection page
+    if (typeof window !== 'undefined') {
+      window.location.href = '/customer-dashboard/pdf-select?type=free';
+    }
   };
 
   // Infinite scroll observer
@@ -313,10 +306,10 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
                       </div>
                     )}
                     
-                    {product.product_plan_type === "Premium" && (
-                      <div className="absolute top-3 right-3 bg-yellow-500 text-yellow-950 px-3 py-1 rounded-full flex items-center gap-1 text-xs font-bold z-10 shadow-lg">
-                        <Crown className="w-3 h-3" />
-                        Premium
+                    {/* Premium icon for non-free products */}
+                    {!isProductFree(product) && (
+                      <div className="absolute top-3 right-3 bg-gradient-to-r from-yellow-500 to-amber-500 text-yellow-950 p-2 rounded-full flex items-center justify-center z-10 shadow-lg hover:shadow-xl transition-shadow">
+                        <Crown className="w-4 h-4" />
                       </div>
                     )}
 

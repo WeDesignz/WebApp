@@ -1130,14 +1130,34 @@ export const apiClient = {
   },
 
   // PDF Download methods
+  getPDFConfig: async (): Promise<ApiResponse<{
+    free_pdf_designs_count: number;
+    paid_pdf_designs_options: number[];
+    pricing: {
+      first_n_per_design: number;
+      selected_per_design: number;
+    };
+  }>> => {
+    return apiRequest<{
+      free_pdf_designs_count: number;
+      paid_pdf_designs_options: number[];
+      pricing: {
+        first_n_per_design: number;
+        selected_per_design: number;
+      };
+    }>('/api/catalog/pdf/config/');
+  },
+
   checkPDFEligibility: async (): Promise<ApiResponse<{
     is_eligible: boolean;
     free_downloads_used?: number;
+    free_pdf_designs_count?: number;
     [key: string]: any;
   }>> => {
     return apiRequest<{
       is_eligible: boolean;
       free_downloads_used?: number;
+      free_pdf_designs_count?: number;
       [key: string]: any;
     }>('/api/catalog/pdf/check-eligibility/');
   },
@@ -1400,6 +1420,135 @@ export const apiClient = {
     return apiRequest(`/api/auth/emails/${emailId}/delete/`, {
       method: 'DELETE',
     });
+  },
+
+  // Password change
+  changePassword: async (data: {
+    old_password: string;
+    new_password: string;
+    confirm_password: string;
+  }) => {
+    return apiRequest('/api/auth/change-password/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Mobile number management methods
+  listMobileNumbers: async (): Promise<ApiResponse<{
+    mobile_numbers: Array<{
+      id: number;
+      mobile_number: string;
+      is_verified: boolean;
+      is_primary: boolean;
+      created_at: string;
+    }>;
+  }>> => {
+    return apiRequest<{
+      mobile_numbers: Array<{
+        id: number;
+        mobile_number: string;
+        is_verified: boolean;
+        is_primary: boolean;
+        created_at: string;
+      }>;
+    }>('/api/auth/mobile-numbers/');
+  },
+
+  addMobileNumber: async (data: {
+    mobile_number: string;
+  }) => {
+    return apiRequest('/api/auth/add-mobile-number/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  verifyMobileNumber: async (data: {
+    mobile_number: string;
+    otp: string;
+  }) => {
+    return apiRequest('/api/auth/verify-mobile-number/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateMobileNumber: async (mobileId: number, data: {
+    is_primary?: boolean;
+  }) => {
+    return apiRequest(`/api/auth/mobile-numbers/${mobileId}/`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteMobileNumber: async (mobileId: number) => {
+    return apiRequest(`/api/auth/mobile-numbers/${mobileId}/delete/`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Profile photo upload
+  uploadProfilePhoto: async (file: File): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append('profile_photo', file);
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
+    const baseUrl = getApiBaseUrl();
+    if (!baseUrl) {
+      return {
+        error: 'API base URL is not configured. Please set NEXT_PUBLIC_API_BASE_URL environment variable.',
+        errorDetails: {
+          type: ErrorType.NETWORK,
+          message: 'API base URL is not configured',
+          statusCode: 500,
+        },
+      };
+    }
+    
+    try {
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${baseUrl}/api/auth/upload-profile-photo/`, {
+        method: 'POST',
+        headers,
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        if (response.status === 413) {
+          return {
+            error: 'File size is too large. Profile photo must be less than 5MB.',
+            errorDetails: formatError({ detail: 'Payload Too Large' }, 413),
+          };
+        }
+        
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        return {
+          error: errorData.error || errorData.detail || 'Failed to upload profile photo',
+          errorDetails: formatError(errorData, response.status),
+        };
+      }
+
+      const data = await response.json();
+      return { data };
+    } catch (error: any) {
+      if (error.message?.includes('CORS') || error.message?.includes('Failed to fetch')) {
+        return {
+          error: 'Network error: Unable to connect to server. Please check your connection and try again.',
+          errorDetails: error,
+        };
+      }
+      return {
+        error: error.message || 'Network error occurred',
+        errorDetails: error,
+      };
+    }
   },
 
   // Designer Dashboard methods
