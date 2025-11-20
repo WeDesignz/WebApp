@@ -73,7 +73,17 @@ export function useUnreadMessages(orderId: string | null, currentUserId?: string
           return null;
         }
         // The response.data should contain the OrderCommentsResponse structure
-        const data = response.data as OrderCommentsResponse;
+        // Transform the data to ensure all required fields are present
+        const rawData = response.data as any;
+        const data: OrderCommentsResponse = {
+          ...rawData,
+          comments: (rawData?.comments || []).map((comment: any) => ({
+            ...comment,
+            id: String(comment.id),
+            is_admin_response: comment.is_admin_response ?? (comment.comment_type === 'admin' || comment.comment_type === 'system'),
+            is_read: comment.is_read ?? false,
+          })),
+        };
         console.log('[useUnreadMessages] Fetched comments for orderId:', orderId, 'comments count:', data?.comments?.length || 0);
         if (data?.comments && data.comments.length > 0) {
           console.log('[useUnreadMessages] All comments structure:', JSON.stringify(data.comments, null, 2));
