@@ -318,7 +318,10 @@ export default function ProfileContent() {
     // For now, accept sample OTP 123456
     if (otp === '123456') {
       try {
-        const response = await apiClient.verifyMobileNumber(profileData.phone, otp);
+        const response = await apiClient.verifyMobileNumber({
+          mobile_number: profileData.phone,
+          otp: otp,
+        });
         
         if (response.error) {
           toast({
