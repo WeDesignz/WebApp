@@ -297,7 +297,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const sendMobileOTP = async (mobile: string) => {
     // First, add mobile number if not already added
     try {
-      await apiClient.addMobileNumber(mobile);
+      await apiClient.addMobileNumber({ mobile_number: mobile });
     } catch (error: any) {
       // If mobile already exists, that's okay - just resend OTP
       if (!error.message?.includes('already exists')) {
