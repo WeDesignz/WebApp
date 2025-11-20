@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -31,9 +31,8 @@ import ProductModal from "@/components/customer-dashboard/ProductModal";
 type Product = TransformedProduct;
 type SelectionMode = "firstN" | "selected";
 
-export default function DownloadMockPDFPage() {
+function DownloadMockPDFPageContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
   const observerRef = useRef<HTMLDivElement>(null);
@@ -638,6 +637,21 @@ export default function DownloadMockPDFPage() {
         )}
       </div>
     </ProtectedRoute>
+  );
+}
+
+export default function DownloadMockPDFPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <DownloadMockPDFPageContent />
+    </Suspense>
   );
 }
 
