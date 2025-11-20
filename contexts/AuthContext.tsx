@@ -21,7 +21,7 @@ interface AuthContextType {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (emailOrUsername: string, password: string) => Promise<void>;
+  login: (emailOrUsername: string, password: string, rememberMe?: boolean) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   setPassword: (email: string, otp: string, password: string, confirmPassword: string) => Promise<void>;
@@ -102,6 +102,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loadAuthData();
   }, []);
 
+  // Proactive token refresh - refresh token before it expires
+  useEffect(() => {
+    if (!token || !refreshToken) return;
+
+    const checkAndRefreshToken = async () => {
+      try {
+        // Decode JWT to check expiration
+        const tokenParts = token.split('.');
+        if (tokenParts.length === 3) {
+          try {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            const expirationTime = payload.exp * 1000; // Convert to milliseconds
+            const currentTime = Date.now();
+            const timeUntilExpiry = expirationTime - currentTime;
+            
+            // If token expires in less than 5 minutes, refresh it proactively
+            if (timeUntilExpiry > 0 && timeUntilExpiry < 5 * 60 * 1000) {
+              console.log('Access token expiring soon, refreshing proactively...');
+              const savedRefreshToken = localStorage.getItem('wedesign_refresh_token');
+              if (savedRefreshToken) {
+                const refreshResponse = await apiClient.refreshToken(savedRefreshToken);
+                if (refreshResponse.data) {
+                  setToken(refreshResponse.data.access);
+                  setRefreshToken(refreshResponse.data.refresh);
+                  localStorage.setItem('wedesign_access_token', refreshResponse.data.access);
+                  localStorage.setItem('wedesign_refresh_token', refreshResponse.data.refresh);
+                }
+              }
+            }
+          } catch (parseError) {
+            // If we can't parse the token, it might be malformed
+            // Don't do anything, let the normal 401 handling deal with it
+            console.warn('Could not parse token for expiration check:', parseError);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking token expiration:', error);
+        // Don't clear auth data on error - let normal flow handle it
+      }
+    };
+
+    // Check every 2 minutes
+    const interval = setInterval(checkAndRefreshToken, 2 * 60 * 1000);
+    
+    // Initial check after 1 second
+    const initialTimeout = setTimeout(checkAndRefreshToken, 1000);
+    
+    return () => {
+      clearInterval(interval);
+      clearTimeout(initialTimeout);
+    };
+  }, [token, refreshToken]);
+
   const clearAuthData = () => {
     setUser(null);
     setToken(null);
@@ -125,9 +178,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   };
 
-  const login = async (emailOrUsername: string, password: string) => {
+  const login = async (emailOrUsername: string, password: string, rememberMe: boolean = false) => {
     try {
-      const response = await apiClient.login(emailOrUsername, password);
+      const response = await apiClient.login(emailOrUsername, password, rememberMe);
       
       if (response.error) {
         throw new Error(response.error);

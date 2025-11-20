@@ -51,24 +51,116 @@ export interface ApiResponse<T> {
   isTimeout?: boolean; // Flag to indicate timeout occurred
 }
 
+// Flag to prevent infinite loops when refreshing tokens
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
 /**
  * Handle 401 Unauthorized - attempt token refresh or redirect to login
+ * Returns true if token was successfully refreshed, false otherwise
  */
-async function handleUnauthorized() {
-  // Clear invalid token
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('wedesign_access_token');
-    localStorage.removeItem('wedesign_refresh_token');
-    
-    // Only redirect if not already on login/auth page
-    if (!window.location.pathname.includes('/auth/login') && 
-        !window.location.pathname.includes('/auth/signup') &&
-        !window.location.pathname.includes('/auth/register')) {
-      // Store current location for redirect after login
-      sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
-      window.location.href = '/auth/login';
-    }
+async function handleUnauthorized(endpoint?: string): Promise<boolean> {
+  // If we're already refreshing, wait for the existing refresh to complete
+  if (isRefreshing && refreshPromise) {
+    return await refreshPromise;
   }
+
+  // If this is a refresh token endpoint, don't try to refresh again (avoid infinite loop)
+  if (endpoint?.includes('/refresh-token')) {
+    // Clear tokens and logout
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('wedesign_access_token');
+      localStorage.removeItem('wedesign_refresh_token');
+      localStorage.removeItem('wedesign_user');
+      
+      if (!window.location.pathname.includes('/auth/login') && 
+          !window.location.pathname.includes('/auth/signup') &&
+          !window.location.pathname.includes('/auth/register')) {
+        sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+        window.location.href = '/auth/login';
+      }
+    }
+    return false;
+  }
+
+  // Start refresh process
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      if (typeof window === 'undefined') {
+        return false;
+      }
+
+      const refreshToken = localStorage.getItem('wedesign_refresh_token');
+      
+      if (!refreshToken) {
+        // No refresh token available, logout
+        localStorage.removeItem('wedesign_access_token');
+        localStorage.removeItem('wedesign_refresh_token');
+        localStorage.removeItem('wedesign_user');
+        
+        if (!window.location.pathname.includes('/auth/login') && 
+            !window.location.pathname.includes('/auth/signup') &&
+            !window.location.pathname.includes('/auth/register')) {
+          sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+          window.location.href = '/auth/login';
+        }
+        return false;
+      }
+
+      // Try to refresh the access token
+      // Use direct fetch to avoid triggering apiRequest's 401 handler
+      const baseUrl = getApiBaseUrl();
+      if (!baseUrl) {
+        return false;
+      }
+
+      try {
+        const refreshResponse = await fetch(`${baseUrl}/api/auth/refresh-token/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          
+          if (refreshData.access) {
+            // Successfully refreshed - save new tokens
+            localStorage.setItem('wedesign_access_token', refreshData.access);
+            if (refreshData.refresh) {
+              localStorage.setItem('wedesign_refresh_token', refreshData.refresh);
+            }
+            return true; // Token refreshed successfully
+          }
+        }
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+        // Fall through to logout
+      }
+
+      // If refresh failed, clear everything and logout
+      localStorage.removeItem('wedesign_access_token');
+      localStorage.removeItem('wedesign_refresh_token');
+      localStorage.removeItem('wedesign_user');
+      
+      if (!window.location.pathname.includes('/auth/login') && 
+          !window.location.pathname.includes('/auth/signup') &&
+          !window.location.pathname.includes('/auth/register')) {
+        sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+        window.location.href = '/auth/login';
+      }
+      
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return await refreshPromise;
 }
 
 /**
@@ -193,9 +285,116 @@ async function apiRequest<T>(
         logError(errorDetails, `API Request: ${endpoint}`);
       }
       
-      // Handle 401 Unauthorized
+      // Handle 401 Unauthorized - attempt token refresh and retry
       if (response.status === 401) {
-        await handleUnauthorized();
+        const refreshed = await handleUnauthorized(endpoint);
+        
+        // If token was refreshed, retry the original request
+        if (refreshed) {
+          const newToken = typeof window !== 'undefined' 
+            ? localStorage.getItem('wedesign_access_token') 
+            : null;
+          
+          if (newToken) {
+            // Retry the request with new token
+            const retryHeaders: Record<string, string> = {
+              ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+              ...(options.headers as Record<string, string> || {}),
+              'Authorization': `Bearer ${newToken}`,
+            };
+
+            // Create new abort controller for retry
+            const retryController = new AbortController();
+            const retryTimeoutId = setTimeout(() => retryController.abort(), 30000);
+
+            try {
+              const retryResponse = await fetch(`${baseUrl}${endpoint}`, {
+                ...options,
+                headers: retryHeaders,
+                signal: retryController.signal,
+              });
+              
+              clearTimeout(retryTimeoutId);
+
+              if (retryResponse.ok) {
+                // Parse successful retry response
+                if (retryResponse.status === 204) {
+                  return { data: {} as T };
+                }
+
+                const contentType = retryResponse.headers.get('content-type');
+                let retryData: T;
+                
+                if (contentType && contentType.includes('application/json')) {
+                  retryData = await retryResponse.json();
+                } else {
+                  retryData = retryResponse as unknown as T;
+                }
+                
+                return { data: retryData };
+              } else {
+                // Retry also failed - parse error
+                let retryErrorData: any = {};
+                try {
+                  const retryContentType = retryResponse.headers.get('content-type');
+                  if (retryContentType && retryContentType.includes('application/json')) {
+                    retryErrorData = await retryResponse.json();
+                  } else {
+                    const retryText = await retryResponse.text();
+                    retryErrorData = { detail: retryText || retryResponse.statusText };
+                  }
+                } catch (parseError) {
+                  retryErrorData = { detail: retryResponse.statusText || 'An error occurred' };
+                }
+
+                const retryErrorDetails = formatError(retryErrorData, retryResponse.status);
+                const retryUserMessage = getUserFriendlyMessage(retryErrorDetails);
+                const retryFinalErrorMessage = retryErrorData?.error || retryErrorData?.detail || retryUserMessage;
+
+                // If retry also returns 401, logout
+                if (retryResponse.status === 401) {
+                  await handleUnauthorized(endpoint);
+                }
+
+                return {
+                  error: retryFinalErrorMessage,
+                  errorDetails: retryErrorDetails,
+                  fieldErrors: retryErrorDetails.fieldErrors,
+                  data: retryErrorData,
+                };
+              }
+            } catch (retryError: any) {
+              clearTimeout(retryTimeoutId);
+              
+              // If retry also fails, return the original error
+              console.error('Retry after token refresh failed:', retryError);
+              
+              // Return original error but indicate session expired
+              return {
+                error: 'Session expired. Please login again.',
+                errorDetails: {
+                  type: ErrorType.UNAUTHORIZED,
+                  message: 'Unauthorized',
+                  statusCode: 401,
+                },
+                fieldErrors: errorDetails.fieldErrors,
+                data: errorData,
+              };
+            }
+          }
+        }
+
+        // If refresh failed, return error indicating session expired
+        return {
+          error: 'Session expired. Please login again.',
+          errorDetails: {
+            type: ErrorType.UNAUTHORIZED,
+            message: 'Unauthorized',
+            statusCode: 401,
+          },
+          fieldErrors: errorDetails.fieldErrors,
+          data: errorData,
+        };
       }
 
       return {
@@ -387,7 +586,7 @@ export const catalogAPI = {
  */
 export const apiClient = {
   // Auth methods (these should already exist in your codebase)
-  login: async (emailOrUsername: string, password: string): Promise<ApiResponse<{
+  login: async (emailOrUsername: string, password: string, rememberMe: boolean = false): Promise<ApiResponse<{
     user: any;
     tokens: {
       access: string;
@@ -404,7 +603,11 @@ export const apiClient = {
       [key: string]: any;
     }>('/api/auth/login/', {
       method: 'POST',
-      body: JSON.stringify({ username: emailOrUsername, password }),
+      body: JSON.stringify({ 
+        username: emailOrUsername, 
+        password,
+        remember_me: rememberMe 
+      }),
     });
   },
   
@@ -466,7 +669,7 @@ export const apiClient = {
       [key: string]: any;
     }>('/api/auth/refresh-token/', {
       method: 'POST',
-      body: JSON.stringify({ refresh: refreshToken }),
+      body: JSON.stringify({ refresh_token: refreshToken }),
     });
   },
 

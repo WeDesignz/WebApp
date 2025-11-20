@@ -39,7 +39,7 @@ export default function LoginForm() {
 
     setIsSubmitting(true);
     try {
-      await login(formData.emailOrUsername, formData.password);
+      await login(formData.emailOrUsername, formData.password, rememberMe);
       toast.success('Login successful! Welcome back.');
       // Small delay to ensure toast is visible before redirect
       setTimeout(() => {
