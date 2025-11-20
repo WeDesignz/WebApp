@@ -305,22 +305,6 @@ export default function DownloadMockPDFPage() {
         }, 2000);
       }
 
-      if (createResponse.error || !createResponse.data) {
-        throw new Error(createResponse.error || 'Failed to create PDF request');
-      }
-
-      const downloadId = createResponse.data.download_id || createResponse.data.id || createResponse.data.pdf_download?.id;
-      
-      toast({
-        title: "PDF request created",
-        description: "Your free PDF is being generated. This may take a few moments.",
-      });
-
-      // Redirect to downloads page or show success
-      setTimeout(() => {
-        router.push('/customer-dashboard?tab=downloads');
-      }, 2000);
-
     } catch (error: any) {
       toast({
         title: "Error",
