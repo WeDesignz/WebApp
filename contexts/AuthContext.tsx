@@ -331,7 +331,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Now that user is active, add mobile number if provided
       if (mobileNumber) {
-        const mobileResponse = await apiClient.addMobileNumber(mobileNumber);
+        const mobileResponse = await apiClient.addMobileNumber({ mobile_number: mobileNumber });
         if (mobileResponse.error) {
           // If mobile already exists, that's okay - just log it
           if (mobileResponse.error.includes('already exists') || 
