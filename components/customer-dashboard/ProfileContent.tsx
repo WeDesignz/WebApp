@@ -17,6 +17,12 @@ import {
   Trash2,
   Loader2,
   AlertCircle,
+  Shield,
+  Lock,
+  Key,
+  Eye,
+  EyeOff,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -567,6 +573,12 @@ export default function ProfileContent() {
           </CardContent>
         </Card>
 
+        {/* Security Settings */}
+        <SecuritySection />
+
+        {/* Email Management */}
+        <EmailManagementSection />
+
         {/* Address Form Modal */}
         <AddressFormModal
           isOpen={isAddressModalOpen}
@@ -602,6 +614,627 @@ export default function ProfileContent() {
         </AlertDialog>
       </div>
     </div>
+  );
+}
+
+// Security Section Component
+function SecuritySection() {
+  const { toast } = useToast();
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPasswordData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleChangePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        title: "Validation Error",
+        description: "New passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      toast({
+        title: "Validation Error",
+        description: "Password must be at least 8 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      // TODO: Implement API call to change password
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      toast({
+        title: "Password changed",
+        description: "Your password has been changed successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to change password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 border-b border-primary/20">
+        <div className="flex items-center gap-3">
+          <Shield className="w-6 h-6 text-primary" />
+          <div>
+            <CardTitle className="text-2xl">Security</CardTitle>
+            <CardDescription>
+              Manage your password and security settings
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-6 space-y-6">
+        {/* Change Password */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Lock className="w-5 h-5 text-muted-foreground" />
+            <h3 className="text-lg font-semibold">Change Password</h3>
+          </div>
+
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">Current Password</Label>
+              <div className="relative">
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="currentPassword"
+                  name="currentPassword"
+                  type={showCurrentPassword ? "text" : "password"}
+                  value={passwordData.currentPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Enter current password"
+                  className="pl-10 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showCurrentPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <div className="relative">
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="newPassword"
+                  name="newPassword"
+                  type={showNewPassword ? "text" : "password"}
+                  value={passwordData.newPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Enter new password"
+                  className="pl-10 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showNewPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Password must be at least 8 characters long
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm New Password</Label>
+              <div className="relative">
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={passwordData.confirmPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Confirm new password"
+                  className="pl-10 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleChangePassword}
+              disabled={
+                isChangingPassword ||
+                !passwordData.currentPassword ||
+                !passwordData.newPassword ||
+                !passwordData.confirmPassword
+              }
+            >
+              {isChangingPassword ? (
+                <>
+                  <Lock className="w-4 h-4 mr-2 animate-spin" />
+                  Changing Password...
+                </>
+              ) : (
+                <>
+                  <Lock className="w-4 h-4 mr-2" />
+                  Change Password
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Email Management Section Component
+interface Email {
+  id: number;
+  email: string;
+  is_verified: boolean;
+  is_primary: boolean;
+  created_at: string;
+}
+
+function EmailManagementSection() {
+  const { user, sendEmailOTP } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [verifyingEmail, setVerifyingEmail] = useState<string | null>(null);
+  const [otp, setOtp] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [isAddingEmail, setIsAddingEmail] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  // Fetch email addresses
+  const { data: emailsData, isLoading: isLoadingEmails } = useQuery({
+    queryKey: ['emails'],
+    queryFn: async () => {
+      const response = await apiClient.listEmailAddresses();
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data?.emails || [];
+    },
+    staleTime: 30 * 1000,
+  });
+
+  const emails: Email[] = emailsData || [];
+
+  const handleAddEmail = async () => {
+    if (!newEmail.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter an email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAddingEmail(true);
+    try {
+      const response = await apiClient.addEmailAddress({
+        email: newEmail.trim(),
+        is_primary: false,
+      });
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      // OTP will be sent automatically, show verification modal
+      setVerifyingEmail(newEmail.trim());
+      setNewEmail("");
+      setIsEmailModalOpen(false);
+      
+      toast({
+        title: "Email added",
+        description: "Please verify your email with the OTP sent to your inbox.",
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ['emails'] });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add email address",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingEmail(false);
+    }
+  };
+
+  const handleVerifyEmail = async () => {
+    if (!verifyingEmail || !otp.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter the OTP",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsVerifying(true);
+    try {
+      const response = await apiClient.verifyEmailAddress({
+        email: verifyingEmail,
+        otp: otp.trim(),
+      });
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      toast({
+        title: "Email verified",
+        description: "Your email has been verified successfully.",
+      });
+
+      setVerifyingEmail(null);
+      setOtp("");
+      await queryClient.invalidateQueries({ queryKey: ['emails'] });
+      await queryClient.invalidateQueries({ queryKey: ['user'] });
+    } catch (error: any) {
+      toast({
+        title: "Verification failed",
+        description: error.message || "Invalid OTP. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleSetPrimary = async (emailId: number) => {
+    try {
+      const response = await apiClient.updateEmailAddress(emailId, {
+        is_primary: true,
+      });
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      toast({
+        title: "Primary email updated",
+        description: "Primary email has been updated successfully.",
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ['emails'] });
+      await queryClient.invalidateQueries({ queryKey: ['user'] });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to set primary email",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteEmail = async (emailId: number, email: string, isPrimary: boolean) => {
+    if (isPrimary) {
+      toast({
+        title: "Cannot delete primary email",
+        description: "Please set another email as primary before deleting this one.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (emails.length <= 1) {
+      toast({
+        title: "Cannot delete last email",
+        description: "You must have at least one email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ${email}?`)) {
+      return;
+    }
+
+    try {
+      const response = await apiClient.deleteEmailAddress(emailId);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      toast({
+        title: "Email deleted",
+        description: "Email address has been deleted successfully.",
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ['emails'] });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete email address",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleResendOTP = async (email: string) => {
+    try {
+      await sendEmailOTP(email);
+      toast({
+        title: "OTP sent",
+        description: "A new OTP has been sent to your email.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resend OTP",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Mail className="w-6 h-6 text-primary" />
+              <div>
+                <CardTitle className="text-2xl">Email Addresses</CardTitle>
+                <CardDescription>
+                  Manage your email addresses and verification status
+                </CardDescription>
+              </div>
+            </div>
+            <Button onClick={() => setIsEmailModalOpen(true)} size="sm">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Email
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          {isLoadingEmails ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : emails.length === 0 ? (
+            <div className="text-center py-8">
+              <Mail className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
+              <h3 className="text-lg font-semibold mb-2">No email addresses</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Add an email address to get started
+              </p>
+              <Button onClick={() => setIsEmailModalOpen(true)} variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Email Address
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {emails.map((email) => (
+                <motion.div
+                  key={email.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 border border-border rounded-lg hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="font-semibold">{email.email}</p>
+                        {email.is_primary && (
+                          <Badge variant="secondary" className="bg-primary/10 text-primary">
+                            Primary
+                          </Badge>
+                        )}
+                        {email.is_verified ? (
+                          <Badge variant="secondary" className="bg-green-500/10 text-green-600">
+                            <Check className="w-3 h-3 mr-1" />
+                            Verified
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600">
+                            Unverified
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Added {new Date(email.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {!email.is_primary && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSetPrimary(email.id)}
+                        >
+                          Set Primary
+                        </Button>
+                      )}
+                      {!email.is_verified && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setVerifyingEmail(email.email);
+                            setOtp("");
+                          }}
+                        >
+                          Verify
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteEmail(email.id, email.email, email.is_primary)}
+                        disabled={email.is_primary || emails.length <= 1}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add Email Modal */}
+      <Dialog open={isEmailModalOpen} onOpenChange={setIsEmailModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Email Address</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newEmail">Email Address</Label>
+              <Input
+                id="newEmail"
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="Enter email address"
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEmailModalOpen(false);
+                  setNewEmail("");
+                }}
+                className="flex-1"
+                disabled={isAddingEmail}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddEmail}
+                className="flex-1"
+                disabled={isAddingEmail || !newEmail.trim()}
+              >
+                {isAddingEmail ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add Email"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Verify Email Modal */}
+      <Dialog open={!!verifyingEmail} onOpenChange={() => setVerifyingEmail(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Verify Email Address</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Enter the 6-digit OTP sent to <strong>{verifyingEmail}</strong>
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="otp">OTP</Label>
+              <Input
+                id="otp"
+                type="text"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="Enter 6-digit OTP"
+                maxLength={6}
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setVerifyingEmail(null);
+                  setOtp("");
+                }}
+                className="flex-1"
+                disabled={isVerifying}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => verifyingEmail && handleResendOTP(verifyingEmail)}
+                disabled={isVerifying}
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Resend
+              </Button>
+              <Button
+                onClick={handleVerifyEmail}
+                className="flex-1"
+                disabled={isVerifying || otp.length !== 6}
+              >
+                {isVerifying ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  "Verify"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

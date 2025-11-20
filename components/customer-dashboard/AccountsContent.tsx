@@ -5,9 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield,
   Lock,
-  Bell,
-  CreditCard,
-  Smartphone,
   Mail,
   Key,
   Trash2,
@@ -15,7 +12,6 @@ import {
   EyeOff,
   Check,
   X,
-  AlertTriangle,
   Plus,
   Loader2,
   Send,
@@ -24,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -81,20 +76,7 @@ export default function AccountsContent() {
     confirmPassword: "",
   });
 
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
-    pushNotifications: true,
-    smsNotifications: false,
-    orderUpdates: true,
-    promotionalEmails: false,
-    securityAlerts: true,
-  });
 
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-  const [linkedAccounts, setLinkedAccounts] = useState([
-    { provider: "Google", connected: true, email: user?.email || "" },
-    { provider: "Facebook", connected: false, email: "" },
-  ]);
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -314,36 +296,8 @@ export default function AccountsContent() {
     }
   };
 
-  const handleNotificationToggle = (key: keyof typeof notificationSettings) => {
-    setNotificationSettings((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
 
-  const handleTwoFactorToggle = () => {
-    setTwoFactorEnabled(!twoFactorEnabled);
-    toast({
-      title: twoFactorEnabled
-        ? "Two-factor authentication disabled"
-        : "Two-factor authentication enabled",
-      description: twoFactorEnabled
-        ? "Your account is now less secure"
-        : "Your account is now more secure",
-    });
-  };
 
-  const handleDeleteAccount = () => {
-    if (
-      confirm(
-        "Are you sure you want to delete your account? This action cannot be undone."
-      )
-    ) {
-      // TODO: Implement account deletion
-      toast({
-        title: "Account deletion",
-        description: "Account deletion is not yet implemented",
-        variant: "destructive",
-      });
-    }
-  };
 
   return (
     <div className="p-4 md:p-6 pb-24 md:pb-6">
@@ -486,124 +440,6 @@ export default function AccountsContent() {
                 </Button>
               </div>
             </div>
-
-            {/* Two-Factor Authentication */}
-            <div className="border-t pt-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Smartphone className="w-5 h-5 text-muted-foreground" />
-                  <div>
-                    <h3 className="text-lg font-semibold">Two-Factor Authentication</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Add an extra layer of security to your account
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  checked={twoFactorEnabled}
-                  onCheckedChange={handleTwoFactorToggle}
-                />
-              </div>
-              {twoFactorEnabled && (
-                <div className="mt-3 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                  <p className="text-sm text-green-600 flex items-center gap-2">
-                    <Check className="w-4 h-4" />
-                    Two-factor authentication is enabled
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Notification Settings */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Bell className="w-6 h-6 text-primary" />
-              <div>
-                <CardTitle className="text-2xl">Notifications</CardTitle>
-                <CardDescription>
-                  Manage how you receive notifications
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Mail className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <Label className="text-base font-medium">Email Notifications</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Receive notifications via email
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={notificationSettings.emailNotifications}
-                onCheckedChange={() => handleNotificationToggle("emailNotifications")}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Bell className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <Label className="text-base font-medium">Push Notifications</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Receive push notifications in your browser
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={notificationSettings.pushNotifications}
-                onCheckedChange={() => handleNotificationToggle("pushNotifications")}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Smartphone className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <Label className="text-base font-medium">SMS Notifications</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Receive notifications via SMS
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={notificationSettings.smsNotifications}
-                onCheckedChange={() => handleNotificationToggle("smsNotifications")}
-              />
-            </div>
-
-            <div className="border-t pt-4 mt-4">
-              <h4 className="text-sm font-semibold mb-3">Notification Types</h4>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">Order Updates</Label>
-                  <Switch
-                    checked={notificationSettings.orderUpdates}
-                    onCheckedChange={() => handleNotificationToggle("orderUpdates")}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">Promotional Emails</Label>
-                  <Switch
-                    checked={notificationSettings.promotionalEmails}
-                    onCheckedChange={() => handleNotificationToggle("promotionalEmails")}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">Security Alerts</Label>
-                  <Switch
-                    checked={notificationSettings.securityAlerts}
-                    onCheckedChange={() => handleNotificationToggle("securityAlerts")}
-                  />
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
@@ -715,95 +551,6 @@ export default function AccountsContent() {
           </CardContent>
         </Card>
 
-        {/* Connected Accounts */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <CreditCard className="w-6 h-6 text-primary" />
-              <div>
-                <CardTitle className="text-2xl">Connected Accounts</CardTitle>
-                <CardDescription>
-                  Manage your linked social media accounts
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6 space-y-3">
-            {linkedAccounts.map((account, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-4 border rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                    {account.provider === "Google" ? (
-                      <Mail className="w-5 h-5" />
-                    ) : (
-                      <CreditCard className="w-5 h-5" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-medium">{account.provider}</p>
-                    {account.connected && account.email && (
-                      <p className="text-sm text-muted-foreground">{account.email}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {account.connected ? (
-                    <>
-                      <Badge variant="secondary" className="bg-green-500/10 text-green-600">
-                        Connected
-                      </Badge>
-                      <Button variant="outline" size="sm">
-                        Disconnect
-                      </Button>
-                    </>
-                  ) : (
-                    <Button variant="default" size="sm">
-                      Connect
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Danger Zone */}
-        <Card className="border-destructive/50">
-          <CardHeader className="bg-destructive/10 border-b border-destructive/20">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-6 h-6 text-destructive" />
-              <div>
-                <CardTitle className="text-2xl text-destructive">Danger Zone</CardTitle>
-                <CardDescription>
-                  Irreversible and destructive actions
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold">Delete Account</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Once you delete your account, there is no going back. Please be certain.
-                  </p>
-                </div>
-                <Button
-                  variant="destructive"
-                  onClick={handleDeleteAccount}
-                  className="flex items-center gap-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete Account
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Add Email Modal */}
         <Dialog open={isEmailModalOpen} onOpenChange={setIsEmailModalOpen}>

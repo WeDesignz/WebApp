@@ -12,13 +12,11 @@ import PlansContent from "./PlansContent";
 import SupportContent from "./SupportContent";
 import NotificationsContent from "./NotificationsContent";
 import FAQContent from "./FAQContent";
-import CategoriesContent from "./CategoriesContent";
 import ProfileContent from "./ProfileContent";
-import AccountsContent from "./AccountsContent";
 import WishlistContent from "./WishlistContent";
 import LogoutModal from "./LogoutModal";
 
-export type DashboardView = "dashboard" | "downloads" | "orders" | "categories" | "freelancers" | "plans" | "support" | "notifications" | "faq" | "profile" | "accounts" | "wishlist";
+export type DashboardView = "dashboard" | "downloads" | "orders" | "freelancers" | "plans" | "support" | "notifications" | "faq" | "profile" | "wishlist";
 
 export default function CustomerDashboard() {
   const searchParams = useSearchParams();
@@ -36,7 +34,7 @@ export default function CustomerDashboard() {
   // Check for view query parameter on mount
   useEffect(() => {
     const viewParam = searchParams.get('view');
-    if (viewParam && ['dashboard', 'downloads', 'orders', 'categories', 'freelancers', 'plans', 'support', 'notifications', 'faq', 'profile', 'accounts', 'wishlist'].includes(viewParam)) {
+    if (viewParam && ['dashboard', 'downloads', 'orders', 'freelancers', 'plans', 'support', 'notifications', 'faq', 'profile', 'wishlist'].includes(viewParam)) {
       setActiveView(viewParam as DashboardView);
     }
     setIsInitialized(true);
@@ -79,12 +77,8 @@ export default function CustomerDashboard() {
         return <NotificationsContent />;
       case "faq":
         return <FAQContent />;
-      case "categories":
-        return <CategoriesContent />;
       case "profile":
         return <ProfileContent />;
-      case "accounts":
-        return <AccountsContent />;
       case "dashboard":
       default:
         return (
@@ -111,8 +105,6 @@ export default function CustomerDashboard() {
         <CustomerDashboardTopBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          selectedCategory={selectedCategory}
-          onCategoryChange={setSelectedCategory}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setMobileMenuOpen(!mobileMenuOpen)}
           onOpenCart={() => setCartDrawerOpen(true)}

@@ -1,27 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Menu, User, Shield, LogOut, ShoppingCart, Heart, UserPlus } from "lucide-react";
+import { Search, Menu, User, LogOut, ShoppingCart, Heart, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useCartWishlist } from "@/contexts/CartWishlistContext";
 import { DashboardView } from "./CustomerDashboard";
-import { useQuery } from "@tanstack/react-query";
-import { catalogAPI } from "@/lib/api";
-import { transformCategories } from "@/lib/utils/transformers";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface TopBarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
-  selectedCategory: string;
-  onCategoryChange: (value: string) => void;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
   onOpenCart: () => void;
@@ -32,8 +20,6 @@ interface TopBarProps {
 export default function CustomerDashboardTopBar({
   searchQuery,
   onSearchChange,
-  selectedCategory,
-  onCategoryChange,
   sidebarCollapsed,
   onToggleSidebar,
   onOpenCart,
@@ -45,28 +31,6 @@ export default function CustomerDashboardTopBar({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { getCartCount, getWishlistCount } = useCartWishlist();
   const { user } = useAuth();
-
-  // Fetch categories from API
-  const { data: categoriesData } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      const response = await catalogAPI.getCategories();
-      if (response.error) {
-        throw new Error(response.error);
-      }
-      return transformCategories(response.data?.categories || []);
-    },
-    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
-  });
-
-  // Build categories list with "All Categories" option
-  const categories = [
-    { value: "all", label: "All Categories" },
-    ...(categoriesData || []).map(cat => ({
-      value: cat.id,
-      label: cat.title,
-    })),
-  ];
 
   // Debounce search input (300ms) - update parent after debounce
   useEffect(() => {
@@ -117,31 +81,15 @@ export default function CustomerDashboardTopBar({
         {/* Spacing - 10% */}
         <div style={{ width: '10%' }} className="hidden md:block" />
 
-        {/* Invite Freelancers Button - 15% width */}
-        <div style={{ width: '15%' }} className="hidden md:flex justify-center">
-          <Button size="lg" className="whitespace-nowrap w-full">
-            <UserPlus className="w-5 h-5 mr-2" />
-            + Invite Freelancers
-          </Button>
-        </div>
-
-        {/* Spacing - 10% */}
-        <div style={{ width: '10%' }} className="hidden md:block" />
-
-        {/* Right End - 25% width: Categories, Wishlist, Cart, Profile */}
+        {/* Right End - 25% width: Invite Freelancers, Wishlist, Cart, Profile */}
         <div className="flex items-center gap-2 sm:gap-3 justify-end" style={{ width: '25%' }}>
-          <Select value={selectedCategory} onValueChange={onCategoryChange}>
-            <SelectTrigger className="h-12 rounded-full hidden sm:flex" style={{ minWidth: '140px', maxWidth: '100%' }}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((cat) => (
-                <SelectItem key={cat.value} value={cat.value}>
-                  {cat.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Invite Freelancers Button */}
+          <div className="hidden md:flex">
+            <Button size="lg" className="whitespace-nowrap">
+              <UserPlus className="w-5 h-5 mr-2" />
+              + Invite Freelancers
+            </Button>
+          </div>
 
           <a 
             href="/customer-dashboard/wishlist"
@@ -199,16 +147,6 @@ export default function CustomerDashboardTopBar({
                   >
                     <User className="w-4 h-4" />
                     <span className="text-sm">Profile</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      onViewChange("accounts");
-                      setProfileOpen(false);
-                    }}
-                    className="flex items-center gap-3 px-4 py-2 hover:bg-muted rounded-lg transition-colors w-full text-left"
-                  >
-                    <Shield className="w-4 h-4" />
-                    <span className="text-sm">Accounts</span>
                   </button>
                 </div>
                 <div className="p-2 border-t border-border">

@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   Download,
-  Grid3x3,
   HelpCircle,
   Bell,
   MessageCircle,
@@ -38,7 +37,6 @@ const menuItems: { icon: any; label: string; view: DashboardView }[] = [
   { icon: Download, label: "My Downloads", view: "downloads" },
   { icon: ShoppingBag, label: "My Orders", view: "orders" },
   { icon: Heart, label: "Wishlist", view: "wishlist" },
-  { icon: Grid3x3, label: "Categories", view: "categories" },
   { icon: CreditCard, label: "Plans", view: "plans" },
   { icon: HelpCircle, label: "Support", view: "support" },
 ];

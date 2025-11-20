@@ -76,7 +76,9 @@ export function useUnreadMessages(orderId: string | null, currentUserId?: string
         const data = response.data as OrderCommentsResponse;
         console.log('[useUnreadMessages] Fetched comments for orderId:', orderId, 'comments count:', data?.comments?.length || 0);
         if (data?.comments && data.comments.length > 0) {
-          console.log('[useUnreadMessages] First comment structure:', JSON.stringify(data.comments[0], null, 2));
+          console.log('[useUnreadMessages] All comments structure:', JSON.stringify(data.comments, null, 2));
+        } else {
+          console.log('[useUnreadMessages] No comments found for orderId:', orderId);
         }
         return data;
       } catch (error) {
@@ -90,13 +92,22 @@ export function useUnreadMessages(orderId: string | null, currentUserId?: string
   });
 
   useEffect(() => {
+    console.log('[WebApp useUnreadMessages] useEffect triggered:', {
+      orderId,
+      currentUserId,
+      hasCommentsData: !!commentsData,
+      commentsCount: commentsData?.comments?.length || 0
+    });
+
     if (!orderId) {
+      console.log('[WebApp useUnreadMessages] No orderId, setting count to 0');
       setUnreadCount(0);
       return;
     }
 
     if (!commentsData?.comments) {
       // Comments haven't loaded yet, keep count at 0
+      console.log('[WebApp useUnreadMessages] No comments data yet, setting count to 0');
       setUnreadCount(0);
       return;
     }
@@ -112,33 +123,41 @@ export function useUnreadMessages(orderId: string | null, currentUserId?: string
       const isNotFromCustomer = currentUserId ? String(comment.created_by?.id) !== String(currentUserId) : true;
       
       // Count if it's an admin/system message AND not read AND not from customer
-      return (isAdminOrSystem || isAdminResponse) && !comment.is_read && isNotFromCustomer;
+      const shouldCount = (isAdminOrSystem || isAdminResponse) && !comment.is_read && isNotFromCustomer;
+      
+      return shouldCount;
     });
 
     const count = unreadMessages.length;
     
-    // Debug logging (only log when there are unread messages or if debugging is needed)
-    if (count > 0 || process.env.NODE_ENV === 'development') {
-      console.log('[WebApp useUnreadMessages] Unread count:', {
-        orderId,
-        count,
-        totalComments: commentsData.comments.length,
-        unreadMessages: unreadMessages.map((c: any) => ({
-          id: c.id,
-          comment_type: c.comment_type,
-          is_read: c.is_read,
-          is_admin_response: c.is_admin_response,
-          created_by_id: c.created_by?.id
-        })),
-        allComments: commentsData.comments.map((c: any) => ({
-          id: c.id,
-          comment_type: c.comment_type,
-          is_read: c.is_read,
-          is_admin_response: c.is_admin_response,
-          created_by_id: c.created_by?.id
-        }))
-      });
-    }
+    // Always log in development mode for debugging
+    console.log('[WebApp useUnreadMessages] Unread count summary:', {
+      orderId,
+      currentUserId,
+      count,
+      totalComments: commentsData.comments.length,
+      unreadMessages: unreadMessages.map((c: any) => ({
+        id: c.id,
+        comment_type: c.comment_type,
+        is_read: c.is_read,
+        is_admin_response: c.is_admin_response,
+        created_by_id: c.created_by?.id
+      })),
+      allComments: commentsData.comments.map((c: any) => ({
+        id: c.id,
+        comment_type: c.comment_type,
+        is_read: c.is_read,
+        is_admin_response: c.is_admin_response,
+        created_by_id: c.created_by?.id,
+        // Detailed analysis for each comment
+        analysis: {
+          isAdminOrSystem: c.comment_type === 'admin' || c.comment_type === 'system',
+          isAdminResponse: c.is_admin_response === true,
+          isNotFromCustomer: currentUserId ? String(c.created_by?.id) !== String(currentUserId) : true,
+          shouldCount: ((c.comment_type === 'admin' || c.comment_type === 'system') || c.is_admin_response === true) && !c.is_read && (currentUserId ? String(c.created_by?.id) !== String(currentUserId) : true)
+        }
+      }))
+    });
     
     setUnreadCount(count);
   }, [orderId, commentsData, currentUserId]);
