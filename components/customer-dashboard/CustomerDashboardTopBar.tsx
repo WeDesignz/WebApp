@@ -58,34 +58,34 @@ export default function CustomerDashboardTopBar({
 
   return (
     <header className="bg-card border-b border-border p-4 sticky top-0 z-30">
-      <div className="flex items-center w-full">
-        <button
-          onClick={onToggleSidebar}
-          className="md:hidden p-2 hover:bg-muted rounded-lg transition-colors mr-2"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
+      <div className="flex items-center justify-between w-full gap-4">
+        {/* Left Side - Mobile Menu & Search Bar */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <button
+            onClick={onToggleSidebar}
+            className="md:hidden p-2 hover:bg-muted rounded-lg transition-colors flex-shrink-0"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
 
-        {/* Search Bar - 40% width */}
-        <div className="relative" style={{ width: '40%' }}>
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
-          <input
-            type="text"
-            value={localSearchQuery}
-            onChange={(e) => setLocalSearchQuery(e.target.value)}
-            placeholder="Search designs, vectors, mockups..."
-            className="w-full h-12 pl-12 pr-4 bg-background border border-border rounded-full focus:outline-none focus:ring-2 focus:ring-primary transition-all"
-          />
+          {/* Search Bar */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
+            <input
+              type="text"
+              value={localSearchQuery}
+              onChange={(e) => setLocalSearchQuery(e.target.value)}
+              placeholder="Search designs, vectors, mockups..."
+              className="w-full h-12 pl-12 pr-4 bg-background border border-border rounded-full focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+            />
+          </div>
         </div>
 
-        {/* Spacing - 10% */}
-        <div style={{ width: '10%' }} className="hidden md:block" />
-
-        {/* Right End - 25% width: Invite Freelancers, Wishlist, Cart, Profile */}
-        <div className="flex items-center gap-2 sm:gap-3 justify-end" style={{ width: '25%' }}>
+        {/* Right Side - Invite Freelancers, Wishlist, Cart, Profile */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {/* Invite Freelancers Button */}
           <div className="hidden md:flex">
-            <Button size="lg" className="whitespace-nowrap">
+            <Button size="lg" className="whitespace-nowrap" disabled>
               <UserPlus className="w-5 h-5 mr-2" />
               + Invite Freelancers
             </Button>

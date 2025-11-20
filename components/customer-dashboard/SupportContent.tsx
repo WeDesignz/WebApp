@@ -5,8 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageCircle,
   Mail,
-  Phone,
-  Zap,
   ExternalLink,
   Send,
   Loader2,
@@ -261,25 +259,37 @@ export default function SupportContent() {
         </div>
 
         {/* Quick Contact Cards */}
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <Card className="p-6 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setTicketFormOpen(true)}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-3 bg-primary/20 rounded-lg">
-                  <Send className="w-6 h-6 text-primary" />
+            <Card className="p-6 bg-gradient-to-br from-primary/5 to-purple-500/5 border-primary/20 hover:shadow-lg transition-all hover:border-primary/40 cursor-pointer h-full" onClick={() => setTicketFormOpen(true)}>
+              <div className="flex flex-col h-full">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="p-3 bg-primary/10 rounded-xl flex-shrink-0">
+                    <Send className="w-7 h-7 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-1">Create Support Ticket</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Submit a ticket and get help from our support team. We typically respond within 24 hours.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold">Create Support Ticket</h3>
-                  <p className="text-sm text-muted-foreground">Get help from our team</p>
-                </div>
+                <Button 
+                  variant="default" 
+                  className="w-full mt-auto" 
+                  size="sm"
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    setTicketFormOpen(true); 
+                  }}
+                >
+                  Create Ticket
+                </Button>
               </div>
-              <Button variant="outline" className="w-full" size="sm" onClick={(e) => { e.stopPropagation(); setTicketFormOpen(true); }}>
-                Create Ticket
-              </Button>
             </Card>
           </motion.div>
 
@@ -288,40 +298,28 @@ export default function SupportContent() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className="p-6 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20 hover:shadow-lg transition-shadow">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-3 bg-blue-500/20 rounded-lg">
-                  <Mail className="w-6 h-6 text-blue-500" />
+            <Card className="p-6 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border-blue-500/20 hover:shadow-lg transition-all hover:border-blue-500/40 h-full">
+              <div className="flex flex-col h-full">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="p-3 bg-blue-500/10 rounded-xl flex-shrink-0">
+                    <Mail className="w-7 h-7 text-blue-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-1">Email Support</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Send us an email directly at support@wedesignz.com for any queries or assistance.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold">Email Support</h3>
-                  <p className="text-sm text-muted-foreground">support@wedesignz.com</p>
-                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full mt-auto border-blue-500/30 hover:bg-blue-500/10 hover:border-blue-500/50" 
+                  size="sm" 
+                  asChild
+                >
+                  <a href="mailto:support@wedesignz.com" className="text-blue-500">Send Email</a>
+                </Button>
               </div>
-              <Button variant="outline" className="w-full" size="sm" asChild>
-                <a href="mailto:support@wedesignz.com">Send Email</a>
-              </Button>
-            </Card>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Card className="p-6 bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20 hover:shadow-lg transition-shadow">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-3 bg-green-500/20 rounded-lg">
-                  <Phone className="w-6 h-6 text-green-500" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Phone Support</h3>
-                  <p className="text-sm text-muted-foreground">Mon-Fri 9AM-6PM</p>
-                </div>
-              </div>
-              <Button variant="outline" className="w-full" size="sm" asChild>
-                <a href="tel:+1234567890">Call Us</a>
-              </Button>
             </Card>
           </motion.div>
         </div>
@@ -395,33 +393,6 @@ export default function SupportContent() {
             </div>
           )}
         </div>
-
-        {/* Additional Help */}
-        <Card className="p-6 bg-gradient-to-br from-primary/5 to-purple-500/5 border-primary/20">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-full">
-                <Zap className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-bold text-lg">Still need help?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Join our community or check out our comprehensive documentation
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline">
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Documentation
-              </Button>
-              <Button>
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Community Forum
-              </Button>
-            </div>
-          </div>
-        </Card>
       </div>
 
       {/* Create Support Ticket Dialog */}
