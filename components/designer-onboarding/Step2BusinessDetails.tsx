@@ -237,7 +237,10 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
     // For now, accept sample OTP 123456
     if (otp === '123456') {
       try {
-        const response = await apiClient.verifyMobileNumber(formData.businessPhone, otp);
+        const response = await apiClient.verifyMobileNumber({
+          mobile_number: formData.businessPhone,
+          otp: otp,
+        });
         
         if (response.error) {
           toast.error(response.error || 'Failed to verify business phone');

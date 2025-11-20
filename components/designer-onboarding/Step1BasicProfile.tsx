@@ -251,7 +251,10 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
     // For now, accept sample OTP 123456
     if (otp === '123456') {
       try {
-        const response = await apiClient.verifyMobileNumber(formData.phone, otp);
+        const response = await apiClient.verifyMobileNumber({
+          mobile_number: formData.phone,
+          otp: otp,
+        });
         
         if (response.error) {
           toast.error(response.error || 'Failed to verify phone');

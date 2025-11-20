@@ -349,7 +349,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const verifyMobileOTP = async (mobile: string, otp: string): Promise<boolean> => {
-    const response = await apiClient.verifyMobileNumber(mobile, otp);
+    const response = await apiClient.verifyMobileNumber({
+      mobile_number: mobile,
+      otp: otp,
+    });
 
     if (response.error) {
       return false;
