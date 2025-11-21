@@ -95,15 +95,21 @@ interface Design {
   rejection_reason?: string;
 }
 
-interface Category {
-  id: number;
-  name: string;
-}
-
 // Helper functions
 const formatNumber = (num: number | undefined): string => {
   if (num === undefined || num === null) return "0";
   return new Intl.NumberFormat('en-IN').format(num);
+};
+
+// Normalize backend status values to frontend display values
+const normalizeStatus = (status: string): string => {
+  const statusMap: Record<string, string> = {
+    'draft': 'pending',
+    'active': 'approved',
+    'inactive': 'rejected',
+    'deleted': 'deleted',
+  };
+  return statusMap[status] || status;
 };
 
 const formatCurrency = (num: number | undefined): string => {
@@ -195,7 +201,6 @@ export default function MyDesignsContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedDesign, setSelectedDesign] = useState<Design | null>(null);
@@ -223,36 +228,41 @@ export default function MyDesignsContent() {
     setCurrentPage(1);
   }, [itemsPerPage]);
 
-  // Fetch categories
-  const { data: categoriesData } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      const response = await apiClient.getCategories();
-      if (response.error) {
-        throw new Error(response.error);
-      }
-      return response.data?.categories || [];
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-
-  const categories: Category[] = categoriesData || [];
+  // Map frontend status filter to backend status values
+  const mapStatusToBackend = (status: string | null): string | undefined => {
+    if (!status) return undefined;
+    
+    const statusMap: Record<string, string> = {
+      'pending': 'draft',
+      'approved': 'active',
+      'rejected': 'inactive',
+    };
+    
+    return statusMap[status] || status;
+  };
 
   // Fetch designs
   const { data: designsData, isLoading, error } = useQuery({
-    queryKey: ['myDesigns', currentPage, itemsPerPage, debouncedSearch, statusFilter, categoryFilter],
+    queryKey: ['myDesigns', currentPage, itemsPerPage, debouncedSearch, statusFilter],
     queryFn: async () => {
       const response = await apiClient.getMyDesigns({
         page: currentPage,
         limit: itemsPerPage,
-        status: statusFilter || undefined,
-        category_id: categoryFilter || undefined,
+        status: mapStatusToBackend(statusFilter),
         search: debouncedSearch || undefined,
       });
       if (response.error) {
         throw new Error(response.error);
       }
-      return response.data;
+      const data = response.data;
+      // Normalize status values from backend to frontend format
+      if (data?.designs) {
+        data.designs = data.designs.map((design: Design) => ({
+          ...design,
+          status: normalizeStatus(design.status) as any,
+        }));
+      }
+      return data;
     },
     staleTime: 30 * 1000,
   });
@@ -472,24 +482,12 @@ export default function MyDesignsContent() {
             );
           })}
 
-          {categories.slice(0, 5).map((category) => (
-            <Badge
-              key={category.id}
-              variant={categoryFilter === category.id ? "default" : "outline"}
-              className="cursor-pointer"
-              onClick={() => setCategoryFilter(categoryFilter === category.id ? null : category.id)}
-            >
-              {category.name}
-            </Badge>
-          ))}
-
-          {(statusFilter || categoryFilter) && (
+          {statusFilter && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 setStatusFilter(null);
-                setCategoryFilter(null);
                 setCurrentPage(1);
               }}
               className="gap-1 h-6 px-2"
@@ -537,7 +535,7 @@ export default function MyDesignsContent() {
           <Upload className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
           <h3 className="text-xl font-semibold mb-2">No designs found</h3>
           <p className="text-muted-foreground mb-4">
-            {searchQuery || statusFilter || categoryFilter
+            {searchQuery || statusFilter
               ? "Try adjusting your filters"
               : "No designs found. Use the navigation menu to upload your first design."}
           </p>
