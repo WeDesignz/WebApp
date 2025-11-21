@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import LogoutModal from "./LogoutModal";
+import DesignerNotificationDropdown from "./DesignerNotificationDropdown";
 
 interface DesignerTopBarProps {
   title?: string;
@@ -38,6 +39,9 @@ export default function DesignerTopBar({
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Notifications */}
+          <DesignerNotificationDropdown />
+
           <div className="relative">
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}

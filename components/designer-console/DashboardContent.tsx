@@ -158,10 +158,6 @@ export default function DashboardContent() {
   // Calculate pending reviews (total_uploaded - total_approved)
   const pendingReviews = (kpis.total_uploaded || 0) - (kpis.total_approved || 0);
   
-  // Calculate performance score percentage (assuming score is out of 10)
-  const performanceScore = kpis.performance_score || 0;
-  const performancePercentage = (performanceScore / 10) * 100;
-
   const kpiCards = useMemo(() => {
     const baseCards = [
       { 
@@ -210,22 +206,12 @@ export default function DashboardContent() {
           value: formatNumber(kpis.total_downloads || 0), 
           href: "/designer-console/analytics", 
           color: "text-primary" 
-        },
-        { 
-          icon: TrendingUp, 
-          label: "Performance Score", 
-          value: `${performanceScore.toFixed(1)}/10`, 
-          href: "/designer-console/analytics", 
-          color: "text-orange-500", 
-          hasProgress: true, 
-          progress: performancePercentage,
-          tooltip: "Performance Score is calculated based on: 20% Design Quality + 60% Customer Satisfaction + 20% Engagement Metrics"
         }
       );
     }
 
     return baseCards;
-  }, [kpis, pendingReviews, performanceScore, performancePercentage, hasFullAccess]);
+  }, [kpis, pendingReviews, hasFullAccess]);
 
   // Don't show verification message for studio members - they don't need verification
   if (!isVerified && !isStudioMember) {
