@@ -155,8 +155,7 @@ export default function MessagesSupportContent() {
     queryKey: ['supportThreadMessages', selectedThreadId],
     queryFn: async () => {
       if (!selectedThreadId) return null;
-      const threadId = typeof selectedThreadId === 'number' ? selectedThreadId : parseInt(selectedThreadId.toString());
-      if (isNaN(threadId)) return null;
+      const threadId = selectedThreadId; // Type is narrowed to number after null check
       const response = await apiClient.getSupportThreadMessages(threadId);
       if (response.error) {
         throw new Error(response.error);
@@ -316,18 +315,7 @@ export default function MessagesSupportContent() {
       return;
     }
 
-    const threadId = typeof selectedThreadId === 'number' 
-      ? selectedThreadId 
-      : parseInt(selectedThreadId.toString());
-
-    if (isNaN(threadId)) {
-      toast({
-        title: "Error",
-        description: "Invalid thread ID",
-        variant: "destructive",
-      });
-      return;
-    }
+    const threadId = selectedThreadId; // Type is narrowed to number after null check
 
     sendMessageMutation.mutate({
       threadId,
