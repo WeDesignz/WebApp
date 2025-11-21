@@ -93,7 +93,18 @@ const getNotificationBgColor = (type: NotificationType) => {
 
 // Transform API notification to UI notification
 const transformNotification = (apiNotif: any): Notification => {
+  // Map backend notification types to frontend types
   const typeMap: Record<string, NotificationType> = {
+    // Backend notification types
+    'onboarding_approved': 'success',
+    'onboarding_rejected': 'warning',
+    'payout_processed': 'sale',
+    'payout_failed': 'warning',
+    'account_suspended': 'warning',
+    'account_deleted': 'warning',
+    'system_update': 'system',
+    'other': 'info',
+    // Generic types
     'sale': 'sale',
     'purchase': 'sale',
     'achievement': 'achievement',
@@ -105,7 +116,8 @@ const transformNotification = (apiNotif: any): Notification => {
     'system': 'system',
   };
 
-  const type = typeMap[apiNotif.type?.toLowerCase() || apiNotif.notification_type?.toLowerCase() || ''] || 'info';
+  const notificationType = apiNotif.notification_type || apiNotif.type || '';
+  const type = typeMap[notificationType?.toLowerCase() || ''] || 'info';
   const timestamp = apiNotif.timestamp || apiNotif.created_at || new Date().toISOString();
   const isRead = apiNotif.read || apiNotif.is_read || false;
 
@@ -186,6 +198,7 @@ export default function NotificationsContent() {
     },
     enabled: !!user,
     staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000, // Poll every minute for new notifications
   });
 
   // Mark as read mutation
