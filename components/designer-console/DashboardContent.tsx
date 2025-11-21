@@ -8,12 +8,7 @@ import {
   Eye, 
   Download, 
   TrendingUp,
-  MoreVertical,
   ChevronRight,
-  Edit,
-  Copy,
-  Trash2,
-  BarChart,
   AlertCircle,
   Shield,
   Loader2,
@@ -25,13 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useDesignerVerification } from "@/contexts/DesignerVerificationContext";
 import { useStudioAccess } from "@/contexts/StudioAccessContext";
@@ -477,7 +465,6 @@ export default function DashboardContent() {
                             <th className="pb-3 pr-4">Purchases</th>
                           </>
                         )}
-                        <th className="pb-3"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -497,10 +484,21 @@ export default function DashboardContent() {
                           </td>
                           <td className="py-3 pr-4">
                             <Badge 
-                              variant={design.status === "approved" ? "default" : design.status === "pending" ? "secondary" : "destructive"}
-                              className="text-xs"
+                              variant={
+                                design.status === "active" || design.status === "approved" ? "default" : 
+                                design.status === "pending" ? "secondary" : 
+                                design.status === "rejected" ? "destructive" : 
+                                design.status === "draft" ? "outline" : 
+                                "secondary"
+                              }
+                              className="text-xs capitalize"
                             >
-                              {design.status?.charAt(0).toUpperCase() + design.status?.slice(1) || 'Unknown'}
+                              {design.status === "active" ? "Active" :
+                               design.status === "approved" ? "Approved" :
+                               design.status === "pending" ? "Pending" :
+                               design.status === "rejected" ? "Rejected" :
+                               design.status === "draft" ? "Draft" :
+                               design.status?.charAt(0).toUpperCase() + design.status?.slice(1) || 'Unknown'}
                             </Badge>
                           </td>
                           <td className="py-3 pr-4 text-sm text-muted-foreground">
@@ -513,43 +511,6 @@ export default function DashboardContent() {
                               <td className="py-3 pr-4 text-sm font-medium">{formatNumber(design.purchases || 0)}</td>
                             </>
                           )}
-                          <td className="py-3">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <MoreVertical className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <Link href={`/designer-console/designs/${design.id}/edit`}>
-                                  <DropdownMenuItem>
-                                    <Edit className="w-4 h-4 mr-2" />
-                                    Edit
-                                  </DropdownMenuItem>
-                                </Link>
-                                <DropdownMenuItem>
-                                  <Copy className="w-4 h-4 mr-2" />
-                                  Duplicate
-                                </DropdownMenuItem>
-                                {hasFullAccess && (
-                                  <Link href={`/designer-console/analytics?design=${design.id}`}>
-                                    <DropdownMenuItem>
-                                      <BarChart className="w-4 h-4 mr-2" />
-                                      View Analytics
-                                    </DropdownMenuItem>
-                                  </Link>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem 
-                                  className="text-destructive focus:text-destructive"
-                                  disabled={design.status === "approved" && (design.purchases || 0) > 0}
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </td>
                         </tr>
                       ))}
                     </tbody>

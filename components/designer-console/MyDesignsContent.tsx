@@ -207,7 +207,7 @@ export default function MyDesignsContent() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { hasFullAccess } = useStudioAccess();
+  const { hasFullAccess, isStudioMember } = useStudioAccess();
 
   // Debounce search query
   useEffect(() => {
@@ -276,6 +276,9 @@ export default function MyDesignsContent() {
   });
 
   const canDelete = (design: Design) => {
+    // Studio members cannot delete any designs - only the studio owner can delete
+    if (isStudioMember) return false;
+    
     // Cannot delete active designs
     if (design.status === "active") return false;
     // Can delete pending, rejected, draft
@@ -1141,26 +1144,28 @@ export default function MyDesignsContent() {
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="font-semibold mb-3">Performance</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center p-3 rounded-lg bg-muted">
-                      <Eye className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                      <div className="text-2xl font-bold">{formatNumber((designDetail || selectedDesign).views)}</div>
-                      <div className="text-xs text-muted-foreground">Views</div>
-                    </div>
-                    <div className="text-center p-3 rounded-lg bg-muted">
-                      <Download className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                      <div className="text-2xl font-bold">{formatNumber((designDetail || selectedDesign).downloads)}</div>
-                      <div className="text-xs text-muted-foreground">Downloads</div>
-                    </div>
-                    <div className="text-center p-3 rounded-lg bg-muted">
-                      <ShoppingCart className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                      <div className="text-2xl font-bold">{formatNumber((designDetail || selectedDesign).purchases)}</div>
-                      <div className="text-xs text-muted-foreground">Purchases</div>
+                {!isStudioMember && (
+                  <div>
+                    <h3 className="font-semibold mb-3">Performance</h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="text-center p-3 rounded-lg bg-muted">
+                        <Eye className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                        <div className="text-2xl font-bold">{formatNumber((designDetail || selectedDesign).views)}</div>
+                        <div className="text-xs text-muted-foreground">Views</div>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-muted">
+                        <Download className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                        <div className="text-2xl font-bold">{formatNumber((designDetail || selectedDesign).downloads)}</div>
+                        <div className="text-xs text-muted-foreground">Downloads</div>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-muted">
+                        <ShoppingCart className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                        <div className="text-2xl font-bold">{formatNumber((designDetail || selectedDesign).purchases)}</div>
+                        <div className="text-xs text-muted-foreground">Purchases</div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {((designDetail || selectedDesign).rejection_reason || (designDetail || selectedDesign).status === "rejected") && (
                   <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30">
@@ -1169,27 +1174,29 @@ export default function MyDesignsContent() {
                   </div>
                 )}
 
-                <div>
-                  <h3 className="font-semibold mb-3">Activity Log</h3>
-                  <div className="space-y-3">
-                    <div className="flex gap-3 text-sm">
-                      <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5" />
-                      <div>
-                        <p>Design uploaded</p>
-                        <p className="text-xs text-muted-foreground">{(designDetail || selectedDesign).created_at ? getTimeAgo((designDetail || selectedDesign).created_at) : 'N/A'}</p>
-                      </div>
-                    </div>
-                    {((designDetail || selectedDesign).status === "approved" || (designDetail || selectedDesign).status === "active") && (
+                {!isStudioMember && (
+                  <div>
+                    <h3 className="font-semibold mb-3">Activity Log</h3>
+                    <div className="space-y-3">
                       <div className="flex gap-3 text-sm">
-                        <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
+                        <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5" />
                         <div>
-                          <p>Design approved</p>
-                          <p className="text-xs text-muted-foreground">{(designDetail || selectedDesign).updated_at ? getTimeAgo((designDetail || selectedDesign).updated_at) : 'N/A'}</p>
+                          <p>Design uploaded</p>
+                          <p className="text-xs text-muted-foreground">{(designDetail || selectedDesign).created_at ? getTimeAgo((designDetail || selectedDesign).created_at) : 'N/A'}</p>
                         </div>
                       </div>
-                    )}
+                      {((designDetail || selectedDesign).status === "approved" || (designDetail || selectedDesign).status === "active") && (
+                        <div className="flex gap-3 text-sm">
+                          <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
+                          <div>
+                            <p>Design approved</p>
+                            <p className="text-xs text-muted-foreground">{(designDetail || selectedDesign).updated_at ? getTimeAgo((designDetail || selectedDesign).updated_at) : 'N/A'}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex gap-3 pt-4 border-t border-border">
