@@ -268,9 +268,27 @@ async function apiRequest<T>(
       const errorDetails = formatError(errorData, response.status);
       const userMessage = getUserFriendlyMessage(errorDetails);
       
-      // For coupon validation and other endpoints, prefer the error message from errorData
-      // This ensures backend-specific error messages are preserved
-      const finalErrorMessage = errorData?.error || errorData?.detail || userMessage;
+      // For validation errors, extract the first field error or use the error message
+      let finalErrorMessage = errorData?.error || errorData?.detail;
+      
+      // If no direct error message, try to extract from field-specific errors
+      if (!finalErrorMessage && errorData?.errors && typeof errorData.errors === 'object') {
+        // Get first error from any field
+        for (const field in errorData.errors) {
+          if (Array.isArray(errorData.errors[field]) && errorData.errors[field].length > 0) {
+            finalErrorMessage = errorData.errors[field][0];
+            break;
+          } else if (errorData.errors[field]) {
+            finalErrorMessage = String(errorData.errors[field]);
+            break;
+          }
+        }
+      }
+      
+      // Fallback to user-friendly message if still no error
+      if (!finalErrorMessage) {
+        finalErrorMessage = userMessage;
+      }
       
       // Don't log 404 errors for GET endpoints that are expected to return 404 when no data exists
       const isExpected404 = response.status === 404 && 

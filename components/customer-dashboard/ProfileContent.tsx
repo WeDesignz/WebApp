@@ -29,6 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { OTPInput } from "@/components/ui/otp-input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -38,6 +39,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -100,6 +102,13 @@ export default function ProfileContent() {
     staleTime: 30 * 1000,
   });
 
+  // Load profile image from user profile
+  useEffect(() => {
+    if (userProfileData?.profile_photo_url) {
+      setProfileImage(userProfileData.profile_photo_url);
+    }
+  }, [userProfileData]);
+
   // Fetch designer profile for bio
   const { data: designerProfileData } = useQuery({
     queryKey: ['designerProfile'],
@@ -143,9 +152,18 @@ export default function ProfileContent() {
 
   useEffect(() => {
     if (designerProfileData) {
+      // Format date_of_birth for date input (YYYY-MM-DD)
+      let formattedDate = "";
+      if (designerProfileData.date_of_birth) {
+        const date = new Date(designerProfileData.date_of_birth);
+        if (!isNaN(date.getTime())) {
+          formattedDate = date.toISOString().split('T')[0];
+        }
+      }
       setFormData((prev) => ({
         ...prev,
         bio: designerProfileData.bio || "",
+        dateOfBirth: formattedDate,
       }));
     }
   }, [designerProfileData]);
@@ -192,9 +210,11 @@ export default function ProfileContent() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      let photoResponse: any = null;
+      
       // Upload profile photo if changed
       if (profilePhotoFile) {
-        const photoResponse = await apiClient.uploadProfilePhoto(profilePhotoFile);
+        photoResponse = await apiClient.uploadProfilePhoto(profilePhotoFile);
         if (photoResponse.error) {
           toast({
             title: "Photo upload failed",
@@ -207,6 +227,10 @@ export default function ProfileContent() {
             title: "Photo uploaded",
             description: "Profile photo has been updated successfully.",
           });
+          // Update profile image immediately if URL is returned
+          if (photoResponse.data?.profile_photo_url) {
+            setProfileImage(photoResponse.data.profile_photo_url);
+          }
         }
       }
       
@@ -236,6 +260,15 @@ export default function ProfileContent() {
       await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
       await queryClient.invalidateQueries({ queryKey: ['designerProfile'] });
 
+      // Refresh profile image if photo was uploaded but URL wasn't in response
+      if (profilePhotoFile && (!photoResponse?.data?.profile_photo_url)) {
+        // Fallback: fetch profile again to get updated photo URL
+        const profileResponse = await apiClient.getUserProfile();
+        if (profileResponse.data?.profile_photo_url) {
+          setProfileImage(profileResponse.data.profile_photo_url);
+        }
+      }
+
       setProfilePhotoFile(null);
       setIsEditing(false);
       toast({
@@ -254,15 +287,29 @@ export default function ProfileContent() {
   };
 
   const handleCancel = () => {
+    // Format date_of_birth for date input (YYYY-MM-DD)
+    let formattedDate = "";
+    if (designerProfileData?.date_of_birth) {
+      const date = new Date(designerProfileData.date_of_birth);
+      if (!isNaN(date.getTime())) {
+        formattedDate = date.toISOString().split('T')[0];
+      }
+    }
+    
     setFormData({
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
       username: user?.username || "",
-      dateOfBirth: "",
+      dateOfBirth: formattedDate,
       bio: designerProfileData?.bio || "",
     });
     setProfilePhotoFile(null);
-    setProfileImage(null);
+    // Reset to original profile image if available
+    if (userProfileData?.profile_photo_url) {
+      setProfileImage(userProfileData.profile_photo_url);
+    } else {
+      setProfileImage(null);
+    }
     setIsEditing(false);
   };
 
@@ -659,7 +706,13 @@ function SecuritySection() {
       });
 
       if (response.error) {
-        throw new Error(response.error);
+        throw new Error(response.error || "Failed to change password");
+      }
+
+      // Check if response has error in data
+      if (response.data && typeof response.data === 'object' && 'error' in response.data) {
+        const errorMessage = typeof response.data.error === 'string' ? response.data.error : "Failed to change password";
+        throw new Error(errorMessage);
       }
 
       setPasswordData({
@@ -851,8 +904,16 @@ function EmailManagementSection() {
 
   const emails: Email[] = emailsData || [];
 
+  // Email validation function
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleAddEmail = async () => {
-    if (!newEmail.trim()) {
+    const trimmedEmail = newEmail.trim();
+    
+    if (!trimmedEmail) {
       toast({
         title: "Validation Error",
         description: "Please enter an email address",
@@ -861,10 +922,20 @@ function EmailManagementSection() {
       return;
     }
 
+    // Validate email format
+    if (!validateEmail(trimmedEmail)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsAddingEmail(true);
     try {
       const response = await apiClient.addEmailAddress({
-        email: newEmail.trim(),
+        email: trimmedEmail,
         is_primary: false,
       });
 
@@ -873,7 +944,7 @@ function EmailManagementSection() {
       }
 
       // OTP will be sent automatically, show verification modal
-      setVerifyingEmail(newEmail.trim());
+      setVerifyingEmail(trimmedEmail);
       setNewEmail("");
       setIsEmailModalOpen(false);
       
@@ -961,7 +1032,7 @@ function EmailManagementSection() {
     }
   };
 
-  const handleDeleteEmail = async (emailId: number, email: string, isPrimary: boolean) => {
+  const handleDeleteEmail = async (emailId: number, email: string, isPrimary: boolean, isVerified: boolean) => {
     if (isPrimary) {
       toast({
         title: "Cannot delete primary email",
@@ -978,6 +1049,19 @@ function EmailManagementSection() {
         variant: "destructive",
       });
       return;
+    }
+
+    // Check if this is the only verified email
+    if (isVerified) {
+      const verifiedEmailsCount = emails.filter(e => e.is_verified).length;
+      if (verifiedEmailsCount <= 1) {
+        toast({
+          title: "Cannot delete verified email",
+          description: "At least one verified email must remain. Please verify another email first.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     if (!confirm(`Are you sure you want to delete ${email}?`)) {
@@ -1020,6 +1104,29 @@ function EmailManagementSection() {
       });
     }
   };
+
+  // Send OTP automatically when verification modal opens
+  useEffect(() => {
+    if (verifyingEmail) {
+      const sendOTP = async () => {
+        try {
+          await sendEmailOTP(verifyingEmail);
+          toast({
+            title: "OTP sent",
+            description: "An OTP has been sent to your email.",
+          });
+        } catch (error: any) {
+          toast({
+            title: "Error",
+            description: error.message || "Failed to send OTP",
+            variant: "destructive",
+          });
+        }
+      };
+      sendOTP();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verifyingEmail]);
 
   return (
     <>
@@ -1121,8 +1228,8 @@ function EmailManagementSection() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDeleteEmail(email.id, email.email, email.is_primary)}
-                        disabled={email.is_primary || emails.length <= 1}
+                        onClick={() => handleDeleteEmail(email.id, email.email, email.is_primary, email.is_verified)}
+                        disabled={email.is_primary || emails.length <= 1 || (email.is_verified && emails.filter(e => e.is_verified).length <= 1)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -1194,14 +1301,11 @@ function EmailManagementSection() {
               Enter the 6-digit OTP sent to <strong>{verifyingEmail}</strong>
             </p>
             <div className="space-y-2">
-              <Label htmlFor="otp">OTP</Label>
-              <Input
-                id="otp"
-                type="text"
+              <Label>OTP</Label>
+              <OTPInput
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="Enter 6-digit OTP"
-                maxLength={6}
+                onChange={(value) => setOtp(value)}
+                disabled={isVerifying}
               />
             </div>
             <div className="flex gap-3">
@@ -1281,8 +1385,18 @@ function MobileNumbersSection() {
 
   const mobileNumbers: MobileNumber[] = userProfileData?.mobile_numbers || [];
 
+  // Mobile number validation function
+  const validateMobileNumber = (mobile: string): boolean => {
+    // Remove any non-digit characters
+    const digitsOnly = mobile.replace(/\D/g, '');
+    // Check if it's exactly 10 digits
+    return digitsOnly.length === 10;
+  };
+
   const handleAddMobileNumber = async () => {
-    if (!newMobileNumber.trim()) {
+    const trimmedMobile = newMobileNumber.trim();
+    
+    if (!trimmedMobile) {
       toast({
         title: "Validation Error",
         description: "Please enter a mobile number",
@@ -1291,31 +1405,85 @@ function MobileNumbersSection() {
       return;
     }
 
+    // Validate mobile number format (10 digits)
+    if (!validateMobileNumber(trimmedMobile)) {
+      toast({
+        title: "Invalid Mobile Number",
+        description: "Please enter a valid 10-digit mobile number",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsAddingMobile(true);
     try {
       const response = await apiClient.addMobileNumber({
-        mobile_number: newMobileNumber.trim(),
+        mobile_number: trimmedMobile,
       });
 
       if (response.error) {
         throw new Error(response.error);
       }
+      
+      // Check if response has error in data
+      if (response.data && typeof response.data === 'object' && 'error' in response.data) {
+        const errorMsg = typeof response.data.error === 'string' ? response.data.error : 'Failed to add mobile number';
+        throw new Error(errorMsg);
+      }
 
-      // OTP will be sent automatically, show verification modal
-      setVerifyingMobile(newMobileNumber.trim());
+      // Show verification modal immediately (demo mode - no SMS sent)
+      setVerifyingMobile(trimmedMobile);
       setNewMobileNumber("");
       setIsMobileModalOpen(false);
       
       toast({
         title: "Mobile number added",
-        description: "Please verify your mobile number with the OTP sent to your phone.",
+        description: "Please verify your mobile number with the OTP.",
       });
 
       await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
     } catch (error: any) {
+      // Extract error message from response - check multiple possible locations
+      let errorMessage = "Failed to add mobile number";
+      
+      // Check response.error first (from apiRequest)
+      if (error?.error) {
+        errorMessage = error.error;
+      } 
+      // Check response.data.error (if error is in data)
+      else if (error?.data?.error) {
+        errorMessage = error.data.error;
+      }
+      // Check for field-specific errors (e.g., mobile_number validation)
+      else if (error?.data?.errors) {
+        const errors = error.data.errors;
+        // Get first error from any field
+        for (const field in errors) {
+          if (Array.isArray(errors[field]) && errors[field].length > 0) {
+            errorMessage = errors[field][0];
+            break;
+          } else if (errors[field]) {
+            errorMessage = String(errors[field]);
+            break;
+          }
+        }
+      }
+      // Check error.message (standard Error object)
+      else if (error?.message) {
+        errorMessage = error.message;
+      }
+      // Check errorDetails.message
+      else if (error?.errorDetails?.message) {
+        errorMessage = error.errorDetails.message;
+      }
+      // Check if error is a string
+      else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to add mobile number",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -1356,11 +1524,94 @@ function MobileNumbersSection() {
     } catch (error: any) {
       toast({
         title: "Verification failed",
-        description: error.message || "Invalid OTP. Please try again.",
+        description: error.message || "Invalid OTP. Please use 123456 for demo.",
         variant: "destructive",
       });
     } finally {
       setIsVerifying(false);
+    }
+  };
+
+  const handleSetPrimaryMobile = async (mobileId: number) => {
+    try {
+      const response = await apiClient.updateMobileNumber(mobileId, {
+        is_primary: true,
+      });
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      toast({
+        title: "Primary mobile number updated",
+        description: "Primary mobile number has been updated successfully.",
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      await queryClient.invalidateQueries({ queryKey: ['user'] });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to set primary mobile number",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteMobileNumber = async (mobileId: number, mobileNumber: string, isPrimary: boolean, isVerified: boolean) => {
+    if (isPrimary) {
+      toast({
+        title: "Cannot delete primary mobile number",
+        description: "Please set another mobile number as primary before deleting this one.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (mobileNumbers.length <= 1) {
+      toast({
+        title: "Cannot delete last mobile number",
+        description: "You must have at least one mobile number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if this is the only verified mobile number
+    if (isVerified) {
+      const verifiedMobilesCount = mobileNumbers.filter(m => m.is_verified).length;
+      if (verifiedMobilesCount <= 1) {
+        toast({
+          title: "Cannot delete verified mobile number",
+          description: "At least one verified mobile number must remain. Please verify another mobile number first.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    if (!confirm(`Are you sure you want to delete ${mobileNumber}?`)) {
+      return;
+    }
+
+    try {
+      const response = await apiClient.deleteMobileNumber(mobileId);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      toast({
+        title: "Mobile number deleted",
+        description: "Mobile number has been deleted successfully.",
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete mobile number",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1382,6 +1633,18 @@ function MobileNumbersSection() {
       });
     }
   };
+
+  // Send OTP automatically when verification modal opens (demo mode - show message)
+  useEffect(() => {
+    if (verifyingMobile) {
+      // In demo mode, we don't actually send SMS, but we show a message
+      toast({
+        title: "Demo Mode",
+        description: "Use OTP 123456 to verify your mobile number.",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verifyingMobile]);
 
   return (
     <>
@@ -1454,6 +1717,20 @@ function MobileNumbersSection() {
                       </p>
                     </div>
                     <div className="flex gap-2">
+                      {!mobile.is_primary && mobile.is_verified && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSetPrimaryMobile(mobile.id)}
+                        >
+                          Set Primary
+                        </Button>
+                      )}
+                      {!mobile.is_primary && !mobile.is_verified && (
+                        <p className="text-xs text-muted-foreground">
+                          Verify to set as primary
+                        </p>
+                      )}
                       {!mobile.is_verified && (
                         <Button
                           variant="outline"
@@ -1466,6 +1743,14 @@ function MobileNumbersSection() {
                           Verify
                         </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteMobileNumber(mobile.id, mobile.mobile_number, mobile.is_primary, mobile.is_verified)}
+                        disabled={mobile.is_primary || mobileNumbers.length <= 1 || (mobile.is_verified && mobileNumbers.filter(m => m.is_verified).length <= 1)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                 </motion.div>
@@ -1480,6 +1765,9 @@ function MobileNumbersSection() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Mobile Number</DialogTitle>
+            <DialogDescription>
+              Add a new mobile number to your account. You'll need to verify it with an OTP.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -1488,11 +1776,15 @@ function MobileNumbersSection() {
                 id="newMobileNumber"
                 type="tel"
                 value={newMobileNumber}
-                onChange={(e) => setNewMobileNumber(e.target.value)}
-                placeholder="+1234567890"
+                onChange={(e) => {
+                  // Only allow digits
+                  const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setNewMobileNumber(digitsOnly);
+                }}
+                placeholder="1234567890"
               />
               <p className="text-xs text-muted-foreground">
-                Include country code (e.g., +1 for US)
+                Enter a 10-digit mobile number
               </p>
             </div>
             <div className="flex gap-3">
@@ -1531,20 +1823,25 @@ function MobileNumbersSection() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Verify Mobile Number</DialogTitle>
+            <DialogDescription>
+              Enter the 6-digit OTP to verify your mobile number.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Enter the 6-digit OTP sent to <strong>{verifyingMobile}</strong>
             </p>
+            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+              <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                <strong>Demo Mode:</strong> Use OTP <strong>123456</strong> to verify
+              </p>
+            </div>
             <div className="space-y-2">
-              <Label htmlFor="otp">OTP</Label>
-              <Input
-                id="otp"
-                type="text"
+              <Label>OTP</Label>
+              <OTPInput
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="Enter 6-digit OTP"
-                maxLength={6}
+                onChange={(value) => setOtp(value)}
+                disabled={isVerifying}
               />
             </div>
             <div className="flex gap-3">

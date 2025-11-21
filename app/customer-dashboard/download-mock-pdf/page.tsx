@@ -204,7 +204,7 @@ function DownloadMockPDFPageContent() {
         } else {
           toast({
             title: "Selection limit reached",
-            description: `You can only select ${freeDesignsCount} designs for your free PDF.`,
+            description: `You can select up to ${freeDesignsCount} designs for your free PDF.`,
             variant: "destructive",
           });
         }
@@ -267,10 +267,20 @@ function DownloadMockPDFPageContent() {
         }, 2000);
       } else {
         // Use selected designs
-        if (selectedDesignIds.size !== freeDesignsCount) {
+        if (selectedDesignIds.size === 0) {
           toast({
-            title: "Selection incomplete",
-            description: `Please select exactly ${freeDesignsCount} designs.`,
+            title: "No designs selected",
+            description: `Please select at least 1 design (up to ${freeDesignsCount} designs).`,
+            variant: "destructive",
+          });
+          setIsDownloading(false);
+          return;
+        }
+
+        if (selectedDesignIds.size > freeDesignsCount) {
+          toast({
+            title: "Too many designs selected",
+            description: `You can only select up to ${freeDesignsCount} designs.`,
             variant: "destructive",
           });
           setIsDownloading(false);
@@ -278,11 +288,12 @@ function DownloadMockPDFPageContent() {
         }
 
         const designIds = Array.from(selectedDesignIds);
+        const selectedCount = designIds.length;
 
         // Create PDF request with specific products
         const createResponse = await apiClient.createPDFRequest({
           download_type: "free",
-          total_pages: freeDesignsCount,
+          total_pages: selectedCount, // Use actual number of selected designs
           selection_type: "specific",
           selected_products: designIds,
         });
@@ -330,7 +341,7 @@ function DownloadMockPDFPageContent() {
     pdfConfig && 
     (selectionMode === "firstN" 
       ? firstNDesigns.length >= freeDesignsCount 
-      : selectedDesignIds.size === freeDesignsCount);
+      : selectedDesignIds.size > 0 && selectedDesignIds.size <= freeDesignsCount);
 
   return (
     <ProtectedRoute>

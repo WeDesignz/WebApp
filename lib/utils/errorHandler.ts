@@ -52,7 +52,19 @@ export function extractErrorMessage(error: any): string {
   if (error.error) return error.error;
   if (error.detail) return error.detail;
 
-  // Validation errors
+  // Validation errors - check for field-specific errors
+  if (error.errors && typeof error.errors === 'object') {
+    // Get first error from any field
+    for (const field in error.errors) {
+      if (Array.isArray(error.errors[field]) && error.errors[field].length > 0) {
+        return error.errors[field][0];
+      } else if (error.errors[field]) {
+        return String(error.errors[field]);
+      }
+    }
+  }
+  
+  // Validation errors - non-field errors
   if (error.non_field_errors && Array.isArray(error.non_field_errors)) {
     return error.non_field_errors[0];
   }
