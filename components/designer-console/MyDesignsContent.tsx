@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { 
   Search, 
   Grid3x3, 
@@ -50,6 +50,7 @@ import { apiClient } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useStudioAccess } from "@/contexts/StudioAccessContext";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -213,6 +214,35 @@ export default function MyDesignsContent() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasFullAccess, isStudioMember } = useStudioAccess();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const hasProcessedSearchParam = useRef(false);
+
+  // Check for search parameter in URL query params and set search query (only once)
+  useEffect(() => {
+    if (!hasProcessedSearchParam.current) {
+      const searchParam = searchParams.get('search');
+      if (searchParam) {
+        // Set the search query from URL parameter
+        setSearchQuery(searchParam);
+        hasProcessedSearchParam.current = true;
+        // Remove search param from URL after setting it to clean up
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('search');
+        const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+        router.replace(newUrl, { scroll: false });
+      } else {
+        hasProcessedSearchParam.current = true;
+      }
+    }
+  }, [searchParams, router]);
+
+  // Reset ref when component unmounts or searchParams change to allow new searches
+  useEffect(() => {
+    return () => {
+      hasProcessedSearchParam.current = false;
+    };
+  }, []);
 
   // Debounce search query
   useEffect(() => {
@@ -271,6 +301,29 @@ export default function MyDesignsContent() {
   const totalPages = designsData?.total_pages || 1;
   const totalCount = designsData?.total_count || 0;
 
+  // Define toggleSelectAll after designs is defined to avoid initialization error
+  const toggleSelectAll = () => {
+    if (selectedDesigns.size === designs.length) {
+      setSelectedDesigns(new Set());
+    } else {
+      setSelectedDesigns(new Set(designs.map(d => d.id)));
+    }
+  };
+
+  // Check for search parameter in URL query params and set search query
+  useEffect(() => {
+    const searchParam = searchParams.get('search');
+    if (searchParam) {
+      // Set the search query from URL parameter
+      setSearchQuery(searchParam);
+      // Remove search param from URL after setting it to clean up
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('search');
+      const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+      router.replace(newUrl, { scroll: false });
+    }
+  }, [searchParams]); // Only check when searchParams changes
+
   // Fetch design detail when selected
   const { data: designDetail } = useQuery({
     queryKey: ['designDetail', selectedDesign?.id],
@@ -315,13 +368,6 @@ export default function MyDesignsContent() {
     setSelectedDesigns(newSelected);
   };
 
-  const toggleSelectAll = () => {
-    if (selectedDesigns.size === designs.length) {
-      setSelectedDesigns(new Set());
-    } else {
-      setSelectedDesigns(new Set(designs.map(d => d.id)));
-    }
-  };
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -727,11 +773,11 @@ export default function MyDesignsContent() {
                   <th className="p-3 cursor-pointer hover:text-primary" onClick={() => handleSort("status")}>
                     Status {sortColumn === "status" && (sortDirection === "asc" ? "↑" : "↓")}
                   </th>
-                  <th className="p-3 cursor-pointer hover:text-primary" onClick={() => handleSort("views")}>
-                    Views {sortColumn === "views" && (sortDirection === "asc" ? "↑" : "↓")}
-                  </th>
                   {hasFullAccess && (
                     <>
+                      <th className="p-3 cursor-pointer hover:text-primary" onClick={() => handleSort("views")}>
+                        Views {sortColumn === "views" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
                       <th className="p-3 cursor-pointer hover:text-primary" onClick={() => handleSort("downloads")}>
                         Downloads {sortColumn === "downloads" && (sortDirection === "asc" ? "↑" : "↓")}
                       </th>

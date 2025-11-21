@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useDesignerVerification } from "@/contexts/DesignerVerificationContext";
 import { useStudioAccess } from "@/contexts/StudioAccessContext";
 import { useQuery } from "@tanstack/react-query";
@@ -66,6 +67,7 @@ export default function DashboardContent() {
   const { isVerified, verificationStatus } = useDesignerVerification();
   const { hasFullAccess, isStudioMember, studioMembership, studioId } = useStudioAccess();
   const { user } = useAuth();
+  const router = useRouter();
   const today = new Date();
   const currentDay = today.getDate();
   const isSettlementWindow = currentDay >= 5 && currentDay <= 10;
@@ -386,13 +388,13 @@ export default function DashboardContent() {
           </Card>
 
           {isLoadingDashboard ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className={`grid ${isStudioMember && !hasFullAccess ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2 md:grid-cols-3'} gap-4`}>
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <SkeletonKPICard key={i} />
               ))}
             </div>
           ) : dashboardError ? null : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className={`grid ${isStudioMember && !hasFullAccess ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'} gap-4`}>
               <TooltipProvider>
                 {kpiCards.map((card) => {
                   const Icon = card.icon;
@@ -509,10 +511,11 @@ export default function DashboardContent() {
                       {recentDesigns.map((design: any) => (
                         <tr 
                           key={design.id} 
-                          className="border-b border-border/50 last:border-0 hover:bg-muted/50 transition-colors duration-150 group"
+                          className="border-b border-border/50 last:border-0 hover:bg-muted/50 transition-colors duration-150 group cursor-pointer"
+                          onClick={() => router.push(`/designer-console/designs?search=${encodeURIComponent(design.title || '')}`)}
                         >
                           <td className="py-4 pr-4">
-                            <Link href={`/designer-console/designs/${design.id}`} className="flex items-center gap-3 group/link">
+                            <div className="flex items-center gap-3 group/link">
                               <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20 flex-shrink-0 flex items-center justify-center overflow-hidden shadow-sm group-hover:shadow-md transition-shadow">
                                 {design.thumbnail ? (
                                   <img src={design.thumbnail} alt={design.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
@@ -520,10 +523,10 @@ export default function DashboardContent() {
                                   <Upload className="w-6 h-6 text-muted-foreground" />
                                 )}
                               </div>
-                              <span className="font-semibold text-sm group-hover/link:text-primary transition-colors line-clamp-1">{design.title}</span>
-                            </Link>
+                              <span className="font-semibold text-sm group-hover:text-primary transition-colors line-clamp-1">{design.title}</span>
+                            </div>
                           </td>
-                          <td className="py-4 pr-4">
+                          <td className="py-4 pr-4" onClick={(e) => e.stopPropagation()}>
                             <Badge 
                               variant={
                                 design.status === "active" || design.status === "approved" ? "default" : 
@@ -724,8 +727,8 @@ export default function DashboardContent() {
                   )}
                   {studioInfo?.address && (
                     <div className="pt-2 border-t border-border/50">
-                      <span className="text-sm text-muted-foreground font-medium block mb-1.5">Address</span>
-                      <p className="text-sm text-foreground leading-relaxed">
+                      <span className="text-sm text-muted-foreground font-medium block mb-1.5">Office Address</span>
+                      <p className="text-sm text-foreground leading-relaxed whitespace-normal break-words">
                         {studioInfo.address}
                       </p>
                     </div>
