@@ -94,15 +94,29 @@ export default function ProfileContent() {
         skillTags: designerProfile.skill_tags || [],
       }));
       
-      // Set profile photo from media
-      if (designerProfile.media && designerProfile.media.length > 0) {
-        const profilePhoto = designerProfile.media.find((m: any) => m.media_type === 'image');
-        if (profilePhoto?.file) {
-          setPhotoPreview(profilePhoto.file);
+      // Set profile photo from media (only if not already set from upload)
+      if (!photoFile && designerProfile.media && designerProfile.media.length > 0) {
+        // First try to find profile photo by meta type
+        let profilePhoto = designerProfile.media.find((m: any) => 
+          m.meta?.type === 'profile_photo'
+        );
+        
+        // If not found, get first image
+        if (!profilePhoto) {
+          profilePhoto = designerProfile.media.find((m: any) => 
+            m.media_type === 'image'
+          );
+        }
+        
+        if (profilePhoto) {
+          const photoUrl = profilePhoto.file_url || profilePhoto.file || profilePhoto.url;
+          if (photoUrl) {
+            setPhotoPreview(photoUrl);
+          }
         }
       }
     }
-  }, [designerProfile]);
+  }, [designerProfile, photoFile]);
 
   // Update designer profile mutation
   const updateProfileMutation = useMutation({
@@ -183,6 +197,30 @@ export default function ProfileContent() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      // Upload profile photo first if changed
+      if (photoFile) {
+        const photoResponse = await apiClient.uploadProfilePhoto(photoFile);
+        if (photoResponse.error) {
+          toast({
+            title: "Photo upload failed",
+            description: photoResponse.error || "Failed to upload profile photo",
+            variant: "destructive",
+          });
+          // Continue with profile update even if photo upload fails
+        } else {
+          toast({
+            title: "Photo uploaded",
+            description: "Profile photo has been updated successfully.",
+          });
+          // Update preview with the new photo URL if provided
+          if (photoResponse.data?.profile_photo_url) {
+            setPhotoPreview(photoResponse.data.profile_photo_url);
+          }
+          // Clear the file so it doesn't try to upload again
+          setPhotoFile(null);
+        }
+      }
+
       // Update user profile (firstName, lastName) via AuthContext if available
       if (typeof updateUser === 'function' && (profileData.firstName !== user?.firstName || profileData.lastName !== user?.lastName)) {
         // Note: Email and phone updates should go through separate verification flows
@@ -195,14 +233,8 @@ export default function ProfileContent() {
         skill_tags: profileData.skillTags,
       });
 
-      // TODO: Handle profile photo upload if photoFile is set
-      // This would require a separate endpoint for media upload
-      if (photoFile) {
-        toast({
-          title: "Photo upload",
-          description: "Profile photo upload will be implemented with media upload endpoint.",
-        });
-      }
+      // Invalidate queries to refresh profile data including photo
+      await queryClient.invalidateQueries({ queryKey: ['designerProfile'] });
     } catch (error) {
       // Error handled by mutation
     } finally {
@@ -223,7 +255,20 @@ export default function ProfileContent() {
         skillTags: designerProfile?.skill_tags || [],
       });
     }
-    setPhotoPreview(null);
+    // Reset photo preview to original from profile
+    if (designerProfile?.media && designerProfile.media.length > 0) {
+      const profilePhoto = designerProfile.media.find((m: any) => 
+        m.meta?.type === 'profile_photo' || (m.media_type === 'image' && !photoPreview)
+      );
+      if (profilePhoto) {
+        const photoUrl = profilePhoto.file_url || profilePhoto.file || profilePhoto.url;
+        setPhotoPreview(photoUrl || null);
+      } else {
+        setPhotoPreview(null);
+      }
+    } else {
+      setPhotoPreview(null);
+    }
     setPhotoFile(null);
   };
 
@@ -433,9 +478,9 @@ export default function ProfileContent() {
             <div className="flex items-center gap-6">
               <div className="relative">
                 <Avatar className="w-24 h-24">
-                  <AvatarImage src={photoPreview || undefined} />
+                  <AvatarImage src={photoPreview || undefined} alt="Profile photo" />
                   <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-purple-600">
-                    {profileData.firstName.charAt(0)}{profileData.lastName.charAt(0)}
+                    {profileData.firstName?.charAt(0) || ''}{profileData.lastName?.charAt(0) || ''}
                   </AvatarFallback>
                 </Avatar>
                 {isEditing && (
