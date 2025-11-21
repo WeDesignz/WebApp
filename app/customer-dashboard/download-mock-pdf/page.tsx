@@ -14,6 +14,7 @@ import {
   FileText,
   AlertCircle,
   ChevronDown,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -50,6 +51,14 @@ function DownloadMockPDFPageContent() {
   // Selected designs (only for "selected" mode)
   const [selectedDesignIds, setSelectedDesignIds] = useState<Set<number>>(new Set());
   
+  // Track if free PDF alert has been dismissed
+  const [isFreePDFAlertDismissed, setIsFreePDFAlertDismissed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('freePDFAlertDismissed') === 'true';
+    }
+    return false;
+  });
+  
   // PDF config and eligibility
   const [pdfConfig, setPdfConfig] = useState<{
     free_pdf_designs_count: number;
@@ -63,6 +72,9 @@ function DownloadMockPDFPageContent() {
 
   const isAuthenticated = !!user;
   const freeDesignsCount = pdfConfig?.free_pdf_designs_count || 50;
+  
+  // Design count selection (for paid downloads or when user wants to select count)
+  const [selectedDesignCount, setSelectedDesignCount] = useState<number>(50);
 
   // Fetch PDF configuration
   const { data: configData } = useQuery({
@@ -80,8 +92,33 @@ function DownloadMockPDFPageContent() {
   useEffect(() => {
     if (configData) {
       setPdfConfig(configData);
+      // Set default design count to first option in paid PDF options (or free count if eligible)
+      if (configData.paid_pdf_designs_options && configData.paid_pdf_designs_options.length > 0) {
+        setSelectedDesignCount(configData.paid_pdf_designs_options[0]);
+      }
     }
   }, [configData]);
+
+  // Refresh data when component mounts (navigating to page)
+  useEffect(() => {
+    // Reset selection state first
+    setSelectedDesignIds(new Set());
+    setSearchQuery("");
+    setSelectedCategory("all");
+    setSelectionMode("firstN");
+    
+    // Reset design count to default when page loads
+    if (pdfConfig?.paid_pdf_designs_options && pdfConfig.paid_pdf_designs_options.length > 0) {
+      setSelectedDesignCount(pdfConfig.paid_pdf_designs_options[0]);
+    }
+    
+    // Invalidate and refetch all relevant queries to refresh the page
+    // This will automatically trigger refetch for all queries
+    queryClient.invalidateQueries({ queryKey: ['freePDFDesigns'] });
+    queryClient.invalidateQueries({ queryKey: ['pdfConfig'] });
+    queryClient.invalidateQueries({ queryKey: ['pdfEligibility'] });
+    queryClient.invalidateQueries({ queryKey: ['categories'] });
+  }, []); // Run only on mount
 
   // Check eligibility
   const { data: eligibilityData } = useQuery({
@@ -98,6 +135,9 @@ function DownloadMockPDFPageContent() {
   });
 
   const isEligible = eligibilityData?.is_eligible ?? false;
+  
+  // Determine the actual design count to use (must be after isEligible is defined)
+  const actualDesignCount = isEligible ? freeDesignsCount : selectedDesignCount;
 
   // Fetch categories
   const { data: categoriesData } = useQuery({
@@ -122,8 +162,9 @@ function DownloadMockPDFPageContent() {
     isFetchingNextPage,
     isLoading,
     error,
+    refetch,
   } = useInfiniteQuery({
-    queryKey: ['freePDFDesigns', searchQuery, selectedCategory],
+    queryKey: ['freePDFDesigns', searchQuery, selectedCategory, actualDesignCount],
     queryFn: async ({ pageParam = 1 }) => {
       if (searchQuery || (selectedCategory && selectedCategory !== 'all')) {
         const categoryId = selectedCategory && selectedCategory !== 'all' 
@@ -222,19 +263,23 @@ function DownloadMockPDFPageContent() {
   });
 
   // Products are already filtered in the queryFn to only include those with mockups
-  const products = data?.pages.flatMap(page => page.products) || [];
+  const allProducts = data?.pages.flatMap(page => page.products) || [];
   
-  // Get first N designs for "firstN" mode
-  const firstNDesigns = products.slice(0, freeDesignsCount);
+  // Limit products to the selected design count
+  const products = allProducts.slice(0, actualDesignCount);
+  
+  // Get first N designs for "firstN" mode (use actualDesignCount)
+  const firstNDesigns = products.slice(0, actualDesignCount);
   
   // Get selected designs for "selected" mode
   const selectedDesigns = products.filter(p => selectedDesignIds.has(p.id));
 
-  // Infinite scroll observer
+  // Infinite scroll observer - only fetch more if we don't have enough products
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+        // Only fetch more if we have less than required products
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage && products.length < actualDesignCount) {
           fetchNextPage();
         }
       },
@@ -246,7 +291,7 @@ function DownloadMockPDFPageContent() {
     }
 
     return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, products.length, actualDesignCount]);
 
   const handleDesignToggle = (productId: number) => {
     if (selectionMode !== "selected") return;
@@ -256,15 +301,16 @@ function DownloadMockPDFPageContent() {
       if (newSet.has(productId)) {
         newSet.delete(productId);
       } else {
-        if (newSet.size < freeDesignsCount) {
-          newSet.add(productId);
-        } else {
-          toast({
-            title: "Selection limit reached",
-            description: `You can select exactly ${freeDesignsCount} designs.`,
-            variant: "destructive",
-          });
-        }
+      const maxCount = isEligible ? freeDesignsCount : selectedDesignCount;
+      if (newSet.size < maxCount) {
+        newSet.add(productId);
+      } else {
+        toast({
+          title: "Selection limit reached",
+          description: `You can select exactly ${maxCount} designs.`,
+          variant: "destructive",
+        });
+      }
       }
       return newSet;
     });
@@ -281,17 +327,18 @@ function DownloadMockPDFPageContent() {
     }
 
     // Check if enough designs are available/selected
+    const requiredCount = isFreeDownload ? freeDesignsCount : selectedDesignCount;
     const selectedCount = selectionMode === "firstN" 
       ? firstNDesigns.length 
       : selectedDesignIds.size;
     
-    // For "firstN" mode, use whatever products are loaded (up to freeDesignsCount)
-    // For "selected" mode, require exactly freeDesignsCount for paid downloads
+    // For "firstN" mode, use whatever products are loaded (up to requiredCount)
+    // For "selected" mode, require exactly requiredCount
     if (selectionMode === "selected") {
-      if (selectedCount !== freeDesignsCount) {
+      if (selectedCount !== requiredCount) {
         toast({
           title: "Selection required",
-          description: `Please select exactly ${freeDesignsCount} designs to proceed.`,
+          description: `Please select exactly ${requiredCount} designs to proceed.`,
           variant: "destructive",
         });
         return;
@@ -305,11 +352,11 @@ function DownloadMockPDFPageContent() {
         });
         return;
       }
-      // For paid downloads in "firstN" mode, we still need exactly N products
-      if (!isFreeDownload && selectedCount !== freeDesignsCount) {
+      // For paid downloads in "firstN" mode, we need exactly selectedDesignCount products
+      if (!isFreeDownload && selectedCount !== requiredCount) {
         toast({
           title: "Insufficient products",
-          description: `Please ensure at least ${freeDesignsCount} products are loaded. Try adjusting your filters or scrolling to load more products.`,
+          description: `Please ensure at least ${requiredCount} products are loaded. Try adjusting your filters or scrolling to load more products.`,
           variant: "destructive",
         });
         return;
@@ -327,9 +374,8 @@ function DownloadMockPDFPageContent() {
         // Get product IDs from the first N designs that are currently loaded
         const firstNProductIds = firstNDesigns.map(p => p.id);
         
-        // For free downloads, must use exactly freeDesignsCount
-        // For paid downloads, use the actual count (up to freeDesignsCount)
-        const productCount = isFreeDownload ? freeDesignsCount : Math.min(firstNProductIds.length, freeDesignsCount);
+        // Use the required count (freeDesignsCount for free, selectedDesignCount for paid)
+        const productCount = isFreeDownload ? freeDesignsCount : selectedDesignCount;
         const productIdsToUse = firstNProductIds.slice(0, productCount);
         
         // Ensure we have enough products
@@ -355,9 +401,10 @@ function DownloadMockPDFPageContent() {
         const designIds = Array.from(selectedDesignIds);
 
         // Create PDF request with specific products
+        const productCount = isFreeDownload ? freeDesignsCount : selectedDesignCount;
         const createResponse = await apiClient.createPDFRequest({
           download_type: downloadType,
-          total_pages: freeDesignsCount,
+          total_pages: productCount,
           selection_type: "specific",
           selected_products: designIds,
         });
@@ -387,13 +434,23 @@ function DownloadMockPDFPageContent() {
 
         const { razorpay_order_id, payment_id } = paymentOrderResponse.data;
 
+        // Validate payment order response
+        if (!razorpay_order_id || !payment_id) {
+          console.error('Payment order response missing required fields:', {
+            razorpay_order_id,
+            payment_id,
+            fullResponse: paymentOrderResponse.data
+          });
+          throw new Error('Invalid payment order response. Missing razorpay_order_id or payment_id.');
+        }
+
         // Initialize Razorpay checkout
         const paymentResult = await initializeRazorpayCheckout({
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
           amount: price * 100, // Convert rupees to paise
           currency: 'INR',
           name: 'WeDesign',
-          description: `PDF Download - ${freeDesignsCount} designs`,
+          description: `PDF Download - ${selectedDesignCount} designs`,
           order_id: razorpay_order_id,
           theme: {
             color: '#8B5CF6',
@@ -404,6 +461,23 @@ function DownloadMockPDFPageContent() {
           throw new Error(paymentResult.error || 'Payment failed or cancelled');
         }
 
+        // Validate capture payment data
+        if (!payment_id || !paymentResult.razorpay_payment_id || !price || price <= 0) {
+          console.error('Invalid capture payment data:', {
+            payment_id,
+            razorpay_payment_id: paymentResult.razorpay_payment_id,
+            amount: price
+          });
+          throw new Error('Invalid payment data. Missing payment_id, razorpay_payment_id, or amount.');
+        }
+
+        // Log payment data being sent
+        console.log('Sending payment capture request:', {
+          payment_id,
+          razorpay_payment_id: paymentResult.razorpay_payment_id,
+          amount: price
+        });
+
         // Capture payment
         const captureResponse = await apiClient.capturePDFPayment({
           payment_id: payment_id,
@@ -412,7 +486,20 @@ function DownloadMockPDFPageContent() {
         });
 
         if (captureResponse.error) {
-          throw new Error(captureResponse.error || 'Failed to capture payment');
+          // Log detailed error for debugging
+          console.error('PDF Payment Capture Error:', {
+            error: captureResponse.error,
+            errorDetails: captureResponse.errorDetails,
+            received_data: captureResponse.errorDetails?.originalError?.received_data
+          });
+          
+          // Extract detailed error message
+          const errorMessage = captureResponse.errorDetails?.originalError?.error 
+            || captureResponse.errorDetails?.originalError?.received_data 
+            || captureResponse.error 
+            || 'Failed to capture payment';
+          
+          throw new Error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
         }
 
         toast({
@@ -526,10 +613,20 @@ function DownloadMockPDFPageContent() {
               </div>
             </div>
 
-            {/* Eligibility Banner */}
-            {!isEligible && (
-              <Card className="p-4 bg-destructive/10 border-destructive/20">
-                <div className="flex items-center gap-3">
+            {/* Eligibility Banner - Dismissable */}
+            {!isEligible && !isFreePDFAlertDismissed && (
+              <Card className="p-4 bg-destructive/10 border-destructive/20 relative">
+                <button
+                  onClick={() => {
+                    setIsFreePDFAlertDismissed(true);
+                    localStorage.setItem('freePDFAlertDismissed', 'true');
+                  }}
+                  className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Dismiss alert"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="flex items-center gap-3 pr-6">
                   <AlertCircle className="w-5 h-5 text-destructive" />
                   <div>
                     <p className="font-semibold text-destructive">Free PDF Already Used</p>
@@ -537,6 +634,36 @@ function DownloadMockPDFPageContent() {
                       You have already used your free PDF download. Please use paid downloads for additional PDFs.
                     </p>
                   </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Design Count Selection (only for paid downloads) */}
+            {!isEligible && pdfConfig?.paid_pdf_designs_options && (
+              <Card className="p-4">
+                <label className="text-base font-semibold mb-3 block">
+                  Number of Designs
+                </label>
+                <div className="flex gap-2">
+                  {pdfConfig.paid_pdf_designs_options.map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => {
+                        setSelectedDesignCount(opt);
+                        setSelectedDesignIds(new Set()); // Reset selection when count changes
+                        // Refetch products to get the new count
+                        queryClient.invalidateQueries({ queryKey: ['freePDFDesigns'] });
+                      }}
+                      className={`p-3 rounded-lg border-2 transition-all flex-1 ${
+                        selectedDesignCount === opt
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="text-lg font-bold">{opt}</div>
+                      <div className="text-xs text-muted-foreground">Designs</div>
+                    </button>
+                  ))}
                 </div>
               </Card>
             )}
@@ -555,7 +682,7 @@ function DownloadMockPDFPageContent() {
                     }}
                   >
                     <FileText className="w-4 h-4 mr-2" />
-                    First {freeDesignsCount} from Search
+                    First {actualDesignCount} from Search
                   </Button>
                   <Button
                     variant={selectionMode === "selected" ? "default" : "outline"}
@@ -563,14 +690,14 @@ function DownloadMockPDFPageContent() {
                     onClick={() => setSelectionMode("selected")}
                   >
                     <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Select {freeDesignsCount} Specific
+                    Select {actualDesignCount} Specific
                   </Button>
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
                 {selectionMode === "firstN" 
-                  ? `The first ${freeDesignsCount} designs from your filtered results will be included in your PDF.`
-                  : `Manually select exactly ${freeDesignsCount} designs by clicking on them.`}
+                  ? `The first ${actualDesignCount} designs from your filtered results will be included in your PDF.`
+                  : `Manually select exactly ${actualDesignCount} designs by clicking on them.`}
               </p>
             </Card>
 
@@ -609,7 +736,7 @@ function DownloadMockPDFPageContent() {
             {/* Selection Counter (for selected mode) */}
             {selectionMode === "selected" && (
               <Card className={`p-4 border-2 ${
-                selectedDesignIds.size === freeDesignsCount 
+                selectedDesignIds.size === actualDesignCount 
                   ? "bg-primary/10 border-primary" 
                   : "bg-muted/50 border-border"
               }`}>
@@ -617,23 +744,33 @@ function DownloadMockPDFPageContent() {
                   <div>
                     <p className="font-semibold">Selected Designs</p>
                     <p className="text-sm text-muted-foreground">
-                      {selectedDesignIds.size} of {freeDesignsCount} designs selected
+                      {selectedDesignIds.size} of {actualDesignCount} designs selected
                       {selectedDesignIds.size === freeDesignsCount && isPaidDownload && (
                         <span className="ml-2 font-semibold text-primary">Ready to pay ₹{price.toFixed(2)}</span>
                       )}
                     </p>
                   </div>
-                  <Badge variant={selectedDesignIds.size === freeDesignsCount ? "default" : "secondary"}>
-                    {selectedDesignIds.size} / {freeDesignsCount}
+                  <Badge variant={selectedDesignIds.size === actualDesignCount ? "default" : "secondary"}>
+                    {selectedDesignIds.size} / {actualDesignCount}
                   </Badge>
                 </div>
-                {selectedDesignIds.size !== freeDesignsCount && (
+                {selectedDesignIds.size !== actualDesignCount && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    Select exactly {freeDesignsCount} designs to proceed
+                    Select exactly {actualDesignCount} designs to proceed
                   </p>
                 )}
               </Card>
             )}
+
+            {/* Products Count Display */}
+            <div className="text-sm text-muted-foreground mb-4">
+              Showing {products.length} of {actualDesignCount} required designs
+              {products.length < actualDesignCount && (
+                <span className="text-amber-600 dark:text-amber-400 ml-2">
+                  (Need {actualDesignCount - products.length} more)
+                </span>
+              )}
+            </div>
 
             {/* Designs Grid */}
             <div>

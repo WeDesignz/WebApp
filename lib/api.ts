@@ -285,6 +285,11 @@ async function apiRequest<T>(
         }
       }
       
+      // Include received_data in error details if available (for debugging)
+      if (errorData?.received_data) {
+        console.error('API Error - Received Data:', errorData.received_data);
+      }
+      
       // Fallback to user-friendly message if still no error
       if (!finalErrorMessage) {
         finalErrorMessage = userMessage;
