@@ -1239,6 +1239,45 @@ export const apiClient = {
     }>(`/api/catalog/pdf/status/${downloadId}/`);
   },
 
+  createPDFPaymentOrder: async (data: {
+    download_id: number;
+    amount: number;
+  }): Promise<ApiResponse<{
+    razorpay_order_id: string;
+    payment_id: number;
+    download_id: number;
+  }>> => {
+    return apiRequest<{
+      razorpay_order_id: string;
+      payment_id: number;
+      download_id: number;
+    }>('/api/razorpay/pdf-payment/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  capturePDFPayment: async (data: {
+    payment_id: number;
+    razorpay_payment_id: string;
+    amount: number;
+  }): Promise<ApiResponse<{
+    message: string;
+    payment: any;
+    pdf_downloads_updated: number;
+    orders_created?: number[];
+  }>> => {
+    return apiRequest<{
+      message: string;
+      payment: any;
+      pdf_downloads_updated: number;
+      orders_created?: number[];
+    }>('/api/razorpay/pdf-capture-payment/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   downloadPDF: async (downloadId: number) => {
     // This will return a blob, so we need special handling
     const baseUrl = getApiBaseUrl();

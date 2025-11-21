@@ -12,21 +12,21 @@ import {
   Loader2,
   Gift,
   FileText,
-  Grid3x3,
-  List,
   AlertCircle,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { catalogAPI, apiClient } from "@/lib/api";
 import { transformProducts, type TransformedProduct } from "@/lib/utils/transformers";
 import { useToast } from "@/hooks/use-toast";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import ProductModal from "@/components/customer-dashboard/ProductModal";
+import { initializeRazorpayCheckout } from "@/lib/payment";
 
 type Product = TransformedProduct;
 type SelectionMode = "firstN" | "selected";
@@ -35,6 +35,7 @@ function DownloadMockPDFPageContent() {
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const observerRef = useRef<HTMLDivElement>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -42,7 +43,6 @@ function DownloadMockPDFPageContent() {
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Selection mode: "firstN" or "selected"
   const [selectionMode, setSelectionMode] = useState<SelectionMode>("firstN");
@@ -204,7 +204,7 @@ function DownloadMockPDFPageContent() {
         } else {
           toast({
             title: "Selection limit reached",
-            description: `You can select up to ${freeDesignsCount} designs for your free PDF.`,
+            description: `You can select exactly ${freeDesignsCount} designs.`,
             variant: "destructive",
           });
         }
@@ -223,10 +223,15 @@ function DownloadMockPDFPageContent() {
       return;
     }
 
-    if (!isEligible) {
+    // Check if exactly 50 designs are selected for paid download
+    const selectedCount = selectionMode === "firstN" 
+      ? firstNDesigns.length 
+      : selectedDesignIds.size;
+    
+    if (selectedCount !== freeDesignsCount) {
       toast({
-        title: "Not eligible",
-        description: "You have already used your free PDF download.",
+        title: "Selection required",
+        description: `Please select exactly ${freeDesignsCount} designs to proceed.`,
         variant: "destructive",
       });
       return;
@@ -235,6 +240,9 @@ function DownloadMockPDFPageContent() {
     setIsDownloading(true);
 
     try {
+      const downloadType = isFreeDownload ? "free" : "paid";
+      let downloadId: number | null | undefined = null;
+
       if (selectionMode === "firstN") {
         // Use first N designs from current filtered results
         const searchFilters = {
@@ -242,9 +250,9 @@ function DownloadMockPDFPageContent() {
           category: selectedCategory !== "all" ? parseInt(selectedCategory) : undefined,
         };
 
-        // Create PDF request with search_results
+        // Create PDF request
         const createResponse = await apiClient.createPDFRequest({
-          download_type: "free",
+          download_type: downloadType,
           total_pages: freeDesignsCount,
           selection_type: "search_results",
           search_filters: searchFilters,
@@ -254,46 +262,15 @@ function DownloadMockPDFPageContent() {
           throw new Error(createResponse.error || 'Failed to create PDF request');
         }
 
-        const downloadId = createResponse.data.download_id || createResponse.data.id || createResponse.data.pdf_download?.id;
-        
-        toast({
-          title: "PDF request created",
-          description: "Your free PDF is being generated. This may take a few moments.",
-        });
-
-        // Redirect to downloads page or show success
-        setTimeout(() => {
-          router.push('/customer-dashboard?tab=downloads');
-        }, 2000);
+        downloadId = createResponse.data.download_id || createResponse.data.id || createResponse.data.pdf_download?.id || null;
       } else {
         // Use selected designs
-        if (selectedDesignIds.size === 0) {
-          toast({
-            title: "No designs selected",
-            description: `Please select at least 1 design (up to ${freeDesignsCount} designs).`,
-            variant: "destructive",
-          });
-          setIsDownloading(false);
-          return;
-        }
-
-        if (selectedDesignIds.size > freeDesignsCount) {
-          toast({
-            title: "Too many designs selected",
-            description: `You can only select up to ${freeDesignsCount} designs.`,
-            variant: "destructive",
-          });
-          setIsDownloading(false);
-          return;
-        }
-
         const designIds = Array.from(selectedDesignIds);
-        const selectedCount = designIds.length;
 
         // Create PDF request with specific products
         const createResponse = await apiClient.createPDFRequest({
-          download_type: "free",
-          total_pages: selectedCount, // Use actual number of selected designs
+          download_type: downloadType,
+          total_pages: freeDesignsCount,
           selection_type: "specific",
           selected_products: designIds,
         });
@@ -302,14 +279,81 @@ function DownloadMockPDFPageContent() {
           throw new Error(createResponse.error || 'Failed to create PDF request');
         }
 
-        const downloadId = createResponse.data.download_id || createResponse.data.id || createResponse.data.pdf_download?.id;
-        
+        downloadId = createResponse.data.download_id || createResponse.data.id || createResponse.data.pdf_download?.id;
+      }
+
+      if (!downloadId) {
+        throw new Error('Failed to get download ID from response');
+      }
+
+      // Handle payment for paid downloads
+      if (downloadType === "paid" && price > 0) {
+        // Create PDF payment order
+        const paymentOrderResponse = await apiClient.createPDFPaymentOrder({
+          download_id: downloadId,
+          amount: price,
+        });
+
+        if (paymentOrderResponse.error || !paymentOrderResponse.data) {
+          throw new Error(paymentOrderResponse.error || 'Failed to create payment order');
+        }
+
+        const { razorpay_order_id, payment_id } = paymentOrderResponse.data;
+
+        // Initialize Razorpay checkout
+        const paymentResult = await initializeRazorpayCheckout({
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
+          amount: price * 100, // Convert rupees to paise
+          currency: 'INR',
+          name: 'WeDesign',
+          description: `PDF Download - ${freeDesignsCount} designs`,
+          order_id: razorpay_order_id,
+          theme: {
+            color: '#8B5CF6',
+          },
+        });
+
+        if (!paymentResult.success || !paymentResult.razorpay_payment_id) {
+          throw new Error(paymentResult.error || 'Payment failed or cancelled');
+        }
+
+        // Capture payment
+        const captureResponse = await apiClient.capturePDFPayment({
+          payment_id: payment_id,
+          razorpay_payment_id: paymentResult.razorpay_payment_id,
+          amount: price,
+        });
+
+        if (captureResponse.error) {
+          throw new Error(captureResponse.error || 'Failed to capture payment');
+        }
+
+        toast({
+          title: "Payment successful!",
+          description: "Your PDF is being generated. This may take a few moments.",
+        });
+
+        // Invalidate queries to refresh data
+        queryClient.invalidateQueries({ queryKey: ['pdfEligibility'] });
+        queryClient.invalidateQueries({ queryKey: ['pdfDownloads'] });
+        queryClient.invalidateQueries({ queryKey: ['downloads'] });
+
+        // Redirect to downloads page
+        setTimeout(() => {
+          router.push('/customer-dashboard?tab=downloads');
+        }, 2000);
+      } else {
+        // Free download
         toast({
           title: "PDF request created",
           description: "Your free PDF is being generated. This may take a few moments.",
         });
 
-        // Redirect to downloads page or show success
+        // Invalidate queries
+        queryClient.invalidateQueries({ queryKey: ['pdfEligibility'] });
+        queryClient.invalidateQueries({ queryKey: ['pdfDownloads'] });
+
+        // Redirect to downloads page
         setTimeout(() => {
           router.push('/customer-dashboard?tab=downloads');
         }, 2000);
@@ -318,7 +362,7 @@ function DownloadMockPDFPageContent() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to create PDF request",
+        description: error.message || "Failed to process PDF request",
         variant: "destructive",
       });
     } finally {
@@ -335,13 +379,30 @@ function DownloadMockPDFPageContent() {
     }
   };
 
+  // Determine if this is a free or paid download
+  // Free: user is eligible AND has exactly 50 designs
+  // Paid: user is NOT eligible AND has exactly 50 designs
+  const hasExactCount = selectionMode === "firstN" 
+    ? firstNDesigns.length === freeDesignsCount
+    : selectedDesignIds.size === freeDesignsCount;
+  
+  const isFreeDownload = isEligible && hasExactCount;
+  const isPaidDownload = !isEligible && hasExactCount;
+  
   // Check if download button should be enabled
-  const canDownload = 
-    isEligible && 
-    pdfConfig && 
-    (selectionMode === "firstN" 
-      ? firstNDesigns.length >= freeDesignsCount 
-      : selectedDesignIds.size > 0 && selectedDesignIds.size <= freeDesignsCount);
+  // Must have exactly 50 designs selected (either free or paid)
+  const canDownload = pdfConfig && hasExactCount;
+  
+  // Calculate price for paid downloads
+  const calculatePrice = () => {
+    if (!pdfConfig || !isPaidDownload) return 0;
+    if (selectionMode === "selected") {
+      return freeDesignsCount * pdfConfig.pricing.selected_per_design;
+    }
+    return freeDesignsCount * pdfConfig.pricing.first_n_per_design;
+  };
+  
+  const price = calculatePrice();
 
   return (
     <ProtectedRoute>
@@ -361,11 +422,22 @@ function DownloadMockPDFPageContent() {
                 </Button>
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-                    <Gift className="w-6 h-6 text-green-500" />
-                    Get Your Free Mock PDF
+                    {isEligible ? (
+                      <>
+                        <Gift className="w-6 h-6 text-green-500" />
+                        Get Your Free Mock PDF
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-6 h-6 text-primary" />
+                        Download Mock PDF
+                      </>
+                    )}
                   </h1>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Select {freeDesignsCount} designs for your free PDF download
+                    {isEligible 
+                      ? `Select ${freeDesignsCount} designs for your free PDF download`
+                      : `Select exactly ${freeDesignsCount} designs to download (payment required)`}
                   </p>
                 </div>
               </div>
@@ -466,30 +538,38 @@ function DownloadMockPDFPageContent() {
 
             {/* Selection Counter (for selected mode) */}
             {selectionMode === "selected" && (
-              <Card className="p-4 bg-primary/10 border-primary/20">
+              <Card className={`p-4 border-2 ${
+                selectedDesignIds.size === freeDesignsCount 
+                  ? "bg-primary/10 border-primary" 
+                  : "bg-muted/50 border-border"
+              }`}>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold">Selected Designs</p>
                     <p className="text-sm text-muted-foreground">
                       {selectedDesignIds.size} of {freeDesignsCount} designs selected
+                      {selectedDesignIds.size === freeDesignsCount && isPaidDownload && (
+                        <span className="ml-2 font-semibold text-primary">Ready to pay ₹{price.toFixed(2)}</span>
+                      )}
                     </p>
                   </div>
                   <Badge variant={selectedDesignIds.size === freeDesignsCount ? "default" : "secondary"}>
                     {selectedDesignIds.size} / {freeDesignsCount}
                   </Badge>
                 </div>
+                {selectedDesignIds.size !== freeDesignsCount && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Select exactly {freeDesignsCount} designs to proceed
+                  </p>
+                )}
               </Card>
             )}
 
             {/* Designs Grid */}
             <div>
               {isLoading ? (
-                <div className={`grid gap-4 ${
-                  viewMode === "grid" 
-                    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" 
-                    : "grid-cols-1"
-                }`}>
-                  {[...Array(10)].map((_, idx) => (
+                <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+                  {[...Array(12)].map((_, idx) => (
                     <div
                       key={idx}
                       className="aspect-[3/4] rounded-xl bg-muted animate-pulse"
@@ -519,11 +599,7 @@ function DownloadMockPDFPageContent() {
                       Showing first {Math.min(firstNDesigns.length, freeDesignsCount)} of {products.length} designs
                     </div>
                   )}
-                  <div className={`grid gap-4 ${
-                    viewMode === "grid" 
-                      ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" 
-                      : "grid-cols-1"
-                  }`}>
+                  <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                     {(selectionMode === "firstN" ? firstNDesigns : products).map((product, idx) => {
                       const isSelected = selectedDesignIds.has(product.id);
                       const canSelect = selectionMode === "selected" && 
@@ -541,7 +617,9 @@ function DownloadMockPDFPageContent() {
                               ? "border-primary ring-2 ring-primary/50" 
                               : canSelect
                               ? "border-border hover:border-primary/50"
-                              : "border-border/50 opacity-50 cursor-not-allowed"
+                              : selectionMode === "selected"
+                              ? "border-border/50 opacity-50 cursor-not-allowed"
+                              : "border-border hover:border-primary/50"
                           }`}
                         >
                           {product.media && product.media.length > 0 && product.media[0] ? (
@@ -562,11 +640,11 @@ function DownloadMockPDFPageContent() {
                           {/* Selection Checkbox Overlay */}
                           {selectionMode === "selected" && (
                             <div className="absolute top-2 right-2 z-10">
-                              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                              <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all backdrop-blur-sm ${
                                 isSelected
-                                  ? "bg-primary border-primary"
+                                  ? "bg-primary border-primary shadow-lg"
                                   : canSelect
-                                  ? "bg-background/80 border-primary/50 hover:bg-primary/20"
+                                  ? "bg-background/90 border-primary/50 hover:bg-primary/20 shadow-md"
                                   : "bg-background/50 border-muted-foreground/30"
                               }`}>
                                 {isSelected && (
@@ -576,17 +654,20 @@ function DownloadMockPDFPageContent() {
                             </div>
                           )}
 
-                          {/* Product Info Overlay */}
-                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3">
-                            <p className="text-white text-sm font-medium truncate">
+                          {/* Product Info Overlay - Improved */}
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent p-3 pt-6">
+                            <p className="text-white text-xs font-semibold line-clamp-2 leading-tight mb-1">
                               {product.title}
                             </p>
                             {product.category && (
-                              <p className="text-white/70 text-xs truncate">
+                              <p className="text-white/60 text-[10px] truncate uppercase tracking-wide">
                                 {product.category}
                               </p>
                             )}
                           </div>
+                          
+                          {/* Hover overlay for better interaction feedback */}
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 pointer-events-none" />
                         </motion.div>
                       );
                     })}
@@ -604,28 +685,39 @@ function DownloadMockPDFPageContent() {
             <div className="sticky bottom-0 bg-background border-t border-border p-4 -mx-4 md:-mx-6 mt-6 z-10">
               <div className="max-w-7xl mx-auto flex items-center justify-between">
                 <div>
-                  <p className="font-semibold">Free PDF Download</p>
+                  <p className="font-semibold">
+                    {isFreeDownload ? "Free PDF Download" : "Paid PDF Download"}
+                  </p>
                   <p className="text-sm text-muted-foreground">
                     {selectionMode === "firstN"
                       ? `First ${freeDesignsCount} designs from your search`
                       : `${selectedDesignIds.size} of ${freeDesignsCount} designs selected`}
+                    {isPaidDownload && price > 0 && (
+                      <span className="ml-2 font-semibold text-primary">₹{price.toFixed(2)}</span>
+                    )}
                   </p>
                 </div>
                 <Button
                   size="lg"
                   onClick={handleDownload}
                   disabled={!canDownload || isDownloading}
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                  className={
+                    isFreeDownload
+                      ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                      : "bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
+                  }
                 >
                   {isDownloading ? (
                     <>
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Generating PDF...
+                      {isPaidDownload ? "Processing Payment..." : "Generating PDF..."}
                     </>
                   ) : (
                     <>
                       <Download className="w-5 h-5 mr-2" />
-                      Download Free PDF
+                      {isFreeDownload 
+                        ? "Download Free PDF" 
+                        : `Pay ₹${price.toFixed(2)} & Download`}
                     </>
                   )}
                 </Button>
