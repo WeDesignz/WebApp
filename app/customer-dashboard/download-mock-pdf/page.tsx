@@ -140,8 +140,36 @@ function DownloadMockPDFPageContent() {
           throw new Error(response.error);
         }
 
+        const rawProducts = response.data?.results || [];
+        // Filter products to only include those with mockup images
+        const productsWithMockups = rawProducts.filter((product: any) => {
+          if (!product.media || !Array.isArray(product.media) || product.media.length === 0) {
+            return false;
+          }
+          // Check if any media item is marked as mockup
+          return product.media.some((mediaItem: any) => {
+            if (typeof mediaItem === 'string') {
+              return false; // String URLs don't have mockup info
+            }
+            // Check is_mockup flag
+            if (mediaItem.is_mockup === true) {
+              return true;
+            }
+            // Check filename for "mockup"
+            const fileName = mediaItem.file_name || '';
+            if (fileName) {
+              const fileNameLower = fileName.toLowerCase();
+              const baseName = fileNameLower.split('.')[0];
+              if (baseName === 'mockup' || fileNameLower.includes('mockup')) {
+                return true;
+              }
+            }
+            return false;
+          });
+        });
+        
         return {
-          products: transformProducts(response.data?.results || []),
+          products: transformProducts(productsWithMockups),
           page: response.data?.current_page || pageParam,
           hasNext: (response.data?.current_page || 0) < (response.data?.total_pages || 0),
         };
@@ -152,8 +180,36 @@ function DownloadMockPDFPageContent() {
           throw new Error(response.error);
         }
 
+        const rawProducts = response.data?.products || [];
+        // Filter products to only include those with mockup images
+        const productsWithMockups = rawProducts.filter((product: any) => {
+          if (!product.media || !Array.isArray(product.media) || product.media.length === 0) {
+            return false;
+          }
+          // Check if any media item is marked as mockup
+          return product.media.some((mediaItem: any) => {
+            if (typeof mediaItem === 'string') {
+              return false; // String URLs don't have mockup info
+            }
+            // Check is_mockup flag
+            if (mediaItem.is_mockup === true) {
+              return true;
+            }
+            // Check filename for "mockup"
+            const fileName = mediaItem.file_name || '';
+            if (fileName) {
+              const fileNameLower = fileName.toLowerCase();
+              const baseName = fileNameLower.split('.')[0];
+              if (baseName === 'mockup' || fileNameLower.includes('mockup')) {
+                return true;
+              }
+            }
+            return false;
+          });
+        });
+
         return {
-          products: transformProducts(response.data?.products || []),
+          products: transformProducts(productsWithMockups),
           page: response.data?.page || pageParam,
           hasNext: response.data?.has_next || false,
         };
@@ -165,6 +221,7 @@ function DownloadMockPDFPageContent() {
     initialPageParam: 1,
   });
 
+  // Products are already filtered in the queryFn to only include those with mockups
   const products = data?.pages.flatMap(page => page.products) || [];
   
   // Get first N designs for "firstN" mode
@@ -223,18 +280,40 @@ function DownloadMockPDFPageContent() {
       return;
     }
 
-    // Check if exactly 50 designs are selected for paid download
+    // Check if enough designs are available/selected
     const selectedCount = selectionMode === "firstN" 
       ? firstNDesigns.length 
       : selectedDesignIds.size;
     
-    if (selectedCount !== freeDesignsCount) {
-      toast({
-        title: "Selection required",
-        description: `Please select exactly ${freeDesignsCount} designs to proceed.`,
-        variant: "destructive",
-      });
-      return;
+    // For "firstN" mode, use whatever products are loaded (up to freeDesignsCount)
+    // For "selected" mode, require exactly freeDesignsCount for paid downloads
+    if (selectionMode === "selected") {
+      if (selectedCount !== freeDesignsCount) {
+        toast({
+          title: "Selection required",
+          description: `Please select exactly ${freeDesignsCount} designs to proceed.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    } else if (selectionMode === "firstN") {
+      if (selectedCount === 0) {
+        toast({
+          title: "No products available",
+          description: "No products found matching your filters. Please adjust your search or category.",
+          variant: "destructive",
+        });
+        return;
+      }
+      // For paid downloads in "firstN" mode, we still need exactly N products
+      if (!isFreeDownload && selectedCount !== freeDesignsCount) {
+        toast({
+          title: "Insufficient products",
+          description: `Please ensure at least ${freeDesignsCount} products are loaded. Try adjusting your filters or scrolling to load more products.`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setIsDownloading(true);
@@ -245,25 +324,19 @@ function DownloadMockPDFPageContent() {
 
       if (selectionMode === "firstN") {
         // Use first N designs from current filtered results
-        // Build search filters object, only including defined values
-        // Empty object is valid - means "all products" (no filters)
-        const searchFilters: { q?: string; category?: number } = {};
-        if (searchQuery && searchQuery.trim()) {
-          searchFilters.q = searchQuery.trim();
-        }
-        if (selectedCategory && selectedCategory !== "all") {
-          const categoryId = parseInt(selectedCategory);
-          if (!isNaN(categoryId)) {
-            searchFilters.category = categoryId;
-          }
-        }
+        // Get product IDs from the first N designs that are currently loaded
+        const firstNProductIds = firstNDesigns.map(p => p.id);
+        
+        // Use the actual count of loaded products (up to freeDesignsCount)
+        const actualCount = Math.min(firstNProductIds.length, freeDesignsCount);
+        const productIdsToUse = firstNProductIds.slice(0, actualCount);
 
-        // Create PDF request - always send search_filters object (can be empty)
+        // Create PDF request with specific product IDs
         const createResponse = await apiClient.createPDFRequest({
           download_type: downloadType,
-          total_pages: freeDesignsCount,
-          selection_type: "search_results",
-          search_filters: searchFilters, // Empty object {} is valid - means no filters
+          total_pages: actualCount,
+          selection_type: "specific",
+          selected_products: productIdsToUse,
         });
 
         if (createResponse.error || !createResponse.data) {

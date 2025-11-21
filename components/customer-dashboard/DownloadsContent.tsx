@@ -107,24 +107,38 @@ export default function DownloadsContent() {
 
   const categories = categoriesData || [];
 
-  // Fetch PDF downloads with filters
-  const { data: pdfDownloadsData } = useQuery({
-    queryKey: ['pdfDownloads', typeFilter, statusFilter],
+  // Fetch PDF downloads - fetch ALL to check for processing status
+  // We'll filter by status client-side
+  const { data: pdfDownloadsData, refetch: refetchPDFDownloads } = useQuery({
+    queryKey: ['pdfDownloads', typeFilter], // Don't include statusFilter in key - we filter client-side
     queryFn: async () => {
       const params: any = {};
       if (typeFilter !== 'all') {
         params.download_type = typeFilter;
       }
-      if (statusFilter !== 'all') {
-        params.status = statusFilter;
-      }
+      // Don't filter by status - fetch all to check for processing ones
       const response = await apiClient.getPDFDownloads(params);
       if (response.error) {
         return [];
       }
       return response.data?.downloads || [];
     },
-    staleTime: 30 * 1000,
+    staleTime: 0, // Always consider data stale to allow refetching
+    refetchInterval: (query) => {
+      // Check if there are any processing/pending downloads
+      const data = query.state.data as any[] | undefined;
+      if (data && Array.isArray(data)) {
+        const hasProcessing = data.some((pdf: any) => 
+          pdf.status === 'processing' || pdf.status === 'pending'
+        );
+        // Poll every 3 seconds if there are processing downloads
+        if (hasProcessing) {
+          return 3000;
+        }
+      }
+      // Stop polling when all are completed or failed
+      return false;
+    },
   });
 
   // Transform products to download format
@@ -148,7 +162,13 @@ export default function DownloadsContent() {
   const pdfDownloads = pdfDownloadsData || [];
 
   // Transform PDF downloads to match download format - show ALL statuses
+  // Filter by statusFilter client-side (we fetch all to check for processing status)
   const transformedPDFDownloads: Download[] = pdfDownloads
+    .filter((pdf: any) => {
+      // Apply status filter client-side
+      if (statusFilter === 'all') return true;
+      return pdf.status === statusFilter;
+    })
     .map((pdf: any) => ({
       id: `pdf-${pdf.download_id || pdf.id}`,
       name: `PDF Download - ${pdf.total_pages} designs`,
@@ -267,27 +287,32 @@ export default function DownloadsContent() {
       // Check if it's a PDF download
       if (download.pdfDownloadId) {
         const pdfId = download.pdfDownloadId;
-        const response = await apiClient.downloadPDF(pdfId);
-        
-        if (response.error) {
-          throw new Error(response.error);
-        }
+        setDownloadingProductId(pdfId); // Use pdfDownloadId for PDF downloads
+        try {
+          const response = await apiClient.downloadPDF(pdfId);
+          
+          if (response.error) {
+            throw new Error(response.error);
+          }
 
-        if (response.data instanceof Blob) {
-          // Create download link
-          const url = window.URL.createObjectURL(response.data);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `designs_${pdfId}.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
+          if (response.data instanceof Blob) {
+            // Create download link
+            const url = window.URL.createObjectURL(response.data);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `designs_${pdfId}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
 
-          toast({
-            title: "Download started",
-            description: "Your PDF is being downloaded.",
-          });
+            toast({
+              title: "Download started",
+              description: "Your PDF is being downloaded.",
+            });
+          }
+        } finally {
+          setDownloadingProductId(null);
         }
       } else if (download.productId) {
         // Handle product zip download
@@ -645,6 +670,25 @@ export default function DownloadsContent() {
                               <Loader2 className="w-4 h-4 mx-auto mt-2 animate-spin text-primary" />
                             )}
                           </div>
+                        ) : download.isMockPDF && download.status === 'completed' ? (
+                          <Button 
+                            className="w-full" 
+                            size="sm"
+                            onClick={() => handleDownload(download)}
+                            disabled={downloadingProductId === download.pdfDownloadId}
+                          >
+                            {downloadingProductId === download.pdfDownloadId ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Preparing...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-4 h-4 mr-2" />
+                                Download PDF
+                              </>
+                            )}
+                          </Button>
                         ) : (
                           <Button 
                             className="w-full" 
