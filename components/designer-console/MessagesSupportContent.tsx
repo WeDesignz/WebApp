@@ -106,8 +106,8 @@ const transformThread = (thread: any, messages: any[] = []): MessageThread => {
     lastActivity: thread.last_activity || thread.updated_at || thread.created_at || new Date(),
     messages: messages.map((msg: any) => ({
       id: msg.id,
-      sender: msg.sender || msg.sender_type || 'Support Team',
-      senderType: msg.sender_type || (msg.sender === 'user' ? 'user' : 'support'),
+      sender: msg.sender_name || (msg.sender?.first_name && msg.sender?.last_name ? `${msg.sender.first_name} ${msg.sender.last_name}` : msg.sender?.username || msg.sender?.email) || 'Support Team',
+      senderType: msg.sender_type || (msg.sender?.is_staff ? 'support' : 'user'),
       content: msg.message || msg.content || '',
       timestamp: msg.timestamp || msg.created_at || new Date(),
       attachments: msg.attachments || [],
@@ -125,6 +125,7 @@ export default function MessagesSupportContent() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
   const [selectedThread, setSelectedThread] = useState<MessageThread | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
@@ -151,10 +152,10 @@ export default function MessagesSupportContent() {
 
   // Fetch thread messages when a thread is selected
   const { data: threadMessagesData, isLoading: isLoadingMessages, refetch: refetchMessages } = useQuery({
-    queryKey: ['supportThreadMessages', selectedThread?.id],
+    queryKey: ['supportThreadMessages', selectedThreadId],
     queryFn: async () => {
-      if (!selectedThread?.id) return null;
-      const threadId = typeof selectedThread.id === 'number' ? selectedThread.id : parseInt(selectedThread.id.toString());
+      if (!selectedThreadId) return null;
+      const threadId = typeof selectedThreadId === 'number' ? selectedThreadId : parseInt(selectedThreadId.toString());
       if (isNaN(threadId)) return null;
       const response = await apiClient.getSupportThreadMessages(threadId);
       if (response.error) {
@@ -162,20 +163,39 @@ export default function MessagesSupportContent() {
       }
       return response.data;
     },
-    enabled: !!selectedThread?.id,
+    enabled: !!selectedThreadId,
     staleTime: 10 * 1000,
   });
 
   // Update selectedThread with fetched messages
   useEffect(() => {
-    if (threadMessagesData && selectedThread && threadsData) {
-      const threads = threadsData.threads || [];
-      const thread = threads.find((t: any) => (t.id || t.thread_id) === selectedThread.id);
-      if (thread) {
-        setSelectedThread(transformThread(thread, threadMessagesData.messages || []));
+    if (!selectedThreadId || !threadsData) return;
+    
+    const threads = threadsData.threads || [];
+    const thread = threads.find((t: any) => (t.id || t.thread_id) === selectedThreadId);
+    if (!thread) return;
+    
+    // If we have messages data, use it; otherwise use empty array
+    const messages = threadMessagesData?.messages || [];
+    const transformedThread = transformThread(thread, messages);
+    
+    // Only update if the thread ID changed or messages changed to prevent infinite loops
+    setSelectedThread((prev) => {
+      if (!prev || prev.id !== selectedThreadId) {
+        return transformedThread;
       }
-    }
-  }, [threadMessagesData, threadsData, selectedThread]);
+      
+      // Check if messages changed
+      const prevMessageIds = prev.messages?.map((m: any) => m.id).sort().join(',') || '';
+      const newMessageIds = messages.map((m: any) => m.id).sort().join(',');
+      
+      if (prevMessageIds !== newMessageIds) {
+        return transformedThread;
+      }
+      
+      return prev; // No change, return previous value
+    });
+  }, [threadMessagesData, threadsData, selectedThreadId]);
 
   // Create support thread mutation
   const createThreadMutation = useMutation({
@@ -185,12 +205,16 @@ export default function MessagesSupportContent() {
       priority: "high" | "low" | "medium";
       category?: string;
     }) => {
-      return apiClient.createSupportThread({
+      const response = await apiClient.createSupportThread({
         ...data,
         priority: data.priority as "high" | "low" | "medium",
       });
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['supportThreads'] });
       toast({
         title: "Ticket created successfully!",
@@ -200,11 +224,28 @@ export default function MessagesSupportContent() {
       setTicketSubject("");
       setTicketMessage("");
       setTicketPriority("medium");
+      
+      // Select the newly created thread after refreshing
+      if (data?.thread_id || data?.thread?.id) {
+        const threadId = data.thread_id || data.thread?.id;
+        // Wait for threads to refresh, then select the new thread
+        const result = await refetch();
+        if (result.data?.threads) {
+          const newThread = result.data.threads.find((t: any) => (t.id || t.thread_id) === threadId);
+          if (newThread) {
+            const newMessage = transformThreadToMessage(newThread);
+            // Set thread ID and message
+            setSelectedThreadId(typeof threadId === 'number' ? threadId : parseInt(threadId.toString()));
+            handleMessageClick(newMessage);
+          }
+        }
+      }
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
+      const errorMessage = error?.errorDetails?.message || error?.message || "Failed to create support ticket";
       toast({
         title: "Error",
-        description: error.message || "Failed to create support ticket",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -257,23 +298,27 @@ export default function MessagesSupportContent() {
     if (thread) {
       const threadId = typeof thread.id === 'number' ? thread.id : parseInt(thread.id?.toString() || '0');
       if (!isNaN(threadId)) {
-        // Fetch messages for this thread
-        const response = await apiClient.getSupportThreadMessages(threadId);
-        if (!response.error && response.data) {
-          setSelectedThread(transformThread(thread, response.data.messages || []));
-        } else {
-          setSelectedThread(transformThread(thread, []));
-        }
+        // Set the thread ID, which will trigger the query to fetch messages
+        setSelectedThreadId(threadId);
+        // Set the thread initially (messages will be fetched by the query and updated via useEffect)
+        setSelectedThread(transformThread(thread, []));
       }
     }
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedThread?.id) return;
+    if (!newMessage.trim() || !selectedThreadId) {
+      toast({
+        title: "Error",
+        description: "Please select a thread",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    const threadId = typeof selectedThread.id === 'number' 
-      ? selectedThread.id 
-      : parseInt(selectedThread.id.toString());
+    const threadId = typeof selectedThreadId === 'number' 
+      ? selectedThreadId 
+      : parseInt(selectedThreadId.toString());
 
     if (isNaN(threadId)) {
       toast({
@@ -507,12 +552,12 @@ export default function MessagesSupportContent() {
                             <div className="flex items-start gap-3 flex-1 min-w-0">
                               <Avatar className="w-10 h-10 flex-shrink-0">
                                 <AvatarFallback>
-                                  {message.sender.charAt(0)}
+                                  {(typeof message.sender === 'string' ? message.sender : message.sender?.username || message.sender?.email || 'S').charAt(0).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <p className="font-semibold text-sm truncate">{message.sender}</p>
+                                  <p className="font-semibold text-sm truncate">{typeof message.sender === 'string' ? message.sender : message.sender?.username || message.sender?.email || 'Support Team'}</p>
                                   {getStatusBadge(message.status)}
                                 </div>
                                 <p className="text-sm font-medium truncate mb-1">{message.subject}</p>
@@ -603,7 +648,7 @@ export default function MessagesSupportContent() {
                             {msg.senderType !== "user" && (
                               <Avatar className="w-8 h-8 flex-shrink-0">
                                 <AvatarFallback>
-                                  {msg.sender.charAt(0)}
+                                  {(typeof msg.sender === 'string' ? msg.sender : msg.sender?.username || msg.sender?.email || 'S').charAt(0).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                             )}
@@ -615,7 +660,7 @@ export default function MessagesSupportContent() {
                               } rounded-lg p-4`}
                             >
                               <div className="flex items-center gap-2 mb-2">
-                                <p className="font-semibold text-sm">{msg.sender}</p>
+                                <p className="font-semibold text-sm">{typeof msg.sender === 'string' ? msg.sender : msg.sender?.username || msg.sender?.email || 'Support Team'}</p>
                                 <span className="text-xs opacity-70">
                                   {formatTimestamp(timestamp)}
                                 </span>
