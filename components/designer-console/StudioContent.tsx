@@ -309,7 +309,7 @@ export default function StudioContent() {
       });
       // Store password and member ID for sending credentials
       setCreatedMemberPassword(newMemberForm.password);
-      setCreatedMemberId(data.member?.id || null);
+      setCreatedMemberId(data?.member?.id || null);
       // Reset form
       setNewMemberForm({
         email: "",
