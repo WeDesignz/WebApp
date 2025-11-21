@@ -16,6 +16,7 @@ import {
   Eye,
   Filter,
   X,
+  File,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -60,6 +61,34 @@ interface Download {
   status?: string;
   isMockPDF?: boolean;
 }
+
+// Professional PDF Icon Component
+const PDFIcon = ({ className = "w-16 h-16" }: { className?: string }) => {
+  return (
+    <div className={`relative ${className}`}>
+      {/* PDF Document Shape */}
+      <div className="relative w-full h-full bg-gradient-to-br from-red-500 to-red-600 rounded-tl-sm rounded-tr-sm rounded-bl-sm shadow-lg">
+        {/* Folded corner effect */}
+        <div className="absolute top-0 right-0 w-0 h-0 border-l-[20px] border-l-transparent border-t-[20px] border-t-red-700/50" />
+        
+        {/* White content area */}
+        <div className="absolute inset-2 bg-white rounded-sm">
+          {/* PDF text lines */}
+          <div className="absolute top-2 left-2 right-2 space-y-1">
+            <div className="h-1 bg-red-500/20 rounded w-full" />
+            <div className="h-1 bg-red-500/20 rounded w-3/4" />
+            <div className="h-1 bg-red-500/20 rounded w-5/6" />
+          </div>
+          
+          {/* PDF label at bottom */}
+          <div className="absolute bottom-2 left-2 right-2 text-center">
+            <span className="text-[8px] font-bold text-red-600 uppercase tracking-wider">PDF</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function DownloadsContent() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
@@ -543,8 +572,14 @@ export default function DownloadsContent() {
                     onMouseLeave={() => setHoveredProductId(null)}
                   >
                     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-                      <div className="aspect-video bg-muted relative group">
-                        {download.thumbnail ? (
+                      <div className={`aspect-video relative group ${
+                        download.isMockPDF 
+                          ? 'bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-6' 
+                          : 'bg-muted'
+                      }`}>
+                        {download.isMockPDF ? (
+                          <PDFIcon className="w-20 h-20" />
+                        ) : download.thumbnail ? (
                           <img 
                             src={download.thumbnail} 
                             alt={download.title || 'Design'}
@@ -675,8 +710,14 @@ export default function DownloadsContent() {
                   >
                     <Card className="p-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-20 h-20 bg-muted rounded flex items-center justify-center flex-shrink-0 overflow-hidden relative group">
-                          {download.thumbnail ? (
+                        <div className={`w-20 h-20 rounded flex items-center justify-center flex-shrink-0 overflow-hidden relative group ${
+                          download.isMockPDF 
+                            ? 'bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-3' 
+                            : 'bg-muted'
+                        }`}>
+                          {download.isMockPDF ? (
+                            <PDFIcon className="w-full h-full" />
+                          ) : download.thumbnail ? (
                             <img 
                               src={download.thumbnail} 
                               alt={download.title || 'Design'}
