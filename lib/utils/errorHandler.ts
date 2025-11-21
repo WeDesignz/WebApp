@@ -90,10 +90,13 @@ export function extractFieldErrors(error: any): Record<string, string[]> | undef
 
   const fieldErrors: Record<string, string[]> = {};
 
+  // Check if errors are nested in an 'errors' field (from our backend)
+  const errorsToProcess = error.errors || error;
+
   // Django REST Framework format
-  Object.keys(error).forEach((key) => {
-    if (key !== 'error' && key !== 'detail' && key !== 'non_field_errors') {
-      const value = error[key];
+  Object.keys(errorsToProcess).forEach((key) => {
+    if (key !== 'error' && key !== 'detail' && key !== 'non_field_errors' && key !== 'errors') {
+      const value = errorsToProcess[key];
       if (Array.isArray(value)) {
         fieldErrors[key] = value;
       } else if (typeof value === 'string') {

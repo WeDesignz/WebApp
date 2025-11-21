@@ -104,7 +104,7 @@ export default function DesignerTopBar({
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
               )}
             </button>
             
@@ -142,16 +142,16 @@ export default function DesignerTopBar({
                         <p className="text-xs text-muted-foreground mt-1">
                           {formatTimeAgo(notif.created_at)}
                         </p>
-                      </div>
-                    ))}
+                  </div>
+                ))}
                     <Link href="/designer-console/notifications">
                       <Button 
                         variant="ghost" 
                         className="w-full text-sm" 
                         onClick={() => setNotificationsOpen(false)}
                       >
-                        View All Notifications
-                      </Button>
+                  View All Notifications
+                </Button>
                     </Link>
                   </>
                 ) : (

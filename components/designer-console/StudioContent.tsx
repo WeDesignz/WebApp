@@ -17,7 +17,6 @@ import {
   FileText,
   Sparkles,
   UserPlus,
-  MoreVertical,
   Settings,
   Info,
   Mail,
@@ -50,13 +49,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 
 interface Studio {
@@ -300,7 +292,13 @@ export default function StudioContent() {
   const createMemberMutation = useMutation({
     mutationFn: async ({ studioId, memberData }: { studioId: number; memberData: { email: string; password: string; confirm_password: string; first_name?: string; last_name?: string; role: 'design_lead' | 'designer' } }) => {
       const response = await apiClient.createStudioMemberWithUser(studioId, memberData);
-      if (response.error) throw new Error(response.error);
+      if (response.error) {
+        // Preserve field errors and error details in the error object
+        const error: any = new Error(response.error);
+        error.errorDetails = response.errorDetails;
+        error.fieldErrors = response.fieldErrors || response.errorDetails?.fieldErrors;
+        throw error;
+      }
       return response.data;
     },
     onSuccess: (data) => {
@@ -324,9 +322,28 @@ export default function StudioContent() {
       refetchMembers();
     },
     onError: (error: any) => {
+      // Extract field errors from error response
+      const fieldErrors = error?.errorDetails?.fieldErrors || error?.fieldErrors;
+      
+      // Build error message from field errors or use default message
+      let errorMessage = "Please check your input and try again.";
+      
+      if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+        // Get the first field error message
+        const firstField = Object.keys(fieldErrors)[0];
+        const firstError = Array.isArray(fieldErrors[firstField]) 
+          ? fieldErrors[firstField][0] 
+          : fieldErrors[firstField];
+        errorMessage = firstError || errorMessage;
+      } else if (error?.errorDetails?.message) {
+        errorMessage = error.errorDetails.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: "Failed to create member",
-        description: error.message || "Please try again.",
+        title: "Validation Error",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -1506,25 +1523,17 @@ export default function StudioContent() {
                                     {format(new Date(member.created_at), 'MMM d, yyyy')}
                                   </TableCell>
                                   <TableCell className="text-right">
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                          <MoreVertical className="h-4 w-4" />
-                                        </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end">
-                                        <DropdownMenuItem
-                                          className="text-destructive"
-                                          onClick={() => {
-                                            setMemberToRemove(member);
-                                            setShowRemoveMemberDialog(true);
-                                          }}
-                                        >
-                                          <Trash2 className="mr-2 h-4 w-4" />
-                                          Remove Member
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                      onClick={() => {
+                                        setMemberToRemove(member);
+                                        setShowRemoveMemberDialog(true);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
                                   </TableCell>
                                 </TableRow>
                               ))}

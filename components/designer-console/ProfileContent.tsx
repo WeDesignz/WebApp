@@ -267,7 +267,7 @@ export default function ProfileContent() {
         setPhotoPreview(null);
       }
     } else {
-      setPhotoPreview(null);
+    setPhotoPreview(null);
     }
     setPhotoFile(null);
   };

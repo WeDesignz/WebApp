@@ -10,6 +10,7 @@ import {
   Bell, 
   MessageSquare, 
   Settings,
+  Building2,
   ChevronLeft,
   ChevronRight,
   Lock
@@ -27,7 +28,7 @@ interface DesignerSidebarProps {
 export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebarProps) {
   const pathname = usePathname();
   const { isVerified } = useDesignerVerification();
-  const { hasFullAccess, isStudioMember } = useStudioAccess();
+  const { hasFullAccess, isStudioMember, isStudioOwner } = useStudioAccess();
 
   const lockedPaths = [
     "/designer-console/designs",
@@ -42,6 +43,7 @@ export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebar
     { icon: LayoutDashboard, label: "Dashboard", href: "/designer-console", locked: false, requiresFullAccess: false },
     { icon: Image, label: "My Designs", href: "/designer-console/designs", locked: !isVerified, requiresFullAccess: false },
     { icon: Upload, label: "Upload Design", href: "/designer-console/upload", locked: !isVerified, requiresFullAccess: false },
+    { icon: Building2, label: "Studio", href: "/designer-console/studio", locked: false, requiresFullAccess: true, requiresStudioOwner: true },
     { icon: BarChart3, label: "Analytics", href: "/designer-console/analytics", locked: !isVerified, requiresFullAccess: true },
     { icon: Wallet, label: "Earnings & Wallet", href: "/designer-console/earnings", locked: !isVerified, requiresFullAccess: true },
     { icon: Download, label: "Downloads (PDFs)", href: "/designer-console/downloads", locked: !isVerified, requiresFullAccess: true },
@@ -52,9 +54,14 @@ export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebar
 
   // Filter menu items based on access level
   // Studio members only see items that don't require full access
-  const menuItems = hasFullAccess 
-    ? allMenuItems 
-    : allMenuItems.filter(item => !item.requiresFullAccess);
+  // Studio menu is only visible to studio owners
+  const menuItems = allMenuItems.filter(item => {
+    // If requires full access and user doesn't have it, hide
+    if (item.requiresFullAccess && !hasFullAccess) return false;
+    // If requires studio owner and user is not owner, hide
+    if (item.requiresStudioOwner && !isStudioOwner) return false;
+    return true;
+  });
 
   return (
     <aside
