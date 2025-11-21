@@ -15,6 +15,7 @@ import {
   AlertCircle,
   ChevronDown,
   X,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -613,6 +614,21 @@ function DownloadMockPDFPageContent() {
               </div>
             </div>
 
+            {/* Free Download Available Banner */}
+            {isEligible && (
+              <Card className="p-4 bg-green-500/10 border-green-500/20">
+                <div className="flex items-center gap-3">
+                  <Gift className="w-5 h-5 text-green-500" />
+                  <div>
+                    <p className="font-semibold text-green-600 dark:text-green-400">Free Download Available</p>
+                    <p className="text-sm text-muted-foreground">
+                      You have <span className="font-semibold text-green-600 dark:text-green-400">1 free PDF download</span> available. Select {freeDesignsCount} designs to get started!
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             {/* Eligibility Banner - Dismissable */}
             {!isEligible && !isFreePDFAlertDismissed && (
               <Card className="p-4 bg-destructive/10 border-destructive/20 relative">
@@ -638,32 +654,42 @@ function DownloadMockPDFPageContent() {
               </Card>
             )}
 
-            {/* Design Count Selection (only for paid downloads) */}
-            {!isEligible && pdfConfig?.paid_pdf_designs_options && (
+            {/* Design Count Selection (for paid downloads) */}
+            {pdfConfig?.paid_pdf_designs_options && pdfConfig.paid_pdf_designs_options.length > 0 && (
               <Card className="p-4">
                 <label className="text-base font-semibold mb-3 block">
-                  Number of Designs
+                  Number of Designs {isEligible && "(for paid downloads)"}
                 </label>
-                <div className="flex gap-2">
-                  {pdfConfig.paid_pdf_designs_options.map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => {
-                        setSelectedDesignCount(opt);
-                        setSelectedDesignIds(new Set()); // Reset selection when count changes
-                        // Refetch products to get the new count
-                        queryClient.invalidateQueries({ queryKey: ['freePDFDesigns'] });
-                      }}
-                      className={`p-3 rounded-lg border-2 transition-all flex-1 ${
-                        selectedDesignCount === opt
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                    >
-                      <div className="text-lg font-bold">{opt}</div>
-                      <div className="text-xs text-muted-foreground">Designs</div>
-                    </button>
-                  ))}
+                <div className="flex gap-2 flex-wrap">
+                  {pdfConfig.paid_pdf_designs_options.map((opt, index) => {
+                    const isFirstOption = index === 0;
+                    const isEnabled = !isEligible || isFirstOption;
+                    
+                    return (
+                      <button
+                        key={opt}
+                        onClick={() => {
+                          if (isEnabled) {
+                            setSelectedDesignCount(opt);
+                            setSelectedDesignIds(new Set()); // Reset selection when count changes
+                            // Refetch products to get the new count
+                            queryClient.invalidateQueries({ queryKey: ['freePDFDesigns'] });
+                          }
+                        }}
+                        disabled={!isEnabled}
+                        className={`p-3 rounded-lg border-2 transition-all flex-1 min-w-[80px] ${
+                          selectedDesignCount === opt && isEnabled
+                            ? "border-primary bg-primary/10 text-primary"
+                            : !isEnabled
+                            ? "border-border opacity-50 cursor-not-allowed"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        <div className="text-lg font-bold">{opt}</div>
+                        <div className="text-xs text-muted-foreground">Designs</div>
+                      </button>
+                    );
+                  })}
                 </div>
               </Card>
             )}
