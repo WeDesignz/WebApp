@@ -52,9 +52,12 @@ export function StudioAccessProvider({ children }: { children: ReactNode }) {
           setIsStudioMember(profileInfo.is_studio_member || false);
           setProfileType(profileInfo.profile_type || 'individual');
           
-          // Get studio ID from owned studio or membership
+          // Get studio ID from owned studio, accessing_studio (for members), or membership
           if (profileInfo.owned_studio?.id) {
             setStudioId(profileInfo.owned_studio.id);
+          } else if (profileInfo.accessing_studio?.id) {
+            // Studio member accessing studio owner's console
+            setStudioId(profileInfo.accessing_studio.id);
           } else if (profileInfo.studio_membership?.studio?.id) {
             setStudioId(profileInfo.studio_membership.studio.id);
           } else {

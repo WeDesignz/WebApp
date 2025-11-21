@@ -37,7 +37,14 @@ export default function DesignerConsoleGuard({ children }: DesignerConsoleGuardP
         
         if (response.error) {
           console.error('Error checking onboarding status:', response.error);
-          // If there's an error (e.g., designer profile not found), redirect to onboarding
+          // Check if user is a studio member (they can access without DesignerProfile)
+          const isStudioMember = response.data?.profile_info?.is_studio_member;
+          if (isStudioMember && response.data?.can_access_console) {
+            // Studio member can access console even if there's an error
+            setOnboardingComplete(true);
+            return;
+          }
+          // If there's an error and user is not a studio member, redirect to onboarding
           router.push('/designer-onboarding');
           return;
         }

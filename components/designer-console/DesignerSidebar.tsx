@@ -53,9 +53,20 @@ export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebar
   ];
 
   // Filter menu items based on access level
-  // Studio members only see items that don't require full access
-  // Studio menu is only visible to studio owners
+  // Studio members (without DesignerProfile) only see: Dashboard, My Designs, Upload Design
+  // Studio owners and individual designers see all items based on their access level
   const menuItems = allMenuItems.filter(item => {
+    // If user is a studio member (without full access), only show Dashboard, My Designs, Upload Design
+    if (isStudioMember && !hasFullAccess) {
+      const allowedForMembers = [
+        "/designer-console",
+        "/designer-console/designs",
+        "/designer-console/upload"
+      ];
+      return allowedForMembers.includes(item.href);
+    }
+    
+    // For studio owners and individual designers:
     // If requires full access and user doesn't have it, hide
     if (item.requiresFullAccess && !hasFullAccess) return false;
     // If requires studio owner and user is not owner, hide
