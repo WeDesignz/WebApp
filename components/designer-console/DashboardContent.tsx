@@ -20,7 +20,6 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDesignerVerification } from "@/contexts/DesignerVerificationContext";
@@ -381,50 +380,33 @@ export default function DashboardContent() {
             </div>
           ) : dashboardError ? null : (
             <div className={`grid ${isStudioMember && !hasFullAccess ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'} gap-4`}>
-              <TooltipProvider>
-                {kpiCards.map((card) => {
-                  const Icon = card.icon;
-                  const isStudioMemberCard = isStudioMember && !hasFullAccess;
-                  const cardContent = (
-                    <Card className={`group relative overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer h-full border-2 hover:border-primary/50 ${
-                      isStudioMemberCard ? 'bg-gradient-to-br from-card via-card to-primary/5' : ''
-                    }`}>
-                      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      <CardContent className="p-6 relative">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className={`p-3 rounded-xl bg-gradient-to-br ${card.color.replace('text-', 'bg-')}/10 ${card.color}`}>
-                            <Icon className="w-6 h-6" />
-                          </div>
-                          <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
+              {kpiCards.map((card) => {
+                const Icon = card.icon;
+                const isStudioMemberCard = isStudioMember && !hasFullAccess;
+                const cardContent = (
+                  <Card className={`group relative overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer h-full border-2 hover:border-primary/50 ${
+                    isStudioMemberCard ? 'bg-gradient-to-br from-card via-card to-primary/5' : ''
+                  }`}>
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <CardContent className="p-6 relative">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className={`p-3 rounded-xl bg-gradient-to-br ${card.color.replace('text-', 'bg-')}/10 ${card.color}`}>
+                          <Icon className="w-6 h-6" />
                         </div>
-                        <div className="text-3xl font-bold mb-2 bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">{card.value}</div>
-                        <div className="text-sm font-medium text-muted-foreground">{card.label}</div>
-                      </CardContent>
-                    </Card>
-                  );
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
+                      </div>
+                      <div className="text-3xl font-bold mb-2 bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">{card.value}</div>
+                      <div className="text-sm font-medium text-muted-foreground">{card.label}</div>
+                    </CardContent>
+                  </Card>
+                );
 
-                  if (card.tooltip) {
-                    return (
-                      <Tooltip key={card.label}>
-                        <TooltipTrigger asChild>
-                          <Link href={card.href}>
-                            {cardContent}
-                          </Link>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p className="text-xs">{card.tooltip}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  }
-
-                  return (
-                    <Link key={card.label} href={card.href}>
-                      {cardContent}
-                    </Link>
-                  );
-                })}
-              </TooltipProvider>
+                return (
+                  <Link key={card.label} href={card.href}>
+                    {cardContent}
+                  </Link>
+                );
+              })}
             </div>
           )}
 
