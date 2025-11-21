@@ -2065,6 +2065,16 @@ export const apiClient = {
       } | null;
     };
     can_access_console: boolean;
+    profile_info?: {
+      profile_type: string;
+      is_studio_owner: boolean;
+      is_studio_member: boolean;
+      owned_studio?: any;
+      studio_membership?: any;
+      has_full_console_access: boolean;
+      can_upload_designs: boolean;
+      accessing_studio?: any;
+    };
   }>> => {
     return apiRequest<{
       onboarding_status: {
@@ -2086,6 +2096,16 @@ export const apiClient = {
         } | null;
       };
       can_access_console: boolean;
+      profile_info?: {
+        profile_type: string;
+        is_studio_owner: boolean;
+        is_studio_member: boolean;
+        owned_studio?: any;
+        studio_membership?: any;
+        has_full_console_access: boolean;
+        can_upload_designs: boolean;
+        accessing_studio?: any;
+      };
     }>('/api/profiles/designer-onboarding-status/');
   },
 
