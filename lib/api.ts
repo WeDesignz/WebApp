@@ -2440,6 +2440,15 @@ export const apiClient = {
 
           const errorDetails = formatError(errorData, response.status);
           const userMessage = getUserFriendlyMessage(errorDetails);
+          
+          // Log the full error data for debugging
+          console.error('Business Details Update Error Response:', {
+            errorData: JSON.stringify(errorData, null, 2),
+            errorDetails: JSON.stringify(errorDetails, null, 2),
+            fieldErrors: JSON.stringify(errorDetails.fieldErrors, null, 2),
+            rawResponse: errorData,
+          });
+          
           logError(errorDetails, 'Update Studio Business Details');
 
           if (response.status === 401) {
@@ -2450,6 +2459,7 @@ export const apiClient = {
             error: userMessage,
             errorDetails,
             fieldErrors: errorDetails.fieldErrors,
+            rawError: errorData, // Include raw error for debugging
           };
         }
 
@@ -2494,6 +2504,31 @@ export const apiClient = {
     return apiRequest(`/api/profiles/studios/${studioId}/members/`, {
       method: 'POST',
       body: JSON.stringify(memberData),
+    });
+  },
+
+  createStudioMemberWithUser: async (studioId: number, memberData: {
+    email: string;
+    password: string;
+    confirm_password: string;
+    first_name?: string;
+    last_name?: string;
+    role: 'design_lead' | 'designer';
+  }): Promise<ApiResponse<{
+    member?: any;
+    user?: any;
+    message?: string;
+  }>> => {
+    return apiRequest(`/api/profiles/studios/${studioId}/members/create/`, {
+      method: 'POST',
+      body: JSON.stringify(memberData),
+    });
+  },
+
+  sendStudioMemberCredentials: async (studioId: number, memberId: number, password: string): Promise<ApiResponse<any>> => {
+    return apiRequest(`/api/profiles/studios/${studioId}/members/${memberId}/send-credentials/`, {
+      method: 'POST',
+      body: JSON.stringify({ password }),
     });
   },
 
