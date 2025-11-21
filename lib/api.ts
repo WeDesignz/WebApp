@@ -1191,7 +1191,12 @@ export const apiClient = {
     });
   },
 
-  getPDFDownloads: async (params?: { page?: number; page_size?: number }): Promise<ApiResponse<{
+  getPDFDownloads: async (params?: { 
+    page?: number; 
+    page_size?: number;
+    download_type?: 'free' | 'paid';
+    status?: 'pending' | 'processing' | 'completed' | 'failed';
+  }): Promise<ApiResponse<{
     downloads: Array<{
       id: number;
       download_id?: number;
@@ -1202,14 +1207,19 @@ export const apiClient = {
       payment_status?: string;
       created_at: string;
       updated_at?: string;
+      completed_at?: string;
       products_count?: number;
       [key: string]: any;
     }>;
-    total_downloads?: number;
+    total_pages?: number;
+    current_page?: number;
+    total_count?: number;
   }>> => {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', String(params.page));
     if (params?.page_size) query.append('page_size', String(params.page_size));
+    if (params?.download_type) query.append('download_type', params.download_type);
+    if (params?.status) query.append('status', params.status);
     const queryString = query.toString();
     return apiRequest<{
       downloads: Array<{

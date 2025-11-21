@@ -17,7 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiClient } from "@/lib/api";
+import { apiClient, catalogAPI } from "@/lib/api";
+import { transformProducts } from "@/lib/utils/transformers";
 import { initializeRazorpayCheckout } from "@/lib/payment";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -68,6 +69,7 @@ export default function PDFDownloadModal({
       selected_per_design: number;
     };
   } | null>(null);
+  const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -124,6 +126,51 @@ export default function PDFDownloadModal({
       });
     }
   }, [isOpen]);
+
+  // Fetch products for "first N" selection to get product IDs
+  const { data: productsData } = useQuery({
+    queryKey: ['pdfModalProducts', searchQuery, selectedCategory, quantity],
+    queryFn: async () => {
+      if (searchQuery || (selectedCategory && selectedCategory !== 'all')) {
+        const categoryId = selectedCategory && selectedCategory !== 'all' 
+          ? parseInt(selectedCategory) 
+          : undefined;
+        
+        const response = await catalogAPI.searchProducts({
+          q: searchQuery || undefined,
+          category: categoryId,
+          page: 1,
+        });
+
+        if (response.error) {
+          throw new Error(response.error);
+        }
+
+        return transformProducts(response.data?.results || []);
+      } else {
+        const response = await catalogAPI.getHomeFeed(1);
+
+        if (response.error) {
+          throw new Error(response.error);
+        }
+
+        return transformProducts(response.data?.products || []);
+      }
+    },
+    enabled: isOpen && selectionType === "firstN",
+    staleTime: 30 * 1000,
+  });
+
+  // Update selected product IDs when products or quantity changes
+  useEffect(() => {
+    if (selectionType === "firstN" && productsData && productsData.length > 0) {
+      const firstNProducts = productsData.slice(0, quantity);
+      const productIds = firstNProducts.map(p => p.id);
+      setSelectedProductIds(productIds);
+    } else {
+      setSelectedProductIds([]);
+    }
+  }, [productsData, quantity, selectionType]);
 
   const freePDFUsed = !eligibilityData?.is_eligible;
   const freeDownloadsUsed = eligibilityData?.free_downloads_used || 0;
@@ -248,19 +295,16 @@ export default function PDFDownloadModal({
       const price = calculatePrice();
 
       // Step 1: Create PDF request
-      // Note: For now, we only support "search_results" (firstN) selection
-      // "specific" selection requires actual product selection which is not implemented in this modal
-      // Users will be redirected to a new page for specific product selection
-      // Always use "search_results" to avoid validation errors
+      // For "firstN" selection, use "specific" type with selected product IDs
       const createResponse = await apiClient.createPDFRequest({
         download_type: downloadType,
         total_pages: quantity,
-        selection_type: "search_results", // Always use search_results for this modal
-        search_filters: {
+        selection_type: selectionType === "firstN" ? "specific" : "specific",
+        selected_products: selectionType === "firstN" ? selectedProductIds : [],
+        search_filters: selectionType === "firstN" ? {} : {
           q: searchQuery,
           category: selectedCategory !== "all" ? selectedCategory : undefined,
         },
-        // Don't send selected_products when using search_results
       });
 
       if (createResponse.error || !createResponse.data) {
@@ -339,6 +383,7 @@ export default function PDFDownloadModal({
         category: selectedCategory,
         purchasedAt: new Date().toISOString(),
         downloaded: false,
+        selectedDesignIds: selectionType === "firstN" ? selectedProductIds : undefined,
       };
 
       onPurchaseComplete(purchase);
@@ -528,9 +573,11 @@ export default function PDFDownloadModal({
                   <div className="text-sm text-muted-foreground mb-2">
                     First {quantity} designs from search results
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    ₹{pdfConfig?.pricing.first_n_per_design || 2} per design
-                  </div>
+                  {selectedProductIds.length > 0 && (
+                    <div className="text-xs text-muted-foreground">
+                      {selectedProductIds.length} product{selectedProductIds.length !== 1 ? 's' : ''} will be included
+                    </div>
+                  )}
                 </button>
                 {/* Note: Specific product selection will be available on the dedicated free PDF page */}
                 {downloadType === "free" && (
@@ -542,6 +589,25 @@ export default function PDFDownloadModal({
                 )}
               </div>
             </div>
+
+            {/* Selected Products Display (for first N) */}
+            {selectionType === "firstN" && selectedProductIds.length > 0 && (
+              <Card className="p-4 border-border">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                  <FileText className="w-4 h-4" />
+                  <span>Selected Products ({selectedProductIds.length})</span>
+                </div>
+                <div className="max-h-32 overflow-y-auto">
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProductIds.map((id, idx) => (
+                      <Badge key={id} variant="outline" className="text-xs">
+                        ID: {id}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </Card>
+            )}
 
             {/* Price Summary */}
             <Card className="p-4 bg-gradient-to-br from-primary/5 to-purple-500/5 border-primary/20">
@@ -573,16 +639,15 @@ export default function PDFDownloadModal({
                   </div>
                 ) : (
                   <div className="pt-3 border-t border-border">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">Price per Design</span>
-                      <span className="font-semibold">
-                        ₹{selectionType === "selected" ? (pdfConfig?.pricing.selected_per_design || 4) : (pdfConfig?.pricing.first_n_per_design || 2)}
-                      </span>
-                    </div>
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-xl font-bold">Total</span>
                       <span className="text-2xl font-bold text-primary">₹{price}</span>
                     </div>
+                    {selectionType === "firstN" && selectedProductIds.length > 0 && (
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        {selectedProductIds.length} designs selected
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

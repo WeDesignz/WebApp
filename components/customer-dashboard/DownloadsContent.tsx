@@ -15,10 +15,19 @@ import {
   Loader2,
   AlertCircle,
   Eye,
+  Filter,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +57,9 @@ interface Download {
   productId?: number;
   pdfDownloadId?: number;
   media?: any[];
+  category?: any;
+  status?: string;
+  isMockPDF?: boolean;
 }
 
 export default function DownloadsContent() {
@@ -60,6 +72,12 @@ export default function DownloadsContent() {
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [hoveredProductId, setHoveredProductId] = useState<number | string | null>(null);
   const { toast } = useToast();
+
+  // Add new filter states
+  const [typeFilter, setTypeFilter] = useState<'all' | 'free' | 'paid'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [downloadTypeFilter, setDownloadTypeFilter] = useState<'all' | 'products' | 'mock_pdf'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'processing' | 'pending' | 'failed'>('all');
 
   // Fetch downloadable products from API
   const { data: downloadsData, isLoading, error } = useQuery({
@@ -74,11 +92,33 @@ export default function DownloadsContent() {
     staleTime: 30 * 1000, // 30 seconds
   });
 
-  // Fetch PDF downloads
-  const { data: pdfDownloadsData } = useQuery({
-    queryKey: ['pdfDownloads'],
+  // Fetch categories for filter
+  const { data: categoriesData } = useQuery({
+    queryKey: ['categories'],
     queryFn: async () => {
-      const response = await apiClient.getPDFDownloads();
+      const response = await catalogAPI.getCategories();
+      if (response.error) {
+        return [];
+      }
+      return response.data?.categories || [];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const categories = categoriesData || [];
+
+  // Fetch PDF downloads with filters
+  const { data: pdfDownloadsData } = useQuery({
+    queryKey: ['pdfDownloads', typeFilter, statusFilter],
+    queryFn: async () => {
+      const params: any = {};
+      if (typeFilter !== 'all') {
+        params.download_type = typeFilter;
+      }
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
+      const response = await apiClient.getPDFDownloads(params);
       if (response.error) {
         return [];
       }
@@ -101,13 +141,14 @@ export default function DownloadsContent() {
     price: product.price,
     productId: product.id,
     media: product.media || [],
+    category: product.category,
+    isMockPDF: false,
   }));
 
   const pdfDownloads = pdfDownloadsData || [];
 
-  // Transform PDF downloads to match download format
+  // Transform PDF downloads to match download format - show ALL statuses
   const transformedPDFDownloads: Download[] = pdfDownloads
-    .filter((pdf: any) => pdf.status === 'completed')
     .map((pdf: any) => ({
       id: `pdf-${pdf.download_id || pdf.id}`,
       name: `PDF Download - ${pdf.total_pages} designs`,
@@ -118,24 +159,55 @@ export default function DownloadsContent() {
       type: pdf.download_type === 'free' ? 'free' : 'paid',
       price: pdf.total_amount,
       pdfDownloadId: pdf.download_id || pdf.id,
+      status: pdf.status,
+      isMockPDF: true,
     }));
 
-  // Combine products and PDF downloads
-  const allDownloads = filter === 'paid' 
-    ? [...transformedProducts, ...transformedPDFDownloads].sort((a, b) => {
-        const dateA = new Date(a.downloadDate || a.created_at || 0).getTime();
-        const dateB = new Date(b.downloadDate || b.created_at || 0).getTime();
-        return dateB - dateA;
-      })
-    : [...transformedProducts, ...transformedPDFDownloads].sort((a, b) => {
-        const dateA = new Date(a.downloadDate || a.created_at || 0).getTime();
-        const dateB = new Date(b.downloadDate || b.created_at || 0).getTime();
-        return dateB - dateA;
-      });
+  // Apply filters to combined downloads
+  let filteredDownloads = [...transformedProducts, ...transformedPDFDownloads];
+
+  // Filter by download type (products vs mock PDF)
+  if (downloadTypeFilter === 'products') {
+    filteredDownloads = filteredDownloads.filter(d => !d.isMockPDF);
+  } else if (downloadTypeFilter === 'mock_pdf') {
+    filteredDownloads = filteredDownloads.filter(d => d.isMockPDF);
+  }
+
+  // Filter by free/paid
+  if (typeFilter === 'free') {
+    filteredDownloads = filteredDownloads.filter(d => d.type === 'free');
+  } else if (typeFilter === 'paid') {
+    filteredDownloads = filteredDownloads.filter(d => d.type === 'paid');
+  }
+
+  // Filter by category (for products only)
+  if (categoryFilter !== 'all') {
+    filteredDownloads = filteredDownloads.filter(d => {
+      if (d.isMockPDF) return true; // Keep all PDFs
+      const categoryId = typeof d.category === 'object' ? d.category?.id : d.category;
+      return categoryId?.toString() === categoryFilter;
+    });
+  }
+
+  // Filter by status (for PDFs only)
+  if (statusFilter !== 'all') {
+    filteredDownloads = filteredDownloads.filter(d => {
+      if (!d.isMockPDF) return true; // Keep all products
+      return d.status === statusFilter;
+    });
+  }
+
+  // Sort by date
+  const allDownloads = filteredDownloads.sort((a, b) => {
+    const dateA = new Date(a.downloadDate || a.created_at || 0).getTime();
+    const dateB = new Date(b.downloadDate || b.created_at || 0).getTime();
+    return dateB - dateA;
+  });
 
   const totalDownloads = downloadsData?.total_downloads || 0;
   const paidDownloads = downloadsData?.paid_downloads || 0;
   const freeDownloads = transformedPDFDownloads.filter((d) => d.type === "free").length;
+  const mockPDFDownloads = transformedPDFDownloads.length;
 
   // Fetch product details when a product is selected
   const { data: productDetail, isLoading: isLoadingProductDetail } = useQuery({
@@ -326,7 +398,7 @@ export default function DownloadsContent() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="p-6 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-blue-500/20 rounded-lg">
@@ -362,7 +434,103 @@ export default function DownloadsContent() {
               </div>
             </div>
           </Card>
+
+          <Card className="p-6 bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-500/20">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-orange-500/20 rounded-lg">
+                <FileText className="w-6 h-6 text-orange-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Mock PDF Downloads</p>
+                <p className="text-3xl font-bold">{mockPDFDownloads}</p>
+              </div>
+            </div>
+          </Card>
         </div>
+
+        {/* Filters Section */}
+        <Card className="p-4">
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Filters:</span>
+            </div>
+            
+            {/* Download Type Filter (Products vs Mock PDF) */}
+            <Select value={downloadTypeFilter} onValueChange={(value) => setDownloadTypeFilter(value as 'all' | 'products' | 'mock_pdf')}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Downloads</SelectItem>
+                <SelectItem value="products">Product Downloads</SelectItem>
+                <SelectItem value="mock_pdf">Mock PDF Downloads</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Free/Paid Filter */}
+            <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as 'all' | 'free' | 'paid')}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="free">Free</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Category Filter (only show for products) */}
+            {downloadTypeFilter !== 'mock_pdf' && (
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map((cat: any) => (
+                    <SelectItem key={cat.id} value={cat.id.toString()}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Status Filter (only show for mock PDFs) */}
+            {downloadTypeFilter === 'mock_pdf' && (
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'all' | 'completed' | 'processing' | 'pending' | 'failed')}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Clear Filters Button */}
+            {(downloadTypeFilter !== 'all' || typeFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setDownloadTypeFilter('all');
+                  setTypeFilter('all');
+                  setCategoryFilter('all');
+                  setStatusFilter('all');
+                }}
+              >
+                <X className="w-4 h-4 mr-2" />
+                Clear Filters
+              </Button>
+            )}
+          </div>
+        </Card>
 
         <div className="flex items-center justify-between lg:hidden">
           <h2 className="text-xl font-semibold">Download History</h2>
@@ -418,6 +586,19 @@ export default function DownloadsContent() {
                         <Badge className="absolute top-2 right-2 z-10">
                           {download.type || 'paid'}
                         </Badge>
+                        {download.isMockPDF && download.status && (
+                          <Badge 
+                            variant={
+                              download.status === 'completed' ? 'default' :
+                              download.status === 'processing' ? 'secondary' :
+                              download.status === 'failed' ? 'destructive' : 'outline'
+                            }
+                            className="absolute top-2 left-2 z-10"
+                          >
+                            {download.status === 'processing' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
+                            {download.status}
+                          </Badge>
+                        )}
                         {download.productId && hoveredProductId === download.id && (
                           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
                             <Button
@@ -453,24 +634,37 @@ export default function DownloadsContent() {
                             )}
                           </div>
                         )}
-                        <Button 
-                          className="w-full" 
-                          size="sm"
-                          onClick={() => handleDownload(download)}
-                          disabled={downloadingProductId === download.productId}
-                        >
-                          {downloadingProductId === download.productId ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Preparing...
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-4 h-4 mr-2" />
-                              Download
-                            </>
-                          )}
-                        </Button>
+                        {download.isMockPDF && download.status !== 'completed' ? (
+                          <div className="p-3 text-center bg-muted rounded-md">
+                            <p className="text-sm text-muted-foreground">
+                              {download.status === 'processing' && 'PDF is being generated...'}
+                              {download.status === 'pending' && 'PDF request is pending'}
+                              {download.status === 'failed' && 'PDF generation failed. Please contact support.'}
+                            </p>
+                            {download.status === 'processing' && (
+                              <Loader2 className="w-4 h-4 mx-auto mt-2 animate-spin text-primary" />
+                            )}
+                          </div>
+                        ) : (
+                          <Button 
+                            className="w-full" 
+                            size="sm"
+                            onClick={() => handleDownload(download)}
+                            disabled={downloadingProductId === download.productId}
+                          >
+                            {downloadingProductId === download.productId ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Preparing...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-4 h-4 mr-2" />
+                                Download
+                              </>
+                            )}
+                          </Button>
+                        )}
                       </div>
                     </Card>
                   </motion.div>
@@ -544,23 +738,36 @@ export default function DownloadsContent() {
                           )}
                         </div>
                         <div className="flex gap-2">
-                          <Button 
-                            size="sm"
-                            onClick={() => handleDownload(download)}
-                            disabled={downloadingProductId === download.productId}
-                          >
-                            {downloadingProductId === download.productId ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Preparing...
-                              </>
-                            ) : (
-                              <>
-                                <Download className="w-4 h-4 mr-2" />
-                                Download
-                              </>
-                            )}
-                          </Button>
+                          {download.isMockPDF && download.status !== 'completed' ? (
+                            <div className="flex-1 p-2 text-center bg-muted rounded-md">
+                              <p className="text-xs text-muted-foreground">
+                                {download.status === 'processing' && 'Generating...'}
+                                {download.status === 'pending' && 'Pending'}
+                                {download.status === 'failed' && 'Failed'}
+                              </p>
+                              {download.status === 'processing' && (
+                                <Loader2 className="w-3 h-3 mx-auto mt-1 animate-spin text-primary" />
+                              )}
+                            </div>
+                          ) : (
+                            <Button 
+                              size="sm"
+                              onClick={() => handleDownload(download)}
+                              disabled={downloadingProductId === download.productId}
+                            >
+                              {downloadingProductId === download.productId ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Preparing...
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="w-4 h-4 mr-2" />
+                                  Download
+                                </>
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </Card>

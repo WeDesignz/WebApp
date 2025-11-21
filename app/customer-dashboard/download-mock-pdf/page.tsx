@@ -346,10 +346,8 @@ function DownloadMockPDFPageContent() {
         queryClient.invalidateQueries({ queryKey: ['pdfDownloads'] });
         queryClient.invalidateQueries({ queryKey: ['downloads'] });
 
-        // Redirect to downloads page
-        setTimeout(() => {
-          router.push('/customer-dashboard?tab=downloads');
-        }, 2000);
+        // Redirect to downloads page immediately
+        router.push('/customer-dashboard?view=downloads');
       } else {
         // Free download
         toast({
@@ -361,10 +359,8 @@ function DownloadMockPDFPageContent() {
         queryClient.invalidateQueries({ queryKey: ['pdfEligibility'] });
         queryClient.invalidateQueries({ queryKey: ['pdfDownloads'] });
 
-        // Redirect to downloads page
-        setTimeout(() => {
-          router.push('/customer-dashboard?tab=downloads');
-        }, 2000);
+        // Redirect to downloads page immediately
+        router.push('/customer-dashboard?view=downloads');
       }
 
     } catch (error: any) {
