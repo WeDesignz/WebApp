@@ -327,14 +327,20 @@ function DownloadMockPDFPageContent() {
         // Get product IDs from the first N designs that are currently loaded
         const firstNProductIds = firstNDesigns.map(p => p.id);
         
-        // Use the actual count of loaded products (up to freeDesignsCount)
-        const actualCount = Math.min(firstNProductIds.length, freeDesignsCount);
-        const productIdsToUse = firstNProductIds.slice(0, actualCount);
+        // For free downloads, must use exactly freeDesignsCount
+        // For paid downloads, use the actual count (up to freeDesignsCount)
+        const productCount = isFreeDownload ? freeDesignsCount : Math.min(firstNProductIds.length, freeDesignsCount);
+        const productIdsToUse = firstNProductIds.slice(0, productCount);
+        
+        // Ensure we have enough products
+        if (productIdsToUse.length !== productCount) {
+          throw new Error(`Not enough products available. Required: ${productCount}, Available: ${productIdsToUse.length}`);
+        }
 
         // Create PDF request with specific product IDs
         const createResponse = await apiClient.createPDFRequest({
           download_type: downloadType,
-          total_pages: actualCount,
+          total_pages: productCount,
           selection_type: "specific",
           selected_products: productIdsToUse,
         });
