@@ -659,7 +659,7 @@ export default function DashboardContent() {
                     <div className="flex items-center justify-between py-2">
                       <span className="text-sm text-muted-foreground font-medium">Industry</span>
                       <span className="text-sm font-semibold truncate ml-2 text-right max-w-[60%]">
-                        {studioInfo?.industry_display || studioInfo.studio_industry_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        {studioInfo?.industry_display || studioInfo.studio_industry_type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                       </span>
                     </div>
                   )}
