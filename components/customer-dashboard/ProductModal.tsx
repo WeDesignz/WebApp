@@ -599,7 +599,13 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                           </Button>
                         </>
                       )}
-                      <Button className="flex-1 rounded-full h-12 text-base font-semibold bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90">
+                      <Button 
+                        className="flex-1 rounded-full h-12 text-base font-semibold bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
+                        onClick={() => {
+                          onClose();
+                          router.push('/customer-dashboard/plans');
+                        }}
+                      >
                         <CreditCard className="w-5 h-5 mr-2" />
                         Purchase Plan
                       </Button>
