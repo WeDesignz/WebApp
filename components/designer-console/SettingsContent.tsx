@@ -41,6 +41,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useStudioAccess } from "@/contexts/StudioAccessContext";
+import { Users, Search, Trash2 } from "lucide-react";
 
 interface Studio {
   id: number;
@@ -74,16 +76,43 @@ interface BusinessDetails {
 
 type RazorpayStatus = "not_created" | "pending" | "verified" | "rejected";
 
+interface StudioMember {
+  id: number;
+  member: {
+    id: number;
+    username: string;
+    email: string;
+    first_name?: string;
+    last_name?: string;
+  };
+  role: 'design_lead' | 'designer';
+  status: 'active' | 'inactive';
+  created_at: string;
+  created_by: {
+    id: number;
+    username: string;
+  };
+}
+
 export default function SettingsContent() {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasFullAccess, isStudioMember } = useStudioAccess();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("studio");
   const [selectedStudioId, setSelectedStudioId] = useState<number | null>(null);
   const [showCreateStudio, setShowCreateStudio] = useState(false);
   const [isEditingStudio, setIsEditingStudio] = useState(false);
   const [isEditingBusiness, setIsEditingBusiness] = useState(false);
+  
+  // Studio Members state
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [memberSearchQuery, setMemberSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Array<{id: number; username: string; email: string; first_name?: string; last_name?: string}>>([]);
+  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
+  const [newMemberRole, setNewMemberRole] = useState<'design_lead' | 'designer'>('designer');
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   
   // Notification preferences
   const [notifications, setNotifications] = useState({
@@ -141,6 +170,21 @@ export default function SettingsContent() {
       setSelectedStudioId(studios[0].id);
     }
   }, [studios, selectedStudioId]);
+
+  // Fetch studio members
+  const { data: membersData, isLoading: isLoadingMembers, refetch: refetchMembers } = useQuery({
+    queryKey: ['studioMembers', selectedStudioId],
+    queryFn: async () => {
+      if (!selectedStudioId) return null;
+      const response = await apiClient.getStudioMembers(selectedStudioId);
+      if (response.error) throw new Error(response.error);
+      return response.data;
+    },
+    enabled: !!selectedStudioId && hasFullAccess,
+    staleTime: 30 * 1000,
+  });
+
+  const members: StudioMember[] = membersData?.members || [];
 
   // Fetch selected studio details
   const { data: studioDetailData, isLoading: isLoadingStudioDetail } = useQuery({
@@ -253,6 +297,104 @@ export default function SettingsContent() {
       });
     },
   });
+
+  // Add studio member mutation
+  const addMemberMutation = useMutation({
+    mutationFn: async ({ studioId, memberData }: { studioId: number; memberData: { member_id: number; role: 'design_lead' | 'designer'; status?: 'active' | 'inactive' } }) => {
+      const response = await apiClient.addStudioMember(studioId, memberData);
+      if (response.error) throw new Error(response.error);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Member added successfully",
+        description: "Studio member has been added.",
+      });
+      setShowAddMemberModal(false);
+      setSelectedMemberId(null);
+      setMemberSearchQuery("");
+      setSearchResults([]);
+      refetchMembers();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to add member",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update studio member mutation
+  const updateMemberMutation = useMutation({
+    mutationFn: async ({ studioId, memberId, memberData }: { studioId: number; memberId: number; memberData: { role?: 'design_lead' | 'designer'; status?: 'active' | 'inactive' } }) => {
+      const response = await apiClient.updateStudioMember(studioId, memberId, memberData);
+      if (response.error) throw new Error(response.error);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Member updated",
+        description: "Studio member has been updated successfully.",
+      });
+      refetchMembers();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to update member. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Remove studio member mutation
+  const removeMemberMutation = useMutation({
+    mutationFn: async ({ studioId, memberId }: { studioId: number; memberId: number }) => {
+      const response = await apiClient.removeStudioMember(studioId, memberId);
+      if (response.error) throw new Error(response.error);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Member removed",
+        description: "Studio member has been removed successfully.",
+      });
+      refetchMembers();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to remove member",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Search users handler
+  const handleSearchUsers = async (query: string) => {
+    if (!query.trim() || query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    
+    setIsSearchingUsers(true);
+    try {
+      const response = await apiClient.searchUsers(query);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      setSearchResults(response.data?.users || []);
+    } catch (error: any) {
+      toast({
+        title: "Search failed",
+        description: error.message || "Failed to search users.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearchingUsers(false);
+    }
+  };
 
   // Update business details mutation
   const updateBusinessDetailsMutation = useMutation({
@@ -795,12 +937,14 @@ export default function SettingsContent() {
           </CardContent>
         </Card>
 
-        {/* Studio and Business Details */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="studio">Studio Management</TabsTrigger>
-            <TabsTrigger value="business">Business Details</TabsTrigger>
-          </TabsList>
+        {/* Studio and Business Details - Only show for studio owners */}
+        {hasFullAccess ? (
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full max-w-md grid-cols-3">
+              <TabsTrigger value="studio">Studio Management</TabsTrigger>
+              <TabsTrigger value="members">Studio Members</TabsTrigger>
+              <TabsTrigger value="business">Business Details</TabsTrigger>
+            </TabsList>
 
           {/* Studio Management Tab */}
           <TabsContent value="studio" className="mt-6 space-y-6">
@@ -1428,7 +1572,274 @@ export default function SettingsContent() {
               </>
             )}
           </TabsContent>
+
+          {/* Studio Members Tab */}
+          <TabsContent value="members" className="mt-6 space-y-6">
+            {!selectedStudioId ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                  <h3 className="text-xl font-semibold mb-2">Select a Studio</h3>
+                  <p className="text-muted-foreground">
+                    Please select a studio to manage its members
+                  </p>
+                </CardContent>
+              </Card>
+            ) : isLoadingMembers ? (
+              <Card>
+                <CardContent className="p-6">
+                  <Skeleton className="h-8 w-48 mb-4" />
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-3/4" />
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Studio Members</CardTitle>
+                        <CardDescription>
+                          Manage members who can upload designs for your studio
+                        </CardDescription>
+                      </div>
+                      <Button onClick={() => setShowAddMemberModal(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Member
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {members.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                        <h3 className="text-lg font-semibold mb-2">No members yet</h3>
+                        <p className="text-muted-foreground mb-4">
+                          Add members to allow them to upload designs for your studio
+                        </p>
+                        <Button onClick={() => setShowAddMemberModal(true)}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add First Member
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {members.map((member) => (
+                          <Card key={member.id}>
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                      <Users className="w-5 h-5 text-primary" />
+                                    </div>
+                                    <div>
+                                      <h3 className="font-semibold">
+                                        {member.member.first_name && member.member.last_name
+                                          ? `${member.member.first_name} ${member.member.last_name}`
+                                          : member.member.username}
+                                      </h3>
+                                      <p className="text-sm text-muted-foreground">
+                                        {member.member.email}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-3 ml-13">
+                                    <Badge variant="outline">
+                                      {member.role === 'design_lead' ? 'Design Lead' : 'Designer'}
+                                    </Badge>
+                                    <Badge variant={member.status === 'active' ? 'default' : 'secondary'}>
+                                      {member.status === 'active' ? 'Active' : 'Inactive'}
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      Added {new Date(member.created_at).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Select
+                                    value={member.role}
+                                    onValueChange={(value: 'design_lead' | 'designer') => {
+                                      updateMemberMutation.mutate({
+                                        studioId: selectedStudioId!,
+                                        memberId: member.id,
+                                        memberData: { role: value }
+                                      });
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-32">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="designer">Designer</SelectItem>
+                                      <SelectItem value="design_lead">Design Lead</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <Select
+                                    value={member.status}
+                                    onValueChange={(value: 'active' | 'inactive') => {
+                                      updateMemberMutation.mutate({
+                                        studioId: selectedStudioId!,
+                                        memberId: member.id,
+                                        memberData: { status: value }
+                                      });
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-28">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="active">Active</SelectItem>
+                                      <SelectItem value="inactive">Inactive</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      if (confirm(`Are you sure you want to remove ${member.member.username} from the studio?`)) {
+                                        removeMemberMutation.mutate({
+                                          studioId: selectedStudioId!,
+                                          memberId: member.id
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </TabsContent>
         </Tabs>
+        ) : (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <Shield className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+              <h3 className="text-xl font-semibold mb-2">Settings Restricted</h3>
+              <p className="text-muted-foreground">
+                Studio members cannot change settings. Only studio owners can manage studio settings.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Add Member Modal */}
+        <AlertDialog open={showAddMemberModal} onOpenChange={setShowAddMemberModal}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Add Studio Member</AlertDialogTitle>
+              <AlertDialogDescription>
+                Search for a user to add as a studio member. They will be able to upload designs for your studio.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label>Search User</Label>
+                <div className="relative mt-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by email or username..."
+                    value={memberSearchQuery}
+                    onChange={(e) => {
+                      setMemberSearchQuery(e.target.value);
+                      handleSearchUsers(e.target.value);
+                    }}
+                    className="pl-10"
+                  />
+                </div>
+                {isSearchingUsers && (
+                  <p className="text-xs text-muted-foreground mt-1">Searching...</p>
+                )}
+                {searchResults.length > 0 && (
+                  <div className="mt-2 border rounded-lg max-h-48 overflow-y-auto">
+                    {searchResults.map((user) => (
+                      <div
+                        key={user.id}
+                        className={`p-3 cursor-pointer hover:bg-accent border-b last:border-0 ${
+                          selectedMemberId === user.id ? 'bg-primary/10' : ''
+                        }`}
+                        onClick={() => setSelectedMemberId(user.id)}
+                      >
+                        <p className="font-medium text-sm">
+                          {user.first_name && user.last_name
+                            ? `${user.first_name} ${user.last_name}`
+                            : user.username}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {selectedMemberId && (
+                <div>
+                  <Label>Role</Label>
+                  <Select value={newMemberRole} onValueChange={(value: 'design_lead' | 'designer') => setNewMemberRole(value)}>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="designer">Designer</SelectItem>
+                      <SelectItem value="design_lead">Design Lead</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={() => {
+                  setShowAddMemberModal(false);
+                  setSelectedMemberId(null);
+                  setMemberSearchQuery("");
+                  setSearchResults([]);
+                }}
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (!selectedStudioId || !selectedMemberId) {
+                    toast({
+                      title: "Validation error",
+                      description: "Please select a user to add",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  addMemberMutation.mutate({
+                    studioId: selectedStudioId,
+                    memberData: {
+                      member_id: selectedMemberId,
+                      role: newMemberRole,
+                      status: 'active'
+                    }
+                  });
+                }}
+                disabled={!selectedMemberId || addMemberMutation.isPending}
+              >
+                {addMemberMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add Member"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

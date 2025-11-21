@@ -1,12 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import DesignerTopBar from "@/components/designer-console/DesignerTopBar";
 import DesignerSidebar from "@/components/designer-console/DesignerSidebar";
 import EarningsWalletContent from "@/components/designer-console/EarningsWalletContent";
+import { useStudioAccess } from "@/contexts/StudioAccessContext";
 
 export default function EarningsWalletPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { hasFullAccess, isLoading } = useStudioAccess();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !hasFullAccess) {
+      router.push('/designer-console');
+    }
+  }, [hasFullAccess, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasFullAccess) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">

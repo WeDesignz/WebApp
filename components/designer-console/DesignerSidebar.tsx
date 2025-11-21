@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDesignerVerification } from "@/contexts/DesignerVerificationContext";
+import { useStudioAccess } from "@/contexts/StudioAccessContext";
 
 interface DesignerSidebarProps {
   collapsed: boolean;
@@ -26,6 +27,7 @@ interface DesignerSidebarProps {
 export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebarProps) {
   const pathname = usePathname();
   const { isVerified } = useDesignerVerification();
+  const { hasFullAccess, isStudioMember } = useStudioAccess();
 
   const lockedPaths = [
     "/designer-console/designs",
@@ -35,17 +37,24 @@ export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebar
     "/designer-console/downloads"
   ];
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: "Dashboard", href: "/designer-console", locked: false },
-    { icon: Image, label: "My Designs", href: "/designer-console/designs", locked: !isVerified },
-    { icon: Upload, label: "Upload Design", href: "/designer-console/upload", locked: !isVerified },
-    { icon: BarChart3, label: "Analytics", href: "/designer-console/analytics", locked: !isVerified },
-    { icon: Wallet, label: "Earnings & Wallet", href: "/designer-console/earnings", locked: !isVerified },
-    { icon: Download, label: "Downloads (PDFs)", href: "/designer-console/downloads", locked: !isVerified },
-    { icon: Bell, label: "Notifications", href: "/designer-console/notifications", locked: false },
-    { icon: MessageSquare, label: "Messages/Support", href: "/designer-console/messages", locked: false },
-    { icon: Settings, label: "Settings", href: "/designer-console/settings", locked: false },
+  // Base menu items - all items that could be shown
+  const allMenuItems = [
+    { icon: LayoutDashboard, label: "Dashboard", href: "/designer-console", locked: false, requiresFullAccess: false },
+    { icon: Image, label: "My Designs", href: "/designer-console/designs", locked: !isVerified, requiresFullAccess: false },
+    { icon: Upload, label: "Upload Design", href: "/designer-console/upload", locked: !isVerified, requiresFullAccess: false },
+    { icon: BarChart3, label: "Analytics", href: "/designer-console/analytics", locked: !isVerified, requiresFullAccess: true },
+    { icon: Wallet, label: "Earnings & Wallet", href: "/designer-console/earnings", locked: !isVerified, requiresFullAccess: true },
+    { icon: Download, label: "Downloads (PDFs)", href: "/designer-console/downloads", locked: !isVerified, requiresFullAccess: true },
+    { icon: Bell, label: "Notifications", href: "/designer-console/notifications", locked: false, requiresFullAccess: false },
+    { icon: MessageSquare, label: "Messages/Support", href: "/designer-console/messages", locked: false, requiresFullAccess: false },
+    { icon: Settings, label: "Settings", href: "/designer-console/settings", locked: false, requiresFullAccess: false },
   ];
+
+  // Filter menu items based on access level
+  // Studio members only see items that don't require full access
+  const menuItems = hasFullAccess 
+    ? allMenuItems 
+    : allMenuItems.filter(item => !item.requiresFullAccess);
 
   return (
     <aside

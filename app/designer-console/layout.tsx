@@ -1,6 +1,7 @@
 "use client";
 
 import { DesignerVerificationProvider } from "@/contexts/DesignerVerificationContext";
+import { StudioAccessProvider } from "@/contexts/StudioAccessContext";
 import DesignerConsoleGuard from "@/components/auth/DesignerConsoleGuard";
 
 export default function DesignerConsoleLayout({
@@ -10,9 +11,11 @@ export default function DesignerConsoleLayout({
 }) {
   return (
     <DesignerConsoleGuard>
-    <DesignerVerificationProvider>
-      {children}
-    </DesignerVerificationProvider>
+      <DesignerVerificationProvider>
+        <StudioAccessProvider>
+          {children}
+        </StudioAccessProvider>
+      </DesignerVerificationProvider>
     </DesignerConsoleGuard>
   );
 }

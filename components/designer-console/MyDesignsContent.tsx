@@ -48,6 +48,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useStudioAccess } from "@/contexts/StudioAccessContext";
 import Link from "next/link";
 import {
   AlertDialog,
@@ -206,6 +207,7 @@ export default function MyDesignsContent() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasFullAccess } = useStudioAccess();
 
   // Debounce search query
   useEffect(() => {
@@ -632,21 +634,23 @@ export default function MyDesignsContent() {
                       {design.status?.charAt(0).toUpperCase() + design.status?.slice(1) || 'Unknown'}
                     </Badge>
 
-                    {/* Stats Footer */}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground pt-3 border-t border-border">
-                      <div className="flex items-center gap-1">
-                        <Eye className="w-3.5 h-3.5" />
-                        {formatNumber(design.views)}
+                    {/* Stats Footer - Only show for studio owners */}
+                    {hasFullAccess && (
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground pt-3 border-t border-border">
+                        <div className="flex items-center gap-1">
+                          <Eye className="w-3.5 h-3.5" />
+                          {formatNumber(design.views || 0)}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Download className="w-3.5 h-3.5" />
+                          {formatNumber(design.downloads || 0)}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <ShoppingCart className="w-3.5 h-3.5" />
+                          {formatNumber(design.purchases || 0)}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Download className="w-3.5 h-3.5" />
-                        {formatNumber(design.downloads)}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <ShoppingCart className="w-3.5 h-3.5" />
-                        {formatNumber(design.purchases)}
-                      </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               );
@@ -725,12 +729,16 @@ export default function MyDesignsContent() {
                   <th className="p-3 cursor-pointer hover:text-primary" onClick={() => handleSort("views")}>
                     Views {sortColumn === "views" && (sortDirection === "asc" ? "↑" : "↓")}
                   </th>
-                  <th className="p-3 cursor-pointer hover:text-primary" onClick={() => handleSort("downloads")}>
-                    Downloads {sortColumn === "downloads" && (sortDirection === "asc" ? "↑" : "↓")}
-                  </th>
-                  <th className="p-3 cursor-pointer hover:text-primary" onClick={() => handleSort("purchases")}>
-                    Purchases {sortColumn === "purchases" && (sortDirection === "asc" ? "↑" : "↓")}
-                  </th>
+                  {hasFullAccess && (
+                    <>
+                      <th className="p-3 cursor-pointer hover:text-primary" onClick={() => handleSort("downloads")}>
+                        Downloads {sortColumn === "downloads" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th className="p-3 cursor-pointer hover:text-primary" onClick={() => handleSort("purchases")}>
+                        Purchases {sortColumn === "purchases" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                    </>
+                  )}
                   <th className="p-3 cursor-pointer hover:text-primary" onClick={() => handleSort("created_at")}>
                     Uploaded {sortColumn === "created_at" && (sortDirection === "asc" ? "↑" : "↓")}
                   </th>
@@ -830,9 +838,13 @@ export default function MyDesignsContent() {
                           {design.status?.charAt(0).toUpperCase() + design.status?.slice(1) || 'Unknown'}
                         </Badge>
                       </td>
-                      <td className="p-3 text-sm">{formatNumber(design.views)}</td>
-                      <td className="p-3 text-sm">{formatNumber(design.downloads)}</td>
-                      <td className="p-3 text-sm font-medium">{formatNumber(design.purchases)}</td>
+                      {hasFullAccess && (
+                        <>
+                          <td className="p-3 text-sm">{formatNumber(design.views || 0)}</td>
+                          <td className="p-3 text-sm">{formatNumber(design.downloads || 0)}</td>
+                          <td className="p-3 text-sm font-medium">{formatNumber(design.purchases || 0)}</td>
+                        </>
+                      )}
                       <td className="p-3 text-sm text-muted-foreground">
                         {design.created_at ? getTimeAgo(design.created_at) : 'N/A'}
                       </td>

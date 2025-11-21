@@ -2473,6 +2473,63 @@ export const apiClient = {
     }
   },
 
+  // Studio Members API
+  getStudioMembers: async (studioId: number): Promise<ApiResponse<{
+    members?: Array<any>;
+    total_members?: number;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      members?: Array<any>;
+      total_members?: number;
+      [key: string]: any;
+    }>(`/api/profiles/studios/${studioId}/members/`);
+  },
+
+  addStudioMember: async (studioId: number, memberData: {
+    member_id: number;
+    role: 'design_lead' | 'designer';
+    status?: 'active' | 'inactive';
+  }): Promise<ApiResponse<any>> => {
+    return apiRequest(`/api/profiles/studios/${studioId}/members/`, {
+      method: 'POST',
+      body: JSON.stringify(memberData),
+    });
+  },
+
+  updateStudioMember: async (studioId: number, memberId: number, memberData: {
+    role?: 'design_lead' | 'designer';
+    status?: 'active' | 'inactive';
+  }): Promise<ApiResponse<any>> => {
+    return apiRequest(`/api/profiles/studios/${studioId}/members/${memberId}/`, {
+      method: 'PUT',
+      body: JSON.stringify(memberData),
+    });
+  },
+
+  removeStudioMember: async (studioId: number, memberId: number): Promise<ApiResponse<any>> => {
+    return apiRequest(`/api/profiles/studios/${studioId}/members/${memberId}/`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Search users for adding as studio members
+  searchUsers: async (searchQuery: string): Promise<ApiResponse<{
+    users?: Array<{
+      id: number;
+      username: string;
+      email: string;
+      first_name?: string;
+      last_name?: string;
+    }>;
+    [key: string]: any;
+  }>> => {
+    return apiRequest<{
+      users?: Array<any>;
+      [key: string]: any;
+    }>(`/api/accounts/users/?search=${encodeURIComponent(searchQuery)}`);
+  },
+
   // ==================== PLANS & SUBSCRIPTIONS ====================
   
   /**

@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useDesignerVerification } from "@/contexts/DesignerVerificationContext";
+import { useStudioAccess } from "@/contexts/StudioAccessContext";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -73,6 +74,7 @@ const getTimeAgo = (date: string): string => {
 
 export default function DashboardContent() {
   const { isVerified, verificationStatus } = useDesignerVerification();
+  const { hasFullAccess, isStudioMember } = useStudioAccess();
   const { user } = useAuth();
   const today = new Date();
   const currentDay = today.getDate();
@@ -163,53 +165,63 @@ export default function DashboardContent() {
   const performanceScore = kpis.performance_score || 0;
   const performancePercentage = (performanceScore / 10) * 100;
 
-  const kpiCards = useMemo(() => [
-    { 
-      icon: Upload, 
-      label: "Total Uploads", 
-      value: formatNumber(kpis.total_uploaded || 0), 
-      href: "/designer-console/designs", 
-      color: "text-blue-500" 
-    },
-    { 
-      icon: CheckCircle, 
-      label: "Approved Designs", 
-      value: formatNumber(kpis.total_approved || 0), 
-      href: "/designer-console/designs?status=approved", 
-      color: "text-green-500" 
-    },
-    { 
-      icon: Clock, 
-      label: "Pending Reviews", 
-      value: formatNumber(pendingReviews), 
-      href: "/designer-console/designs?status=pending", 
-      color: "text-yellow-500" 
-    },
-    { 
-      icon: Eye, 
-      label: "Views", 
-      value: formatNumber(kpis.total_views || 0), 
-      href: "/designer-console/analytics", 
-      color: "text-purple-500" 
-    },
-    { 
-      icon: Download, 
-      label: "Downloads", 
-      value: formatNumber(kpis.total_downloads || 0), 
-      href: "/designer-console/analytics", 
-      color: "text-primary" 
-    },
-    { 
-      icon: TrendingUp, 
-      label: "Performance Score", 
-      value: `${performanceScore.toFixed(1)}/10`, 
-      href: "/designer-console/analytics", 
-      color: "text-orange-500", 
-      hasProgress: true, 
-      progress: performancePercentage,
-      tooltip: "Performance Score is calculated based on: 20% Design Quality + 60% Customer Satisfaction + 20% Engagement Metrics"
-    },
-  ], [kpis, pendingReviews, performanceScore, performancePercentage]);
+  const kpiCards = useMemo(() => {
+    const baseCards = [
+      { 
+        icon: Upload, 
+        label: "Total Uploads", 
+        value: formatNumber(kpis.total_uploaded || 0), 
+        href: "/designer-console/designs", 
+        color: "text-blue-500" 
+      },
+      { 
+        icon: CheckCircle, 
+        label: "Approved Designs", 
+        value: formatNumber(kpis.total_approved || 0), 
+        href: "/designer-console/designs?status=approved", 
+        color: "text-green-500" 
+      },
+      { 
+        icon: Clock, 
+        label: "Pending Reviews", 
+        value: formatNumber(pendingReviews), 
+        href: "/designer-console/designs?status=pending", 
+        color: "text-yellow-500" 
+      },
+    ];
+
+    // Studio members don't see analytics-related KPIs
+    if (hasFullAccess) {
+      baseCards.push(
+        { 
+          icon: Eye, 
+          label: "Views", 
+          value: formatNumber(kpis.total_views || 0), 
+          href: "/designer-console/analytics", 
+          color: "text-purple-500" 
+        },
+        { 
+          icon: Download, 
+          label: "Downloads", 
+          value: formatNumber(kpis.total_downloads || 0), 
+          href: "/designer-console/analytics", 
+          color: "text-primary" 
+        },
+        { 
+          icon: TrendingUp, 
+          label: "Performance Score", 
+          value: `${performanceScore.toFixed(1)}/10`, 
+          href: "/designer-console/analytics", 
+          color: "text-orange-500", 
+          hasProgress: true, 
+          progress: performancePercentage,
+          tooltip: "Performance Score is calculated based on: 20% Design Quality + 60% Customer Satisfaction + 20% Engagement Metrics"
+        }
+      );
+    }
+
+    return baseCards;
+  }, [kpis, pendingReviews, performanceScore, performancePercentage, hasFullAccess]);
 
   if (!isVerified) {
     return (
@@ -312,12 +324,16 @@ export default function DashboardContent() {
               {isLoadingDashboard ? (
                 <div className="space-y-4">
                   <Skeleton className="h-8 w-64" />
-                  <Skeleton className="h-12 w-48" />
-                  <div className="flex flex-wrap gap-4">
-                    <Skeleton className="h-5 w-48" />
-                    <Skeleton className="h-5 w-48" />
-                    <Skeleton className="h-5 w-48" />
-                  </div>
+                  {hasFullAccess && (
+                    <>
+                      <Skeleton className="h-12 w-48" />
+                      <div className="flex flex-wrap gap-4">
+                        <Skeleton className="h-5 w-48" />
+                        <Skeleton className="h-5 w-48" />
+                        <Skeleton className="h-5 w-48" />
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : dashboardError ? (
                 <div className="text-center py-4">
@@ -339,24 +355,32 @@ export default function DashboardContent() {
                   <h2 className="text-2xl font-bold mb-2">
                     Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {user?.firstName || 'Designer'}
                   </h2>
-                  <div className="flex items-baseline gap-2 mb-4">
-                    <span className="text-4xl font-bold">{formatCurrency(walletBalance)}</span>
-                    <span className="text-muted-foreground text-sm">Wallet Balance</span>
-                  </div>
-                  <div className="flex flex-wrap gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Net earnings this month:</span>
-                      <span className="font-semibold">{formatCurrency(kpis.monthly_earnings || 0)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Pending withdrawals:</span>
-                      <span className="font-semibold">{formatCurrency(kpis.pending_withdrawals || 0)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Total downloads:</span>
-                      <span className="font-semibold">{formatNumber(kpis.total_downloads || 0)}</span>
-                    </div>
-                  </div>
+                  {hasFullAccess ? (
+                    <>
+                      <div className="flex items-baseline gap-2 mb-4">
+                        <span className="text-4xl font-bold">{formatCurrency(walletBalance)}</span>
+                        <span className="text-muted-foreground text-sm">Wallet Balance</span>
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Net earnings this month:</span>
+                          <span className="font-semibold">{formatCurrency(kpis.monthly_earnings || 0)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Pending withdrawals:</span>
+                          <span className="font-semibold">{formatCurrency(kpis.pending_withdrawals || 0)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Total downloads:</span>
+                          <span className="font-semibold">{formatNumber(kpis.total_downloads || 0)}</span>
+                        </div>
+                      </div>
+                    </>
+                  ) : isStudioMember ? (
+                    <p className="text-muted-foreground text-sm">
+                      Upload designs and track their approval status
+                    </p>
+                  ) : null}
                 </>
               )}
             </CardContent>
@@ -458,9 +482,13 @@ export default function DashboardContent() {
                         <th className="pb-3 pr-4">Design</th>
                         <th className="pb-3 pr-4">Status</th>
                         <th className="pb-3 pr-4">Date</th>
-                        <th className="pb-3 pr-4">Views</th>
-                        <th className="pb-3 pr-4">Downloads</th>
-                        <th className="pb-3 pr-4">Purchases</th>
+                        {hasFullAccess && (
+                          <>
+                            <th className="pb-3 pr-4">Views</th>
+                            <th className="pb-3 pr-4">Downloads</th>
+                            <th className="pb-3 pr-4">Purchases</th>
+                          </>
+                        )}
                         <th className="pb-3"></th>
                       </tr>
                     </thead>
@@ -490,9 +518,13 @@ export default function DashboardContent() {
                           <td className="py-3 pr-4 text-sm text-muted-foreground">
                             {design.created_at ? getTimeAgo(design.created_at) : 'N/A'}
                           </td>
-                          <td className="py-3 pr-4 text-sm">{formatNumber(design.views || 0)}</td>
-                          <td className="py-3 pr-4 text-sm">{formatNumber(design.downloads || 0)}</td>
-                          <td className="py-3 pr-4 text-sm font-medium">{formatNumber(design.purchases || 0)}</td>
+                          {hasFullAccess && (
+                            <>
+                              <td className="py-3 pr-4 text-sm">{formatNumber(design.views || 0)}</td>
+                              <td className="py-3 pr-4 text-sm">{formatNumber(design.downloads || 0)}</td>
+                              <td className="py-3 pr-4 text-sm font-medium">{formatNumber(design.purchases || 0)}</td>
+                            </>
+                          )}
                           <td className="py-3">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -511,12 +543,14 @@ export default function DashboardContent() {
                                   <Copy className="w-4 h-4 mr-2" />
                                   Duplicate
                                 </DropdownMenuItem>
-                                <Link href={`/designer-console/analytics?design=${design.id}`}>
-                                  <DropdownMenuItem>
-                                    <BarChart className="w-4 h-4 mr-2" />
-                                    View Analytics
-                                  </DropdownMenuItem>
-                                </Link>
+                                {hasFullAccess && (
+                                  <Link href={`/designer-console/analytics?design=${design.id}`}>
+                                    <DropdownMenuItem>
+                                      <BarChart className="w-4 h-4 mr-2" />
+                                      View Analytics
+                                    </DropdownMenuItem>
+                                  </Link>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 
                                   className="text-destructive focus:text-destructive"
@@ -537,64 +571,66 @@ export default function DashboardContent() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Recent Transactions</h3>
-                <Link href="/designer-console/wallet">
-                  <Button variant="ghost" size="sm">View All</Button>
-                </Link>
-              </div>
-              {isLoadingTransactions ? (
-                <SkeletonLoader variant="list" count={5} />
-              ) : transactionsError ? (
-                <div className="text-center py-8">
-                  <AlertCircle className="w-8 h-8 mx-auto mb-2 text-destructive" />
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {transactionsError instanceof Error ? transactionsError.message : 'Failed to load transactions'}
-                  </p>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => refetchTransactions()}
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Retry
-                  </Button>
+          {hasFullAccess && (
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Recent Transactions</h3>
+                  <Link href="/designer-console/wallet">
+                    <Button variant="ghost" size="sm">View All</Button>
+                  </Link>
                 </div>
-              ) : recentTransactions.length === 0 ? (
-                <div className="text-center py-8">
-                  <AlertCircle className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
-                  <p className="text-sm text-muted-foreground">No recent transactions</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {recentTransactions.map((transaction: any, index: number) => (
-                    <div key={transaction.id || index} className="flex gap-3">
-                      <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                        transaction.wallet_transaction_type === "credit" ? "bg-green-500" :
-                        transaction.wallet_transaction_type === "debit" ? "bg-red-500" :
-                        "bg-muted-foreground"
-                      }`} />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm">{transaction.description || transaction.transaction_type || 'Transaction'}</p>
-                          <span className={`text-sm font-semibold ${
-                            transaction.wallet_transaction_type === "credit" ? "text-green-600" : "text-red-600"
-                          }`}>
-                            {transaction.wallet_transaction_type === "credit" ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount || 0))}
-                          </span>
+                {isLoadingTransactions ? (
+                  <SkeletonLoader variant="list" count={5} />
+                ) : transactionsError ? (
+                  <div className="text-center py-8">
+                    <AlertCircle className="w-8 h-8 mx-auto mb-2 text-destructive" />
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {transactionsError instanceof Error ? transactionsError.message : 'Failed to load transactions'}
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => refetchTransactions()}
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Retry
+                    </Button>
+                  </div>
+                ) : recentTransactions.length === 0 ? (
+                  <div className="text-center py-8">
+                    <AlertCircle className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">No recent transactions</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentTransactions.map((transaction: any, index: number) => (
+                      <div key={transaction.id || index} className="flex gap-3">
+                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                          transaction.wallet_transaction_type === "credit" ? "bg-green-500" :
+                          transaction.wallet_transaction_type === "debit" ? "bg-red-500" :
+                          "bg-muted-foreground"
+                        }`} />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm">{transaction.description || transaction.transaction_type || 'Transaction'}</p>
+                            <span className={`text-sm font-semibold ${
+                              transaction.wallet_transaction_type === "credit" ? "text-green-600" : "text-red-600"
+                            }`}>
+                              {transaction.wallet_transaction_type === "credit" ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount || 0))}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {transaction.created_at ? getTimeAgo(transaction.created_at) : 'N/A'}
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {transaction.created_at ? getTimeAgo(transaction.created_at) : 'N/A'}
-                        </p>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -616,65 +652,69 @@ export default function DashboardContent() {
             </CardContent>
           </Card>
 
-          <Card className="border-primary/30">
-            <CardContent className="p-5">
-              <h3 className="font-semibold text-sm mb-3">Linked Account Status</h3>
-              <div className="flex items-center justify-center py-4">
-                <Badge className="text-sm px-4 py-2 bg-green-500/10 text-green-500 border-green-500/30">
-                  ✓ Verified
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground text-center mb-4">
-                Your bank account is linked and verified
-              </p>
-              <Button variant="outline" className="w-full text-sm">View Details</Button>
-            </CardContent>
-          </Card>
+          {hasFullAccess && (
+            <>
+              <Card className="border-primary/30">
+                <CardContent className="p-5">
+                  <h3 className="font-semibold text-sm mb-3">Linked Account Status</h3>
+                  <div className="flex items-center justify-center py-4">
+                    <Badge className="text-sm px-4 py-2 bg-green-500/10 text-green-500 border-green-500/30">
+                      ✓ Verified
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center mb-4">
+                    Your bank account is linked and verified
+                  </p>
+                  <Button variant="outline" className="w-full text-sm">View Details</Button>
+                </CardContent>
+              </Card>
 
-          <Card className="bg-gradient-to-br from-primary/5 to-purple-500/5 border-primary/20">
-            <CardContent className="p-5">
-              <h3 className="font-semibold text-sm mb-3">Settlement Window</h3>
-              {isSettlementWindow ? (
-                <>
-                  <div className="mb-4">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-muted-foreground">Pending Amount</span>
-                      <span className="font-bold">₹8,200</span>
-                    </div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-muted-foreground">Processing Fee</span>
-                      <span>₹164</span>
-                    </div>
-                    <div className="border-t border-border pt-2 mt-2">
-                      <div className="flex justify-between text-sm font-semibold">
-                        <span>You'll Receive</span>
-                        <span className="text-primary">₹8,036</span>
+              <Card className="bg-gradient-to-br from-primary/5 to-purple-500/5 border-primary/20">
+                <CardContent className="p-5">
+                  <h3 className="font-semibold text-sm mb-3">Settlement Window</h3>
+                  {isSettlementWindow ? (
+                    <>
+                      <div className="mb-4">
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="text-muted-foreground">Pending Amount</span>
+                          <span className="font-bold">₹8,200</span>
+                        </div>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="text-muted-foreground">Processing Fee</span>
+                          <span>₹164</span>
+                        </div>
+                        <div className="border-t border-border pt-2 mt-2">
+                          <div className="flex justify-between text-sm font-semibold">
+                            <span>You'll Receive</span>
+                            <span className="text-primary">₹8,036</span>
+                          </div>
+                        </div>
                       </div>
+                      <Button className="w-full mb-3">Accept Settlement</Button>
+                      <p className="text-xs text-center text-muted-foreground">
+                        Deadline: {today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} ({10 - currentDay} days left)
+                      </p>
+                    </>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-muted-foreground mb-3">
+                        The settlement window is currently closed.
+                      </p>
+                      <div className="p-3 rounded-lg bg-muted/50 mb-3">
+                        <p className="text-xs text-muted-foreground mb-1">Next Settlement Date</p>
+                        <p className="text-sm font-semibold">
+                          {nextSettlementDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Settlement windows are open from the 5th to 10th of each month. You can accept your pending settlement during this period.
+                      </p>
                     </div>
-                  </div>
-                  <Button className="w-full mb-3">Accept Settlement</Button>
-                  <p className="text-xs text-center text-muted-foreground">
-                    Deadline: {today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} ({10 - currentDay} days left)
-                  </p>
-                </>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-sm text-muted-foreground mb-3">
-                    The settlement window is currently closed.
-                  </p>
-                  <div className="p-3 rounded-lg bg-muted/50 mb-3">
-                    <p className="text-xs text-muted-foreground mb-1">Next Settlement Date</p>
-                    <p className="text-sm font-semibold">
-                      {nextSettlementDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                    </p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Settlement windows are open from the 5th to 10th of each month. You can accept your pending settlement during this period.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
       </div>
     </div>
