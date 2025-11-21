@@ -2692,7 +2692,65 @@ export const apiClient = {
   // ==================== NOTIFICATIONS ====================
   
   /**
-   * Get notifications
+   * Get customer notifications
+   */
+  getCustomerNotifications: async (params?: {
+    status?: 'unread' | 'read' | 'all';
+    type?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.type) queryParams.append('type', params.type);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    
+    const query = queryParams.toString();
+    return apiRequest<{
+      notifications: any[];
+      unread_count: number;
+      total_count: number;
+      page: number;
+      pages: number;
+      filters_applied: any;
+    }>(`/api/auth/customer-notifications${query ? `?${query}` : ''}`);
+  },
+
+  /**
+   * Get customer notification count
+   */
+  getCustomerNotificationCount: async () => {
+    return apiRequest<{
+      unread_count: number;
+    }>('/api/auth/customer-notification-count/');
+  },
+
+  /**
+   * Mark customer notification as read
+   */
+  markCustomerNotificationRead: async (notificationId: number) => {
+    return apiRequest<{
+      message: string;
+    }>(`/api/auth/customer-notifications/${notificationId}/mark-read/`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Mark all customer notifications as read
+   */
+  markAllCustomerNotificationsRead: async () => {
+    return apiRequest<{
+      message: string;
+      updated_count: number;
+    }>('/api/auth/customer-notifications/mark-all-read/', {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Get notifications (designer - kept for backward compatibility)
    */
   getNotifications: async (params?: {
     status?: 'unread' | 'read' | 'all';
@@ -2714,7 +2772,7 @@ export const apiClient = {
   },
 
   /**
-   * Get notification count
+   * Get notification count (designer - kept for backward compatibility)
    */
   getNotificationCount: async () => {
     return apiRequest<{
@@ -2723,7 +2781,7 @@ export const apiClient = {
   },
 
   /**
-   * Mark notification as read
+   * Mark notification as read (designer - kept for backward compatibility)
    */
   markNotificationRead: async (notificationId: number) => {
     return apiRequest<{
@@ -2734,7 +2792,7 @@ export const apiClient = {
   },
 
   /**
-   * Mark all notifications as read
+   * Mark all notifications as read (designer - kept for backward compatibility)
    */
   markAllNotificationsRead: async () => {
     return apiRequest<{

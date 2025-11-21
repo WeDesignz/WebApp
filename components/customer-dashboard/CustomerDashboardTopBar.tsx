@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useCartWishlist } from "@/contexts/CartWishlistContext";
 import { DashboardView } from "./CustomerDashboard";
 import { useAuth } from "@/contexts/AuthContext";
+import NotificationDropdown from "./NotificationDropdown";
 
 interface TopBarProps {
   searchQuery: string;
@@ -81,8 +82,8 @@ export default function CustomerDashboardTopBar({
           </div>
         </div>
 
-        {/* Right Side - Invite Freelancers, Wishlist, Cart, Profile */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+        {/* Right Side - Invite Freelancers, Notifications, Wishlist, Cart, Profile */}
+        <div className="flex items-center gap-3 flex-shrink-0">
           {/* Invite Freelancers Button */}
           <div className="hidden md:flex">
             <Button size="lg" className="whitespace-nowrap" disabled>
@@ -90,6 +91,9 @@ export default function CustomerDashboardTopBar({
               + Invite Freelancers
             </Button>
           </div>
+
+          {/* Notifications */}
+          <NotificationDropdown />
 
           <a 
             href="/customer-dashboard/wishlist"

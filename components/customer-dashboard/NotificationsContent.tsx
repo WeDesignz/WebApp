@@ -69,9 +69,9 @@ export default function NotificationsContent() {
 
   // Fetch notifications
   const { data: notificationsData, isLoading, error, refetch } = useQuery({
-    queryKey: ['notifications', filter],
+    queryKey: ['customerNotifications', filter],
     queryFn: async () => {
-      const response = await apiClient.getNotifications({
+      const response = await apiClient.getCustomerNotifications({
         status: filter === "all" ? undefined : filter,
       });
       if (response.error) {
@@ -86,11 +86,11 @@ export default function NotificationsContent() {
   // Mark as read mutation
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: number) => {
-      return apiClient.markNotificationRead(notificationId);
+      return apiClient.markCustomerNotificationRead(notificationId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['notificationCount'] });
+      queryClient.invalidateQueries({ queryKey: ['customerNotifications'] });
+      queryClient.invalidateQueries({ queryKey: ['customerNotificationCount'] });
     },
     onError: (error: Error) => {
       toast({
@@ -104,11 +104,11 @@ export default function NotificationsContent() {
   // Mark all as read mutation
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
-      return apiClient.markAllNotificationsRead();
+      return apiClient.markAllCustomerNotificationsRead();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['notificationCount'] });
+      queryClient.invalidateQueries({ queryKey: ['customerNotifications'] });
+      queryClient.invalidateQueries({ queryKey: ['customerNotificationCount'] });
       toast({
         title: "Success",
         description: "All notifications marked as read",

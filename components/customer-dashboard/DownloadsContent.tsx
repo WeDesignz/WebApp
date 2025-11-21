@@ -11,7 +11,6 @@ import {
   Receipt,
   FileImage,
   Search,
-  CheckCircle2,
   Loader2,
   AlertCircle,
   Eye,
@@ -36,10 +35,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import ReceiptModal from "@/components/customer-dashboard/ReceiptModal";
-import { PDFPurchase } from "./PDFDownloadModal";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, catalogAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 interface Download {
   id: number | string;
@@ -65,13 +64,12 @@ interface Download {
 export default function DownloadsContent() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
-  const [pdfPurchases, setPdfPurchases] = useState<PDFPurchase[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
   const [filter, setFilter] = useState<'all' | 'paid'>('all');
   const [downloadingProductId, setDownloadingProductId] = useState<number | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [hoveredProductId, setHoveredProductId] = useState<number | string | null>(null);
   const { toast } = useToast();
+  const router = useRouter();
 
   // Add new filter states
   const [typeFilter, setTypeFilter] = useState<'all' | 'free' | 'paid'>('all');
@@ -244,43 +242,6 @@ export default function DownloadsContent() {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  useEffect(() => {
-    setIsMounted(true);
-    
-    // Load PDF purchases from localStorage
-    const stored = localStorage.getItem("pdfPurchases");
-    if (stored) {
-      try {
-        const purchases = JSON.parse(stored);
-        setPdfPurchases(purchases);
-      } catch (error) {
-        console.error("Error loading PDF purchases:", error);
-      }
-    }
-
-    // Listen for storage changes (when PDF is purchased from another component)
-    const handleStorageChange = () => {
-      const stored = localStorage.getItem("pdfPurchases");
-      if (stored) {
-        try {
-          const purchases = JSON.parse(stored);
-          setPdfPurchases(purchases);
-        } catch (error) {
-          console.error("Error loading PDF purchases:", error);
-        }
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    
-    // Also check periodically for changes (since same-window updates don't trigger storage event)
-    const interval = setInterval(handleStorageChange, 1000);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      clearInterval(interval);
-    };
-  }, []);
 
   const handleDownload = async (download: Download) => {
     try {
@@ -351,19 +312,6 @@ export default function DownloadsContent() {
       });
       setDownloadingProductId(null);
     }
-  };
-
-  const handlePDFDownload = (purchase: PDFPurchase) => {
-    // Mark as downloaded
-    const updated = pdfPurchases.map((p) =>
-      p.id === purchase.id ? { ...p, downloaded: true } : p
-    );
-    setPdfPurchases(updated);
-    localStorage.setItem("pdfPurchases", JSON.stringify(updated));
-
-    // Simulate PDF download
-    console.log("Downloading PDF:", purchase);
-    // In real implementation, this would trigger actual PDF generation and download
   };
 
   const openReceipt = (download: any) => {
@@ -843,94 +791,17 @@ export default function DownloadsContent() {
                 </div>
               </Card>
 
-              {/* Purchased PDFs */}
-              <Card className="p-4">
-                <h3 className="font-semibold mb-3">Mock PDFs</h3>
-                {!isMounted ? (
-                  <div className="text-center py-8">
-                    <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground">Loading...</p>
-                  </div>
-                ) : pdfPurchases.length > 0 ? (
-                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                    {pdfPurchases.map((purchase) => (
-                      <motion.div
-                        key={purchase.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-3 rounded-lg border border-border bg-card"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <FileText className="w-4 h-4 text-primary" />
-                              <span className="text-sm font-semibold">
-                                {purchase.quantity} Designs PDF
-                              </span>
-                              {purchase.type === "free" && (
-                                <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
-                                  Free
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                              <Search className="w-3 h-3" />
-                              <span className="truncate">
-                                {purchase.searchQuery || "All Designs"}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <Badge variant="secondary" className="text-xs">
-                                {purchase.category}
-                              </Badge>
-                              <span>•</span>
-                              <span>
-                                {purchase.selectionType === "firstN"
-                                  ? "First N"
-                                  : "Selected"}
-                              </span>
-                            </div>
-                            {purchase.type === "paid" && (
-                              <div className="text-xs font-semibold text-primary mt-1">
-                                ₹{purchase.price}
-                              </div>
-                            )}
-                          </div>
-                          {purchase.downloaded ? (
-                            <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handlePDFDownload(purchase)}
-                              className="flex-shrink-0"
-                            >
-                              <Download className="w-3 h-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground mb-2">
-                      No PDFs purchased yet
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Purchase PDFs from the dashboard to download them here
-                    </p>
-                  </div>
-                )}
-              </Card>
-
               <Card className="p-4">
                 <h3 className="font-semibold mb-2">Need Help?</h3>
                 <p className="text-sm text-muted-foreground mb-3">
                   Having trouble with downloads? Contact support.
                 </p>
-                <Button variant="outline" className="w-full" size="sm">
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  size="sm"
+                  onClick={() => router.push('/customer-dashboard?view=support')}
+                >
                   Contact Support
                 </Button>
               </Card>
