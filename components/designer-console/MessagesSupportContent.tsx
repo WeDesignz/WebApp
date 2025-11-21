@@ -540,12 +540,12 @@ export default function MessagesSupportContent() {
                             <div className="flex items-start gap-3 flex-1 min-w-0">
                               <Avatar className="w-10 h-10 flex-shrink-0">
                                 <AvatarFallback>
-                                  {(typeof message.sender === 'string' ? message.sender : message.sender?.username || message.sender?.email || 'S').charAt(0).toUpperCase()}
+                                  {(message.sender || 'S').charAt(0).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <p className="font-semibold text-sm truncate">{typeof message.sender === 'string' ? message.sender : message.sender?.username || message.sender?.email || 'Support Team'}</p>
+                                  <p className="font-semibold text-sm truncate">{message.sender || 'Support Team'}</p>
                                   {getStatusBadge(message.status)}
                                 </div>
                                 <p className="text-sm font-medium truncate mb-1">{message.subject}</p>
@@ -636,7 +636,7 @@ export default function MessagesSupportContent() {
                             {msg.senderType !== "user" && (
                               <Avatar className="w-8 h-8 flex-shrink-0">
                                 <AvatarFallback>
-                                  {(typeof msg.sender === 'string' ? msg.sender : msg.sender?.username || msg.sender?.email || 'S').charAt(0).toUpperCase()}
+                                  {(msg.sender || 'S').charAt(0).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                             )}
@@ -648,7 +648,7 @@ export default function MessagesSupportContent() {
                               } rounded-lg p-4`}
                             >
                               <div className="flex items-center gap-2 mb-2">
-                                <p className="font-semibold text-sm">{typeof msg.sender === 'string' ? msg.sender : msg.sender?.username || msg.sender?.email || 'Support Team'}</p>
+                                <p className="font-semibold text-sm">{msg.sender || 'Support Team'}</p>
                                 <span className="text-xs opacity-70">
                                   {formatTimestamp(timestamp)}
                                 </span>
