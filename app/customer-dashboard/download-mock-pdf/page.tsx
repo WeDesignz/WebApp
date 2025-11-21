@@ -245,17 +245,25 @@ function DownloadMockPDFPageContent() {
 
       if (selectionMode === "firstN") {
         // Use first N designs from current filtered results
-        const searchFilters = {
-          q: searchQuery || undefined,
-          category: selectedCategory !== "all" ? parseInt(selectedCategory) : undefined,
-        };
+        // Build search filters object, only including defined values
+        // Empty object is valid - means "all products" (no filters)
+        const searchFilters: { q?: string; category?: number } = {};
+        if (searchQuery && searchQuery.trim()) {
+          searchFilters.q = searchQuery.trim();
+        }
+        if (selectedCategory && selectedCategory !== "all") {
+          const categoryId = parseInt(selectedCategory);
+          if (!isNaN(categoryId)) {
+            searchFilters.category = categoryId;
+          }
+        }
 
-        // Create PDF request
+        // Create PDF request - always send search_filters object (can be empty)
         const createResponse = await apiClient.createPDFRequest({
           download_type: downloadType,
           total_pages: freeDesignsCount,
           selection_type: "search_results",
-          search_filters: searchFilters,
+          search_filters: searchFilters, // Empty object {} is valid - means no filters
         });
 
         if (createResponse.error || !createResponse.data) {
@@ -504,33 +512,20 @@ function DownloadMockPDFPageContent() {
                       className="pl-10"
                     />
                   </div>
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="px-4 py-2 rounded-md border border-border bg-background"
-                  >
-                    <option value="all">All Categories</option>
-                    {categories.map((cat: any) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="flex gap-1 border border-border rounded-lg p-1">
-                    <Button
-                      variant={viewMode === "grid" ? "secondary" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("grid")}
+                  <div className="relative">
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="appearance-none px-4 py-2 pr-10 rounded-md border border-border bg-background text-foreground cursor-pointer hover:border-primary/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-[180px] z-10 relative"
                     >
-                      <Grid3x3 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant={viewMode === "list" ? "secondary" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("list")}
-                    >
-                      <List className="w-4 h-4" />
-                    </Button>
+                      <option value="all">All Categories</option>
+                      {categories.map((cat: any) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-20" />
                   </div>
                 </div>
               </div>
