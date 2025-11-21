@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShoppingCart, Download, CreditCard, Heart, Loader2, Tag, Image as ImageIcon, Package, Hash, Palette, DollarSign, Info, Eye, ZoomIn } from "lucide-react";
+import { X, ShoppingCart, Download, CreditCard, Heart, Loader2, Tag, Image as ImageIcon, Package, Hash, Palette, DollarSign, Info, Eye, ZoomIn, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCartWishlist } from "@/contexts/CartWishlistContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -280,26 +281,161 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                 </div>
               ) : (
                 <>
-                  {/* Header with close button - Sticky */}
+                  {/* Header with action buttons - Sticky */}
                   <div className="flex items-center justify-between p-6 border-b border-border bg-card sticky top-0 z-10 rounded-t-2xl">
                     <h2 className="text-2xl font-bold">{product.title}</h2>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleAddToWishlist}
-                        className="p-2 hover:bg-muted rounded-full transition-colors"
-                        aria-label="Add to wishlist"
-                      >
-                        <Heart 
-                          className={`w-5 h-5 ${isInWishlist(String(product.id)) ? 'fill-destructive text-destructive' : ''}`} 
-                        />
-                      </button>
-                      <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-muted rounded-full transition-colors"
-                        aria-label="Close modal"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
+                      <TooltipProvider>
+                        {/* Download Button (if has active plan or is free) */}
+                        {hasActivePlan && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => {
+                                  // Handle download for active plan users
+                                  handleDownloadFree();
+                                }}
+                                className="p-2 hover:bg-muted rounded-full transition-colors"
+                                aria-label="Download Design"
+                              >
+                                <Download className="w-5 h-5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Download Design</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        
+                        {!hasActivePlan && isFree() && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={handleDownloadFree}
+                                disabled={isDownloading}
+                                className="p-2 hover:bg-muted rounded-full transition-colors disabled:opacity-50"
+                                aria-label="Download Free"
+                              >
+                                {isDownloading ? (
+                                  <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                  <Download className="w-5 h-5" />
+                                )}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Download Free</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+
+                        {/* Add to Cart Button (if no active plan and not free) */}
+                        {!hasActivePlan && !isFree() && (
+                          <>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => handleAddToCart()}
+                                  className="p-2 hover:bg-muted rounded-full transition-colors"
+                                  aria-label="Add to Cart"
+                                >
+                                  <ShoppingCart className="w-5 h-5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Add to Cart</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={handleBuyNow}
+                                  className="p-2 hover:bg-muted rounded-full transition-colors"
+                                  aria-label="Buy Now"
+                                >
+                                  <Zap className="w-5 h-5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Buy Now</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </>
+                        )}
+
+                        {/* Add to Cart for Bulk Download (if has active plan) */}
+                        {hasActivePlan && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleAddToCart()}
+                                className="p-2 hover:bg-muted rounded-full transition-colors"
+                                aria-label="Add to Cart for Bulk Download"
+                              >
+                                <ShoppingCart className="w-5 h-5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Add to Cart for Bulk Download</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+
+                        {/* Purchase Plan Button (if no active plan) */}
+                        {!hasActivePlan && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => {
+                                  onClose();
+                                  router.push('/customer-dashboard/plans');
+                                }}
+                                className="p-2 rounded-full transition-all bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 hover:scale-110"
+                                aria-label="Purchase Plan"
+                              >
+                                <CreditCard className="w-5 h-5 text-white" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Purchase Plan</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+
+                        {/* Wishlist Button */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={handleAddToWishlist}
+                              className="p-2 hover:bg-muted rounded-full transition-colors"
+                              aria-label="Add to wishlist"
+                            >
+                              <Heart 
+                                className={`w-5 h-5 ${isInWishlist(String(product.id)) ? 'fill-destructive text-destructive' : ''}`} 
+                              />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{isInWishlist(String(product.id)) ? 'Remove from Wishlist' : 'Add to Wishlist'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+
+                        {/* Close Button */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={onClose}
+                              className="p-2 hover:bg-muted rounded-full transition-colors"
+                              aria-label="Close modal"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Close</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </div>
 
@@ -545,74 +681,6 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                     </div>
                   </div>
                   </div>
-
-              {/* Action Buttons - Sticky at bottom */}
-              <div className="p-6 border-t border-border bg-muted/30 sticky bottom-0 rounded-b-2xl">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  {hasActivePlan ? (
-                    <>
-                      <Button className="flex-1 rounded-full h-12 text-base font-semibold">
-                        <Download className="w-5 h-5 mr-2" />
-                        Download Design
-                      </Button>
-                      <Button variant="outline" className="flex-1 rounded-full h-12 text-base font-semibold">
-                        <ShoppingCart className="w-5 h-5 mr-2" />
-                        Add to Cart for Bulk Download
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      {isFree() ? (
-                        <Button 
-                          className="flex-1 rounded-full h-12 text-base font-semibold"
-                          onClick={handleDownloadFree}
-                          disabled={isDownloading}
-                        >
-                          {isDownloading ? (
-                            <>
-                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                              Downloading...
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-5 h-5 mr-2" />
-                              Download Free
-                            </>
-                          )}
-                        </Button>
-                      ) : (
-                        <>
-                          <Button 
-                            variant="outline" 
-                            className="flex-1 rounded-full h-12 text-base font-semibold"
-                            onClick={() => handleAddToCart()}
-                          >
-                            <ShoppingCart className="w-5 h-5 mr-2" />
-                            Add to Cart
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            className="flex-1 rounded-full h-12 text-base font-semibold"
-                            onClick={handleBuyNow}
-                          >
-                            Buy Now
-                          </Button>
-                        </>
-                      )}
-                      <Button 
-                        className="flex-1 rounded-full h-12 text-base font-semibold bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
-                        onClick={() => {
-                          onClose();
-                          router.push('/customer-dashboard/plans');
-                        }}
-                      >
-                        <CreditCard className="w-5 h-5 mr-2" />
-                        Purchase Plan
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
                 </>
               )}
             </motion.div>
