@@ -64,15 +64,32 @@ interface LineChartProps {
 }
 
 function LineChart({ data, color, height = 200 }: LineChartProps) {
-  const maxValue = Math.max(...data.map(d => d.value));
+  // Validate data and filter out invalid values
+  const validData = data.filter(d => d && typeof d.value === 'number' && !isNaN(d.value) && isFinite(d.value));
+  
+  if (validData.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full text-muted-foreground">
+        No valid data to display
+      </div>
+    );
+  }
+  
+  const maxValue = Math.max(...validData.map(d => d.value));
+  const minValue = Math.min(...validData.map(d => d.value));
+  const valueRange = maxValue - minValue || 1; // Prevent division by zero
+  
   const width = 800;
   const padding = 40;
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;
 
-  const points = data.map((d, i) => {
-    const x = (i / (data.length - 1)) * chartWidth + padding;
-    const y = height - padding - (d.value / maxValue) * chartHeight;
+  const points = validData.map((d, i) => {
+    const x = validData.length > 1 
+      ? (i / (validData.length - 1)) * chartWidth + padding 
+      : padding + chartWidth / 2;
+    const normalizedValue = valueRange > 0 ? (d.value - minValue) / valueRange : 0.5;
+    const y = height - padding - normalizedValue * chartHeight;
     return `${x},${y}`;
   }).join(" ");
 
@@ -99,7 +116,7 @@ function LineChart({ data, color, height = 200 }: LineChartProps) {
               fontSize="12"
               fill="hsl(var(--muted-foreground))"
             >
-              {Math.round(maxValue * percent)}
+              {Math.round(minValue + (maxValue - minValue) * percent)}
             </text>
           </g>
         );
@@ -123,9 +140,12 @@ function LineChart({ data, color, height = 200 }: LineChartProps) {
       />
 
       {/* Data points */}
-      {data.map((d, i) => {
-        const x = (i / (data.length - 1)) * chartWidth + padding;
-        const y = height - padding - (d.value / maxValue) * chartHeight;
+      {validData.map((d, i) => {
+        const x = validData.length > 1 
+          ? (i / (validData.length - 1)) * chartWidth + padding 
+          : padding + chartWidth / 2;
+        const normalizedValue = valueRange > 0 ? (d.value - minValue) / valueRange : 0.5;
+        const y = height - padding - normalizedValue * chartHeight;
         return (
           <circle
             key={i}
@@ -139,9 +159,11 @@ function LineChart({ data, color, height = 200 }: LineChartProps) {
       })}
 
       {/* X-axis labels */}
-      {data.map((d, i) => {
+      {validData.map((d, i) => {
         if (i % 2 === 0) {
-          const x = (i / (data.length - 1)) * chartWidth + padding;
+          const x = validData.length > 1 
+            ? (i / (validData.length - 1)) * chartWidth + padding 
+            : padding + chartWidth / 2;
           return (
             <text
               key={i}
@@ -248,13 +270,46 @@ export default function AnalyticsContent() {
     queryKey: ['designAnalytics', designs.map(d => d.id)],
     queryFn: async () => {
       const analyticsPromises = designs.map(design =>
-        apiClient.getDesignAnalytics(design.id).then(res => ({
-          ...(res.data && typeof res.data === 'object' ? res.data : {}),
-          design_id: design.id,
-        }))
+        apiClient.getDesignAnalytics(design.id)
+          .then(res => {
+            if (res.error || !res.data || typeof res.data !== 'object') {
+              // Return default values if API call failed
+              return {
+                design_id: design.id,
+                title: design.title || 'Unknown',
+                views: 0,
+                downloads: 0,
+                purchases: 0,
+                revenue: 0,
+                performance_score: 0,
+              };
+            }
+            return {
+              ...res.data,
+              design_id: design.id,
+              views: Number(res.data.views) || 0,
+              downloads: Number(res.data.downloads) || 0,
+              purchases: Number(res.data.purchases) || 0,
+              revenue: Number(res.data.revenue) || 0,
+              performance_score: Number(res.data.performance_score) || 0,
+            };
+          })
+          .catch(error => {
+            // Return default values on error
+            console.error(`Error fetching analytics for design ${design.id}:`, error);
+            return {
+              design_id: design.id,
+              title: design.title || 'Unknown',
+              views: 0,
+              downloads: 0,
+              purchases: 0,
+              revenue: 0,
+              performance_score: 0,
+            };
+          })
       );
       const results = await Promise.all(analyticsPromises);
-      return results.filter(r => r && !r.error);
+      return results.filter(r => r && r.design_id); // Filter out any completely invalid results
     },
     enabled: designs.length > 0,
     staleTime: 30 * 1000,
