@@ -43,11 +43,20 @@ export function DesignerVerificationProvider({ children }: { children: ReactNode
         if (response.error) {
           console.error('Error fetching verification status:', response.error);
           setVerificationStatus('pending');
-        } else if (response.data?.onboarding_status?.designer_profile_status) {
-          const backendStatus = response.data.onboarding_status.designer_profile_status;
-          setVerificationStatus(mapBackendStatus(backendStatus));
         } else {
-          setVerificationStatus('pending');
+          // Check if user is a studio member (they don't need verification)
+          const isStudioMember = response.data?.profile_info?.is_studio_member && 
+                                 !response.data?.profile_info?.has_full_console_access;
+          
+          if (isStudioMember) {
+            // Studio members are considered "verified" for their limited access
+            setVerificationStatus('verified');
+          } else if (response.data?.onboarding_status?.designer_profile_status) {
+            const backendStatus = response.data.onboarding_status.designer_profile_status;
+            setVerificationStatus(mapBackendStatus(backendStatus));
+          } else {
+            setVerificationStatus('pending');
+          }
         }
       } catch (error) {
         console.error('Error fetching verification status:', error);

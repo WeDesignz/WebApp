@@ -18,6 +18,7 @@ import {
   Shield,
   Loader2,
   RefreshCw,
+  Building2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,7 +75,7 @@ const getTimeAgo = (date: string): string => {
 
 export default function DashboardContent() {
   const { isVerified, verificationStatus } = useDesignerVerification();
-  const { hasFullAccess, isStudioMember } = useStudioAccess();
+  const { hasFullAccess, isStudioMember, studioMembership, studioId } = useStudioAccess();
   const { user } = useAuth();
   const today = new Date();
   const currentDay = today.getDate();
@@ -98,6 +99,10 @@ export default function DashboardContent() {
   const taskId = designProcessingStatus?.task_id || null;
   const isProcessing = designProcessingStatus && 
     (designProcessingStatus.status === 'pending' || designProcessingStatus.status === 'processing');
+  
+  // Get studio information for studio members
+  const accessingStudio = onboardingStatusData?.profile_info?.accessing_studio;
+  const studioInfo = accessingStudio || studioMembership?.studio;
 
   // Fetch dashboard data
   const { 
@@ -223,7 +228,8 @@ export default function DashboardContent() {
     return baseCards;
   }, [kpis, pendingReviews, performanceScore, performancePercentage, hasFullAccess]);
 
-  if (!isVerified) {
+  // Don't show verification message for studio members - they don't need verification
+  if (!isVerified && !isStudioMember) {
     return (
       <div className="p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -253,24 +259,6 @@ export default function DashboardContent() {
           </div>
 
           <div className="space-y-6">
-            <Card>
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-sm">Notifications</h3>
-                  <Badge variant="destructive" className="text-xs">3 new</Badge>
-                </div>
-                <div className="space-y-3">
-                  {["Design approved", "Payment received", "New comment"].map((notif, i) => (
-                    <div key={i} className="text-sm p-2 rounded-lg hover:bg-accent cursor-pointer transition-colors">
-                      <p className="font-medium">{notif}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{i + 1}h ago</p>
-                    </div>
-                  ))}
-                </div>
-                <Button variant="ghost" className="w-full mt-3 text-sm">View All</Button>
-              </CardContent>
-            </Card>
-
             <Card className="border-primary/30">
               <CardContent className="p-5">
                 <h3 className="font-semibold text-sm mb-3">Linked Account Status</h3>
@@ -300,8 +288,8 @@ export default function DashboardContent() {
             <DesignProcessingProgress taskId={taskId} />
           )}
           
-          {/* Show locked features banner if pending */}
-          {verificationStatus === 'pending' && (
+          {/* Show locked features banner if pending (but not for studio members) */}
+          {verificationStatus === 'pending' && !isStudioMember && (
             <Card className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-3">
@@ -634,23 +622,59 @@ export default function DashboardContent() {
         </div>
 
         <div className="space-y-6">
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-sm">Notifications</h3>
-                <Badge variant="destructive" className="text-xs">3 new</Badge>
-              </div>
-              <div className="space-y-3">
-                {["Design approved", "Payment received", "New comment"].map((notif, i) => (
-                  <div key={i} className="text-sm p-2 rounded-lg hover:bg-accent cursor-pointer transition-colors">
-                    <p className="font-medium">{notif}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{i + 1}h ago</p>
+          {/* Studio Information Card for Studio Members */}
+          {isStudioMember && (studioInfo || studioMembership) && (
+            <Card className="bg-gradient-to-br from-primary/10 via-background to-purple-500/10 border-primary/20">
+              <CardContent className="p-5">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center shadow-lg flex-shrink-0">
+                    <Building2 className="w-5 h-5 text-white" />
                   </div>
-                ))}
-              </div>
-              <Button variant="ghost" className="w-full mt-3 text-sm">View All</Button>
-            </CardContent>
-          </Card>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm mb-0.5 truncate">
+                      {studioInfo?.name || studioMembership?.studio?.name || 'Studio'}
+                    </h3>
+                    {(studioInfo?.wedesignz_auto_name || studioMembership?.studio?.wedesignz_auto_name) && (
+                      <p className="text-xs text-muted-foreground font-mono">
+                        {studioInfo?.wedesignz_auto_name || studioMembership?.studio?.wedesignz_auto_name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2 pt-2 border-t border-border">
+                  {studioMembership?.role && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Role:</span>
+                      <Badge variant="secondary" className="capitalize text-xs">
+                        {studioMembership.role.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                  )}
+                  {(studioInfo?.owner_name || studioMembership?.studio?.created_by) && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Owner:</span>
+                      <span className="font-medium truncate ml-2 text-right">
+                        {studioInfo?.owner_name || 
+                         (studioMembership?.studio?.created_by?.first_name || studioMembership?.studio?.created_by?.username || '') +
+                         (studioMembership?.studio?.created_by?.last_name ? ` ${studioMembership.studio.created_by.last_name}` : '')}
+                      </span>
+                    </div>
+                  )}
+                  {studioMembership?.status && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Status:</span>
+                      <Badge 
+                        variant={studioMembership.status === 'active' ? 'default' : 'secondary'}
+                        className="capitalize text-xs"
+                      >
+                        {studioMembership.status}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {hasFullAccess && (
             <>

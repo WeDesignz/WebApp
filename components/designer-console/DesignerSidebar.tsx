@@ -39,10 +39,12 @@ export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebar
   ];
 
   // Base menu items - all items that could be shown
+  // Studio members don't need verification, so unlock items for them
+  const shouldLockForVerification = !isVerified && !isStudioMember;
   const allMenuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/designer-console", locked: false, requiresFullAccess: false },
-    { icon: Image, label: "My Designs", href: "/designer-console/designs", locked: !isVerified, requiresFullAccess: false },
-    { icon: Upload, label: "Upload Design", href: "/designer-console/upload", locked: !isVerified, requiresFullAccess: false },
+    { icon: Image, label: "My Designs", href: "/designer-console/designs", locked: shouldLockForVerification, requiresFullAccess: false },
+    { icon: Upload, label: "Upload Design", href: "/designer-console/upload", locked: shouldLockForVerification, requiresFullAccess: false },
     { icon: Building2, label: "Studio", href: "/designer-console/studio", locked: false, requiresFullAccess: true, requiresStudioOwner: true },
     { icon: BarChart3, label: "Analytics", href: "/designer-console/analytics", locked: !isVerified, requiresFullAccess: true },
     { icon: Wallet, label: "Earnings & Wallet", href: "/designer-console/earnings", locked: !isVerified, requiresFullAccess: true },

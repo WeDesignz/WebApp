@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useStudioAccess } from "@/contexts/StudioAccessContext";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import OTPVerificationModal from "@/components/designer-onboarding/OTPVerificationModal";
@@ -38,6 +39,7 @@ interface DesignerProfile {
 
 export default function ProfileContent() {
   const { user, updateUser } = useAuth();
+  const { isStudioMember, hasFullAccess } = useStudioAccess();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
@@ -58,22 +60,24 @@ export default function ProfileContent() {
 
   const [skillTagInput, setSkillTagInput] = useState("");
 
-  // Fetch designer profile
+  // Fetch designer profile (only for studio owners/individual designers, not for studio members)
   const { data: designerProfileData, isLoading: isLoadingProfile } = useQuery({
     queryKey: ['designerProfile'],
     queryFn: async () => {
       const response = await apiClient.getDesignerProfile();
       if (response.error) {
-        throw new Error(response.error);
+        // For studio members, it's okay if there's no DesignerProfile
+        return null;
       }
       return response.data?.designer_profile;
     },
+    enabled: !isStudioMember, // Don't fetch for studio members
     staleTime: 30 * 1000,
   });
 
   const designerProfile: DesignerProfile = designerProfileData || {};
 
-  // Update profile data when user or designer profile changes
+  // Update profile data when user changes
   useEffect(() => {
     if (user) {
       setProfileData(prev => ({
@@ -84,39 +88,56 @@ export default function ProfileContent() {
         phone: user.mobileNumber || "",
       }));
     }
-  }, [user]);
+  }, [user?.firstName, user?.lastName, user?.email, user?.mobileNumber]);
 
+  // Update profile data when designer profile changes (only for studio owners/individual designers)
   useEffect(() => {
-    if (designerProfile) {
-      setProfileData(prev => ({
-        ...prev,
-        bio: designerProfile.bio || "",
-        skillTags: designerProfile.skill_tags || [],
-      }));
+    if (!designerProfileData || isStudioMember) {
+      return; // Skip for studio members or when no profile data
+    }
+
+    setProfileData(prev => {
+      const newBio = designerProfileData.bio || "";
+      const newSkillTags = designerProfileData.skill_tags || [];
       
-      // Set profile photo from media (only if not already set from upload)
-      if (!photoFile && designerProfile.media && designerProfile.media.length > 0) {
-        // First try to find profile photo by meta type
-        let profilePhoto = designerProfile.media.find((m: any) => 
-          m.meta?.type === 'profile_photo'
+      // Only update if values actually changed to prevent infinite loops
+      if (prev.bio === newBio && JSON.stringify(prev.skillTags) === JSON.stringify(newSkillTags)) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        bio: newBio,
+        skillTags: newSkillTags,
+      };
+    });
+    
+    // Set profile photo from media (only if not already set from upload)
+    if (!photoFile && designerProfileData.media && designerProfileData.media.length > 0) {
+      // First try to find profile photo by meta type
+      let profilePhoto = designerProfileData.media.find((m: any) => 
+        m.meta?.type === 'profile_photo'
+      );
+      
+      // If not found, get first image
+      if (!profilePhoto) {
+        profilePhoto = designerProfileData.media.find((m: any) => 
+          m.media_type === 'image'
         );
-        
-        // If not found, get first image
-        if (!profilePhoto) {
-          profilePhoto = designerProfile.media.find((m: any) => 
-            m.media_type === 'image'
-          );
-        }
-        
-        if (profilePhoto) {
-          const photoUrl = profilePhoto.file_url || profilePhoto.file || profilePhoto.url;
-          if (photoUrl) {
-            setPhotoPreview(photoUrl);
-          }
+      }
+      
+      if (profilePhoto) {
+        const photoUrl = profilePhoto.file_url || profilePhoto.file || profilePhoto.url;
+        if (photoUrl) {
+          setPhotoPreview(prev => {
+            // Only update if URL changed
+            return prev !== photoUrl ? photoUrl : prev;
+          });
         }
       }
     }
-  }, [designerProfile, photoFile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [designerProfileData?.id, designerProfileData?.bio, designerProfileData?.skill_tags, isStudioMember, photoFile]);
 
   // Update designer profile mutation
   const updateProfileMutation = useMutation({
@@ -614,94 +635,96 @@ export default function ProfileContent() {
           </CardContent>
         </Card>
 
-        {/* Designer Profile */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Designer Profile</CardTitle>
-            <CardDescription>Your bio and skills as a designer</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="bio">Bio</Label>
-              <Textarea
-                id="bio"
-                name="bio"
-                value={profileData.bio}
-                onChange={handleChange}
-                disabled={!isEditing}
-                rows={4}
-                placeholder="Tell us about yourself and your design expertise..."
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="skillTags">Skill Tags</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="skillTags"
-                  placeholder="Add a skill tag"
-                  value={skillTagInput}
-                  onChange={(e) => setSkillTagInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddSkillTag();
-                    }
-                  }}
+        {/* Designer Profile - Only show for studio owners and individual designers, not for studio members */}
+        {!isStudioMember && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Designer Profile</CardTitle>
+              <CardDescription>Your bio and skills as a designer</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="bio">Bio</Label>
+                <Textarea
+                  id="bio"
+                  name="bio"
+                  value={profileData.bio}
+                  onChange={handleChange}
                   disabled={!isEditing}
+                  rows={4}
+                  placeholder="Tell us about yourself and your design expertise..."
                 />
-                <Button
-                  type="button"
-                  onClick={handleAddSkillTag}
-                  variant="outline"
-                  disabled={!isEditing}
-                >
-                  Add
-                </Button>
               </div>
-              {profileData.skillTags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {profileData.skillTags.map((tag) => (
-                    <div
-                      key={tag}
-                      className="flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm"
+
+              <div className="space-y-2">
+                <Label htmlFor="skillTags">Skill Tags</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="skillTags"
+                    placeholder="Add a skill tag"
+                    value={skillTagInput}
+                    onChange={(e) => setSkillTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddSkillTag();
+                      }
+                    }}
+                    disabled={!isEditing}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleAddSkillTag}
+                    variant="outline"
+                    disabled={!isEditing}
+                  >
+                    Add
+                  </Button>
+                </div>
+                {profileData.skillTags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {profileData.skillTags.map((tag) => (
+                      <div
+                        key={tag}
+                        className="flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm"
+                      >
+                        {tag}
+                        {isEditing && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSkillTag(tag)}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {designerProfile?.status && (
+                <div className="space-y-2">
+                  <Label>Profile Status</Label>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={
+                        designerProfile.status === "verified"
+                          ? "default"
+                          : designerProfile.status === "suspended"
+                          ? "destructive"
+                          : "secondary"
+                      }
                     >
-                      {tag}
-                      {isEditing && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSkillTag(tag)}
-                          className="ml-1 hover:text-destructive"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                      {designerProfile.status.charAt(0).toUpperCase() + designerProfile.status.slice(1)}
+                    </Badge>
+                  </div>
                 </div>
               )}
-            </div>
-
-            {designerProfile?.status && (
-              <div className="space-y-2">
-                <Label>Profile Status</Label>
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant={
-                      designerProfile.status === "verified"
-                        ? "default"
-                        : designerProfile.status === "suspended"
-                        ? "destructive"
-                        : "secondary"
-                    }
-                  >
-                    {designerProfile.status.charAt(0).toUpperCase() + designerProfile.status.slice(1)}
-                  </Badge>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* OTP Verification Modals */}
