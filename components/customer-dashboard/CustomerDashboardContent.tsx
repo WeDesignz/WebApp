@@ -233,11 +233,11 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
                         )}
                       </div>
                       <h3 className="font-semibold text-sm text-center">{category.title}</h3>
-                      {category.productCount !== undefined && (
-                        <p className="text-xs text-muted-foreground text-center mt-1">
-                          {category.productCount} products
-                        </p>
-                      )}
+                      <p className="text-xs text-muted-foreground text-center mt-1">
+                        {category.productCount !== undefined && category.productCount >= 0 
+                          ? `${category.productCount} ${category.productCount === 1 ? 'product' : 'products'}`
+                          : 'Loading...'}
+                      </p>
                     </Card>
                   </motion.div>
                 );

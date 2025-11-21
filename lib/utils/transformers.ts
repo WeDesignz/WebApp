@@ -165,11 +165,12 @@ export function transformCategory(apiCategory: any, iconMap?: Record<string, any
   const categoryId = apiCategory.id?.toString() || '';
   const categoryKey = categoryName.toLowerCase().replace(/\s+/g, '-');
 
-  // Get product count if available
-  const productCount = apiCategory.product_count || 
-                       apiCategory.active_products || 
-                       apiCategory.products_count || 
-                       undefined;
+  // Get product count if available (prioritize products_count from API)
+  const productCount = apiCategory.products_count !== undefined 
+    ? apiCategory.products_count 
+    : apiCategory.product_count || 
+      apiCategory.active_products || 
+      undefined;
 
   // Color mapping based on category name
   const colorMap: Record<string, { color: string; borderColor: string; iconColor: string }> = {

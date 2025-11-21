@@ -80,6 +80,25 @@ export default function CustomerDashboard() {
     }
   }, [searchParams]);
 
+  // Handle view change with filter reset for dashboard
+  const handleViewChange = (view: DashboardView) => {
+    setActiveView(view);
+    
+    // Reset filters when switching to dashboard
+    if (view === 'dashboard') {
+      setSearchQuery("");
+      setSelectedCategory("all");
+      // Clear URL parameters (category, search, etc.)
+      const params = new URLSearchParams();
+      // Only keep view param if it's not dashboard
+      if (view !== 'dashboard') {
+        params.set('view', view);
+      }
+      const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+      router.replace(newUrl, { scroll: false });
+    }
+  };
+
   const renderContent = () => {
     switch (activeView) {
       case "downloads":
@@ -117,7 +136,7 @@ export default function CustomerDashboard() {
         mobileMenuOpen={mobileMenuOpen}
         onMobileMenuClose={() => setMobileMenuOpen(false)}
         activeView={activeView}
-        onViewChange={setActiveView}
+        onViewChange={handleViewChange}
       />
       
       <div className="flex flex-col flex-1 overflow-hidden">
