@@ -20,7 +20,6 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -400,12 +399,6 @@ export default function DashboardContent() {
                         </div>
                         <div className="text-3xl font-bold mb-2 bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">{card.value}</div>
                         <div className="text-sm font-medium text-muted-foreground">{card.label}</div>
-                        {card.hasProgress && (
-                          <div className="mt-4 space-y-1">
-                            <Progress value={card.progress} className="h-2" />
-                            <p className="text-xs text-muted-foreground">{card.progress.toFixed(0)}%</p>
-                          </div>
-                        )}
                       </CardContent>
                     </Card>
                   );
