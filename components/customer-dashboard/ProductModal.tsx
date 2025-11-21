@@ -2,9 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShoppingCart, Download, CreditCard, Heart, Loader2, Tag, Image as ImageIcon, Package, Hash, Palette, DollarSign, Info, Eye, ZoomIn, Zap } from "lucide-react";
+import { X, ShoppingCart, Download, CreditCard, Heart, Loader2, Tag, Image as ImageIcon, Package, Hash, Palette, DollarSign, Info, Eye, ZoomIn, Zap, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useCartWishlist } from "@/contexts/CartWishlistContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -102,6 +109,135 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
   
   // Get current images based on selected type
   const currentImages = selectedImageType === 'mockup' ? mockupImages : designImages;
+
+  // Organize media files by file type for download dropdown
+  const organizeMediaByFileType = () => {
+    // Check both media and media_files arrays
+    const mediaArray = rawProduct?.media || rawProduct?.media_files || product.media || [];
+    const filesByType: {
+      png: Array<{ url: string; name: string; size?: string; mediaItem: any }>;
+      jpg: Array<{ url: string; name: string; size?: string; mediaItem: any }>;
+      cdr: Array<{ url: string; name: string; size?: string; mediaItem: any }>;
+      eps: Array<{ url: string; name: string; size?: string; mediaItem: any }>;
+      mockup: Array<{ url: string; name: string; size?: string; mediaItem: any }>;
+    } = {
+      png: [],
+      jpg: [],
+      cdr: [],
+      eps: [],
+      mockup: [],
+    };
+
+    mediaArray.forEach((mediaItem: any) => {
+      let url = '';
+      let fileName = '';
+      let fileSize: number | undefined;
+
+      if (typeof mediaItem === 'string') {
+        url = mediaItem;
+        fileName = url.split('/').pop() || '';
+      } else {
+        url = mediaItem?.url || mediaItem?.file || mediaItem?.file_url || '';
+        fileName = mediaItem?.file_name || url.split('/').pop() || '';
+        fileSize = mediaItem?.file_size || mediaItem?.size;
+      }
+
+      if (!url || !fileName) return;
+
+      const fileNameLower = fileName.toLowerCase();
+      const urlLower = url.toLowerCase();
+      
+      // Check if it's a mockup (base name is "mockup" without extension)
+      // Extract base name without extension
+      const baseName = fileNameLower.split('.')[0];
+      const isMockup = mediaItem?.is_mockup === true || 
+                      mediaItem?.is_mockup === 'true' || 
+                      mediaItem?.is_mockup === 1 ||
+                      baseName === 'mockup' ||
+                      fileNameLower.includes('mockup') ||
+                      urlLower.includes('mockup');
+
+      // Format file size
+      const formattedSize = fileSize ? formatFileSize(fileSize) : undefined;
+
+      const fileInfo = {
+        url,
+        name: fileName,
+        size: formattedSize,
+        mediaItem,
+      };
+
+      if (isMockup) {
+        filesByType.mockup.push(fileInfo);
+      } else if (fileNameLower.endsWith('.png')) {
+        filesByType.png.push(fileInfo);
+      } else if (fileNameLower.endsWith('.jpg') || fileNameLower.endsWith('.jpeg')) {
+        filesByType.jpg.push(fileInfo);
+      } else if (fileNameLower.endsWith('.cdr')) {
+        filesByType.cdr.push(fileInfo);
+      } else if (fileNameLower.endsWith('.eps')) {
+        filesByType.eps.push(fileInfo);
+      }
+    });
+
+    return filesByType;
+  };
+
+  // Format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  };
+
+  // Download individual file
+  const handleDownloadFile = async (fileUrl: string, fileName: string) => {
+    try {
+      // Get the full URL if it's a relative path
+      let fullUrl = fileUrl;
+      if (!fileUrl.startsWith('http://') && !fileUrl.startsWith('https://')) {
+        // It's a relative path, need to make it absolute
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        fullUrl = fileUrl.startsWith('/') 
+          ? `${apiBaseUrl}${fileUrl}`
+          : `${apiBaseUrl}/${fileUrl}`;
+      }
+      
+      const token = localStorage.getItem('wedesign_access_token');
+      const response = await fetch(fullUrl, {
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Download started",
+        description: `${fileName} is being downloaded.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Download failed",
+        description: error.message || "Failed to download file",
+        variant: "destructive",
+      });
+    }
+  };
   
   // Ensure selected image index is valid
   useEffect(() => {
@@ -286,47 +422,134 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                     <h2 className="text-2xl font-bold">{product.title}</h2>
                     <div className="flex items-center gap-2">
                       <TooltipProvider>
-                        {/* Download Button (if has active plan or is free) */}
-                        {hasActivePlan && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => {
-                                  // Handle download for active plan users
-                                  handleDownloadFree();
-                                }}
-                                className="p-2 hover:bg-muted rounded-full transition-colors"
-                                aria-label="Download Design"
-                              >
-                                <Download className="w-5 h-5" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Download Design</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        
-                        {!hasActivePlan && isFree() && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
+                        {/* Download Button with Dropdown (if has active plan or is free) */}
+                        {(hasActivePlan || isFree()) && (
+                          <DropdownMenu>
+                            <div className="flex items-center">
                               <button
                                 onClick={handleDownloadFree}
                                 disabled={isDownloading}
-                                className="p-2 hover:bg-muted rounded-full transition-colors disabled:opacity-50"
-                                aria-label="Download Free"
+                                className="px-3 py-2 hover:bg-muted rounded-l-full transition-colors disabled:opacity-50 flex items-center gap-2"
+                                aria-label="Download ZIP"
                               >
                                 {isDownloading ? (
                                   <Loader2 className="w-5 h-5 animate-spin" />
                                 ) : (
                                   <Download className="w-5 h-5" />
                                 )}
+                                <span className="text-sm font-medium">Download</span>
                               </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Download Free</p>
-                            </TooltipContent>
-                          </Tooltip>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  disabled={isDownloading}
+                                  className="p-2 hover:bg-muted rounded-r-full transition-colors disabled:opacity-50 border-l border-border"
+                                  aria-label="Download options"
+                                >
+                                  <ChevronDown className="w-4 h-4" />
+                                </button>
+                              </DropdownMenuTrigger>
+                            </div>
+                            <DropdownMenuContent align="end" className="w-64">
+                              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase">
+                                FILE TYPE
+                              </div>
+                              <DropdownMenuSeparator />
+                              {(() => {
+                                const filesByType = organizeMediaByFileType();
+                                const hasFiles = filesByType.png.length > 0 || 
+                                                filesByType.jpg.length > 0 || 
+                                                filesByType.cdr.length > 0 || 
+                                                filesByType.eps.length > 0 || 
+                                                filesByType.mockup.length > 0;
+                                
+                                if (!hasFiles) {
+                                  return (
+                                    <DropdownMenuItem disabled>
+                                      <span className="text-sm text-muted-foreground">No files available</span>
+                                    </DropdownMenuItem>
+                                  );
+                                }
+
+                                return (
+                                  <>
+                                    {filesByType.png.length > 0 && (
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDownloadFile(filesByType.png[0].url, filesByType.png[0].name);
+                                        }}
+                                        className="flex items-center justify-between cursor-pointer"
+                                      >
+                                        <span className="text-sm">PNG</span>
+                                        {filesByType.png[0].size && (
+                                          <span className="text-xs text-muted-foreground">{filesByType.png[0].size}</span>
+                                        )}
+                                      </DropdownMenuItem>
+                                    )}
+                                    {filesByType.jpg.length > 0 && (
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDownloadFile(filesByType.jpg[0].url, filesByType.jpg[0].name);
+                                        }}
+                                        className="flex items-center justify-between cursor-pointer"
+                                      >
+                                        <span className="text-sm">JPG</span>
+                                        {filesByType.jpg[0].size && (
+                                          <span className="text-xs text-muted-foreground">{filesByType.jpg[0].size}</span>
+                                        )}
+                                      </DropdownMenuItem>
+                                    )}
+                                    {filesByType.cdr.length > 0 && (
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDownloadFile(filesByType.cdr[0].url, filesByType.cdr[0].name);
+                                        }}
+                                        className="flex items-center justify-between cursor-pointer"
+                                      >
+                                        <span className="text-sm">CDR</span>
+                                        {filesByType.cdr[0].size && (
+                                          <span className="text-xs text-muted-foreground">{filesByType.cdr[0].size}</span>
+                                        )}
+                                      </DropdownMenuItem>
+                                    )}
+                                    {filesByType.eps.length > 0 && (
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDownloadFile(filesByType.eps[0].url, filesByType.eps[0].name);
+                                        }}
+                                        className="flex items-center justify-between cursor-pointer"
+                                      >
+                                        <span className="text-sm">EPS</span>
+                                        {filesByType.eps[0].size && (
+                                          <span className="text-xs text-muted-foreground">{filesByType.eps[0].size}</span>
+                                        )}
+                                      </DropdownMenuItem>
+                                    )}
+                                    {filesByType.mockup.length > 0 && (
+                                      <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownloadFile(filesByType.mockup[0].url, filesByType.mockup[0].name);
+                                          }}
+                                          className="flex items-center justify-between cursor-pointer"
+                                        >
+                                          <span className="text-sm">Mockup</span>
+                                          {filesByType.mockup[0].size && (
+                                            <span className="text-xs text-muted-foreground">{filesByType.mockup[0].size}</span>
+                                          )}
+                                        </DropdownMenuItem>
+                                      </>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
 
                         {/* Add to Cart Button (if no active plan and not free) */}
