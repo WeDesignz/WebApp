@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Download, Crown, FileText, Loader2, Gift } from "lucide-react";
+import { Download, Crown, FileText, Loader2, Gift, Box, Shirt, Image, Star, Frame, Palette } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import ProductModal from "./ProductModal";
@@ -10,7 +11,7 @@ import PDFDownloadModal, { PDFPurchase } from "./PDFDownloadModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { catalogAPI } from "@/lib/api";
-import { transformProduct, transformProducts, type TransformedProduct } from "@/lib/utils/transformers";
+import { transformProduct, transformProducts, transformCategories, type TransformedProduct, type TransformedCategory } from "@/lib/utils/transformers";
 
 interface ContentProps {
   searchQuery: string;
@@ -38,19 +39,21 @@ const isProductFree = (product: Product): boolean => {
   return false;
 };
 
-const categoryCards = [
-  { id: "jerseys", title: "Jerseys", icon: "👕", color: "from-blue-500/10 to-cyan-500/10" },
-  { id: "vectors", title: "Vectors", icon: "🎨", color: "from-purple-500/10 to-pink-500/10" },
-  { id: "psd", title: "PSD Files", icon: "📁", color: "from-orange-500/10 to-red-500/10" },
-  { id: "icons", title: "Icons", icon: "⭐", color: "from-yellow-500/10 to-amber-500/10" },
-  { id: "mockups", title: "Mockups", icon: "🖼️", color: "from-green-500/10 to-emerald-500/10" },
-  { id: "illustrations", title: "Illustrations", icon: "🎭", color: "from-indigo-500/10 to-violet-500/10" },
-  { id: "3d-models", title: "3D Models", icon: "🎲", color: "from-rose-500/10 to-pink-500/10" },
-];
+// Icon mapping for categories
+const iconMap: Record<string, any> = {
+  'jerseys': Shirt,
+  'vectors': Image,
+  'psd': FileText,
+  'icons': Star,
+  'mockups': Frame,
+  'illustrations': Palette,
+  '3d-models': Box,
+};
 
 
 export default function CustomerDashboardContent({ searchQuery, selectedCategory }: ContentProps) {
   const { user } = useAuth();
+  const router = useRouter();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hasActivePlan, setHasActivePlan] = useState(false);
@@ -61,6 +64,21 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
   const observerRef = useRef<HTMLDivElement>(null);
 
   const isAuthenticated = !!user;
+
+  // Fetch categories from API (only parent categories with no parent)
+  const { data: categoriesData, isLoading: isLoadingCategories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const response = await catalogAPI.getCategories();
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return transformCategories(response.data?.categories || [], iconMap);
+    },
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+  });
+
+  const categories = categoriesData || [];
 
   // Fetch products using infinite query for pagination
   const {
@@ -147,6 +165,18 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
     }
   };
 
+  const handleCategoryClick = (categoryId: string) => {
+    // Update URL with selected category
+    const params = new URLSearchParams(window.location.search);
+    if (categoryId && categoryId !== 'all') {
+      params.set('category', categoryId);
+    } else {
+      params.delete('category');
+    }
+    const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+    router.push(newUrl);
+  };
+
   // Infinite scroll observer
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -168,22 +198,52 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
   return (
     <div className="p-4 md:p-6 pb-24 md:pb-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="overflow-x-auto pb-4 -mx-4 px-4">
-          <div className="flex gap-4 min-w-max">
-            {categoryCards.map((cat, idx) => (
-              <motion.div
-                key={cat.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-              >
-                <Card className={`w-40 h-32 p-4 bg-gradient-to-br ${cat.color} border-primary/20 hover:scale-105 hover:border-primary/40 transition-all cursor-pointer`}>
-                  <div className="text-4xl mb-2">{cat.icon}</div>
-                  <h3 className="font-semibold text-sm">{cat.title}</h3>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+        <div className="overflow-x-auto overflow-y-visible pb-4 -mx-4 px-4 pt-2">
+          {isLoadingCategories ? (
+            <div className="flex gap-4 min-w-max">
+              {[...Array(8)].map((_, idx) => (
+                <div key={idx} className="w-40 h-32 bg-muted rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : categories.length === 0 ? (
+            <Card className="p-6 text-center">
+              <p className="text-muted-foreground">No categories available</p>
+            </Card>
+          ) : (
+            <div className="flex gap-4 min-w-max py-2">
+              {categories.map((category, idx) => {
+                const Icon = category.icon || Box;
+                return (
+                  <motion.div
+                    key={category.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    onClick={() => handleCategoryClick(category.id)}
+                    className="relative z-10 hover:z-50"
+                  >
+                    <Card className={`w-40 h-32 p-4 bg-gradient-to-br ${category.color} border-primary/20 hover:scale-105 hover:border-primary/40 transition-all cursor-pointer ${
+                      selectedCategory === category.id ? "ring-2 ring-primary" : ""
+                    }`}>
+                      <div className="flex items-center justify-center mb-2">
+                        {category.icon ? (
+                          <Icon className="w-8 h-8" />
+                        ) : (
+                          <div className="text-4xl">📁</div>
+                        )}
+                      </div>
+                      <h3 className="font-semibold text-sm text-center">{category.title}</h3>
+                      {category.productCount !== undefined && (
+                        <p className="text-xs text-muted-foreground text-center mt-1">
+                          {category.productCount} products
+                        </p>
+                      )}
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <Card className="p-6 bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 border-primary/20">
@@ -233,7 +293,7 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
               <Button 
                 size="lg" 
                 className="whitespace-nowrap"
-                onClick={() => setIsPDFModalOpen(true)}
+                onClick={() => router.push('/customer-dashboard/download-mock-pdf')}
               >
                 <Download className="w-5 h-5 mr-2" />
                 Download PDFs

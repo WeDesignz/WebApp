@@ -27,6 +27,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
   const [isDownloading, setIsDownloading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [hoveredThumbnailIndex, setHoveredThumbnailIndex] = useState<number | null>(null);
+  const [isMainImageHovered, setIsMainImageHovered] = useState(false);
 
   // Fetch detailed product data when modal opens
   const { data: productData, isLoading: isLoadingProduct, error: productError } = useQuery({
@@ -338,16 +339,40 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                       )}
 
                       {/* Main Image */}
-                      <div className="relative aspect-square rounded-xl overflow-hidden bg-muted border border-border">
+                      <div 
+                        className="relative aspect-square rounded-xl overflow-hidden bg-muted border border-border group cursor-pointer"
+                        onMouseEnter={() => setIsMainImageHovered(true)}
+                        onMouseLeave={() => setIsMainImageHovered(false)}
+                      >
                         {currentImages.length > 0 && currentImages[selectedImageIndex] ? (
-                          <img
-                            src={currentImages[selectedImageIndex].url}
-                            alt={`${product.title} - ${selectedImageType === 'mockup' ? 'Mockup' : 'Design'} ${selectedImageIndex + 1}`}
-                            className="w-full h-full object-contain"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
-                            }}
-                          />
+                          <>
+                            <img
+                              src={currentImages[selectedImageIndex].url}
+                              alt={`${product.title} - ${selectedImageType === 'mockup' ? 'Mockup' : 'Design'} ${selectedImageIndex + 1}`}
+                              className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                              }}
+                            />
+                            
+                            {/* Hover Overlay with Eye Icon */}
+                            <button
+                              onClick={() => setPreviewImage(currentImages[selectedImageIndex].url)}
+                              className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center transition-all duration-200 z-10 ${
+                                isMainImageHovered 
+                                  ? 'opacity-100 pointer-events-auto' 
+                                  : 'opacity-0 pointer-events-none'
+                              }`}
+                              aria-label="View full size image"
+                            >
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="p-3 bg-white/20 backdrop-blur-md rounded-full border border-white/30 hover:bg-white/30 transition-colors">
+                                  <Eye className="w-6 h-6 text-white drop-shadow-lg" />
+                                </div>
+                                <span className="text-white text-sm font-medium drop-shadow-lg">Click to view full size</span>
+                              </div>
+                            </button>
+                          </>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <div className="text-center">

@@ -31,12 +31,21 @@ export default function CustomerDashboard() {
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Check for view query parameter on mount
+  // Check for view and category query parameters on mount
   useEffect(() => {
     const viewParam = searchParams.get('view');
     if (viewParam && ['dashboard', 'downloads', 'orders', 'freelancers', 'plans', 'support', 'notifications', 'faq', 'profile', 'wishlist'].includes(viewParam)) {
       setActiveView(viewParam as DashboardView);
     }
+    
+    // Read category from URL params
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+      setSelectedCategory(categoryParam);
+    } else {
+      setSelectedCategory('all');
+    }
+    
     setIsInitialized(true);
   }, [searchParams]);
 
@@ -60,6 +69,16 @@ export default function CustomerDashboard() {
       router.replace(newUrl, { scroll: false });
     }
   }, [activeView, pathname, router, searchParams, isInitialized]);
+
+  // Sync selectedCategory from URL params (child component updates URL directly)
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+      setSelectedCategory(categoryParam);
+    } else {
+      setSelectedCategory('all');
+    }
+  }, [searchParams]);
 
   const renderContent = () => {
     switch (activeView) {
