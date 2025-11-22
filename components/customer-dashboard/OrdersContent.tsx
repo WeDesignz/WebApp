@@ -963,9 +963,9 @@ function CountdownTimer({ deadline, status }: { deadline: string; status: string
 
   if (isExpired) {
     return (
-      <div className="flex flex-col items-center gap-1 px-3 py-2 bg-red-500/10 border border-red-500/30 rounded-lg min-w-[80px]">
+      <div className="flex items-center gap-2 px-3 py-2 bg-red-500/10 border border-red-500/30 rounded-lg">
         <Clock className="w-4 h-4 text-red-500" />
-        <span className="text-xs font-semibold text-red-600 dark:text-red-400 text-center">Expired</span>
+        <span className="text-xs font-semibold text-red-600 dark:text-red-400">Expired</span>
       </div>
     );
   }
@@ -978,36 +978,34 @@ function CountdownTimer({ deadline, status }: { deadline: string; status: string
   const isWarning = timeRemaining.minutes < 30 && !isUrgent;
 
   return (
-    <div className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-lg border-2 shadow-sm min-w-[90px] ${
+    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 shadow-sm ${
       isUrgent 
-        ? 'bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-400/50 dark:border-red-500/40' 
+        ? 'bg-gradient-to-r from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-400/50 dark:border-red-500/40' 
         : isWarning 
-        ? 'bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-900/20 border-orange-400/50 dark:border-orange-500/40' 
-        : 'bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-900/20 border-blue-400/50 dark:border-blue-500/40'
+        ? 'bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-900/20 border-orange-400/50 dark:border-orange-500/40' 
+        : 'bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-900/20 border-blue-400/50 dark:border-blue-500/40'
     }`}>
-      <Clock className={`w-4 h-4 ${
+      <Clock className={`w-4 h-4 flex-shrink-0 ${
         isUrgent ? 'text-red-500' : isWarning ? 'text-orange-500' : 'text-blue-500'
       }`} />
-      <div className="flex flex-col items-center">
-        <span className={`text-lg font-mono font-bold leading-none ${
-          isUrgent 
-            ? 'text-red-600 dark:text-red-400' 
-            : isWarning 
-            ? 'text-orange-600 dark:text-orange-400' 
-            : 'text-blue-600 dark:text-blue-400'
-        }`}>
-          {formattedMinutes}:{formattedSeconds}
-        </span>
-        <span className={`text-[10px] font-medium uppercase tracking-wider mt-0.5 ${
-          isUrgent 
-            ? 'text-red-500/70 dark:text-red-400/70' 
-            : isWarning 
-            ? 'text-orange-500/70 dark:text-orange-400/70' 
-            : 'text-blue-500/70 dark:text-blue-400/70'
-        }`}>
-          Remaining
-        </span>
-      </div>
+      <span className={`text-lg font-mono font-bold ${
+        isUrgent 
+          ? 'text-red-600 dark:text-red-400' 
+          : isWarning 
+          ? 'text-orange-600 dark:text-orange-400' 
+          : 'text-blue-600 dark:text-blue-400'
+      }`}>
+        {formattedMinutes}:{formattedSeconds}
+      </span>
+      <span className={`text-[10px] font-medium uppercase tracking-wider ${
+        isUrgent 
+          ? 'text-red-500/70 dark:text-red-400/70' 
+          : isWarning 
+          ? 'text-orange-500/70 dark:text-orange-400/70' 
+          : 'text-blue-500/70 dark:text-blue-400/70'
+      }`}>
+        Remaining
+      </span>
     </div>
   );
 }
