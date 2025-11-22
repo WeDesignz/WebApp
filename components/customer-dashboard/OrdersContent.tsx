@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Loader2,
   X,
+  XCircle,
   FileText,
   Eye,
   Download,
@@ -514,28 +515,24 @@ export default function OrdersContent() {
                 </Card>
               ) : (
                 customOrders.map((order, index) => (
-                  <motion.div
-                    key={order.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <CustomOrderCard
-                      order={order}
-                      onOpenChat={() => {
-                        setSelectedOrder(order);
-                        setChatOpen(true);
-                      }}
-                      onViewDetails={(order) => {
-                        setSelectedCustomOrderForDetails(order);
-                        setCustomOrderDetailsOpen(true);
-                      }}
-                      onViewDeliverables={(order) => {
-                        setSelectedCustomOrderForDeliverables(order);
-                        setDeliverablesModalOpen(true);
-                      }}
-                    />
-                  </motion.div>
+                  <CustomOrderCardWithUnread
+                    key={`custom-order-${order.id}`}
+                    order={order}
+                    index={index}
+                    totalPrevious={0}
+                    onOpenChat={() => {
+                      setSelectedOrder(order);
+                      setChatOpen(true);
+                    }}
+                    onViewDetails={(order) => {
+                      setSelectedCustomOrderForDetails(order);
+                      setCustomOrderDetailsOpen(true);
+                    }}
+                    onViewDeliverables={(order) => {
+                      setSelectedCustomOrderForDeliverables(order);
+                      setDeliverablesModalOpen(true);
+                    }}
+                  />
                 ))
               );
             })()}
@@ -966,8 +963,12 @@ function CustomOrderCard({ order, onOpenChat, onViewDetails, onViewDeliverables,
   unreadCount?: number;
 }) {
   const customDetails = order.custom_order_details;
+  // For custom orders, use the status from custom_order_details (CustomOrderRequest) instead of order.status (Order)
+  // Order.status is for payment status (pending/success/failed), not the order workflow status
+  const customOrderStatus = customDetails?.status || order.status;
+  
   const getStatusConfig = () => {
-    switch (order.status) {
+    switch (customOrderStatus) {
       case "pending":
         return { 
           icon: AlertCircle, 
@@ -1005,10 +1006,28 @@ function CustomOrderCard({ order, onOpenChat, onViewDetails, onViewDeliverables,
           borderColor: "border-blue-500/20 dark:border-blue-500/30",
           iconColor: "from-blue-500 to-cyan-500",
         };
+      case "cancelled":
+        return { 
+          icon: XCircle, 
+          label: "Cancelled", 
+          badgeVariant: "destructive" as const,
+          bgColor: "from-gray-500/10 via-slate-500/10 to-stone-500/10",
+          borderColor: "border-gray-500/20 dark:border-gray-500/30",
+          iconColor: "from-gray-500 to-slate-500",
+        };
+      case "delayed":
+        return { 
+          icon: Clock, 
+          label: "Delayed", 
+          badgeVariant: "destructive" as const,
+          bgColor: "from-red-500/10 via-orange-500/10 to-amber-500/10",
+          borderColor: "border-red-500/20 dark:border-red-500/30",
+          iconColor: "from-red-500 to-orange-500",
+        };
       default:
         return { 
           icon: FileText, 
-          label: order.status || "Unknown", 
+          label: customOrderStatus || "Unknown", 
           badgeVariant: "secondary" as const,
           bgColor: "from-orange-500/10 via-amber-500/10 to-yellow-500/10",
           borderColor: "border-orange-500/20 dark:border-orange-500/30",
@@ -1019,7 +1038,7 @@ function CustomOrderCard({ order, onOpenChat, onViewDetails, onViewDeliverables,
 
   const statusConfig = getStatusConfig();
   const Icon = statusConfig.icon;
-  const isCompleted = order.status === "success" || order.status === "completed";
+  const isCompleted = customOrderStatus === "completed";
 
   return (
     <Card className={`p-6 bg-gradient-to-br ${statusConfig.bgColor} ${statusConfig.borderColor} hover:shadow-lg transition-all duration-300 border-2 group`}>
