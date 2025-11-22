@@ -104,19 +104,64 @@ const transformThread = (thread: any, messages: any[] = []): MessageThread => {
     priority: thread.priority || 'medium',
     createdAt: thread.created_at || new Date(),
     lastActivity: thread.last_activity || thread.updated_at || thread.created_at || new Date(),
-    messages: messages.map((msg: any) => ({
-      id: msg.id,
-      sender: msg.sender_name || (msg.sender?.first_name && msg.sender?.last_name ? `${msg.sender.first_name} ${msg.sender.last_name}` : msg.sender?.username || msg.sender?.email) || 'Support Team',
-      senderType: msg.sender_type || (msg.sender?.is_staff ? 'support' : 'user'),
-      content: msg.message || msg.content || '',
-      timestamp: msg.timestamp || msg.created_at || new Date(),
-      attachments: msg.attachments || [],
-    })),
+    messages: messages.map((msg: any) => {
+      // Safely extract content - ensure it's always a string
+      let content = '';
+      const messageContent = msg.message || msg.content;
+      if (typeof messageContent === 'string') {
+        content = messageContent;
+      } else if (messageContent && typeof messageContent === 'object') {
+        // If it's an object, try to extract a string property or stringify it
+        content = messageContent.content || messageContent.message || JSON.stringify(messageContent);
+      } else if (messageContent) {
+        content = String(messageContent);
+      }
+      
+      // Safely extract timestamp - ensure it's always a Date or string
+      let timestamp: Date | string = new Date();
+      const msgTimestamp = msg.timestamp || msg.created_at;
+      if (typeof msgTimestamp === 'string') {
+        timestamp = msgTimestamp;
+      } else if (msgTimestamp instanceof Date) {
+        timestamp = msgTimestamp;
+      } else if (msgTimestamp && typeof msgTimestamp === 'object') {
+        // If timestamp is an object, try to extract a date value
+        const dateValue = msgTimestamp.timestamp || msgTimestamp.created_at || msgTimestamp.date;
+        if (dateValue) {
+          timestamp = typeof dateValue === 'string' ? dateValue : dateValue instanceof Date ? dateValue : new Date();
+        }
+      }
+      
+      return {
+        id: msg.id,
+        sender: msg.sender_name || (msg.sender?.first_name && msg.sender?.last_name ? `${msg.sender.first_name} ${msg.sender.last_name}` : msg.sender?.username || msg.sender?.email) || 'Support Team',
+        senderType: msg.sender_type || (msg.sender?.is_staff ? 'support' : 'user'),
+        content: content,
+        timestamp: timestamp,
+        attachments: msg.attachments || [],
+      };
+    }),
   };
 };
 
-const formatTimestamp = (date: Date | string): string => {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
+const formatTimestamp = (date: Date | string | null | undefined): string => {
+  if (!date) return "Just now";
+  
+  let dateObj: Date;
+  if (typeof date === 'string') {
+    dateObj = new Date(date);
+  } else if (date instanceof Date) {
+    dateObj = date;
+  } else {
+    // If it's an object or something else, try to extract a date value
+    return "Just now";
+  }
+  
+  // Check if date is valid
+  if (isNaN(dateObj.getTime())) {
+    return "Just now";
+  }
+  
   return dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
@@ -624,7 +669,28 @@ export default function MessagesSupportContent() {
                   ) : (
                     <AnimatePresence>
                       {selectedThread.messages.map((msg, index) => {
-                        const timestamp = typeof msg.timestamp === 'string' ? new Date(msg.timestamp) : msg.timestamp;
+                        // Safely extract timestamp - handle various formats
+                        let timestamp: Date | string | null | undefined = null;
+                        
+                        if (msg.timestamp) {
+                          if (typeof msg.timestamp === 'string') {
+                            timestamp = msg.timestamp;
+                          } else if (msg.timestamp instanceof Date) {
+                            timestamp = msg.timestamp;
+                          } else if (typeof msg.timestamp === 'object' && msg.timestamp !== null) {
+                            // If timestamp is an object, try to find a date value
+                            const dateValue = (msg.timestamp as any).timestamp || (msg.timestamp as any).created_at || (msg.timestamp as any).date;
+                            if (dateValue) {
+                              timestamp = typeof dateValue === 'string' ? dateValue : dateValue instanceof Date ? dateValue : null;
+                            }
+                          }
+                        }
+                        
+                        // Fallback to created_at if timestamp is not available
+                        if (!timestamp && msg.created_at) {
+                          timestamp = typeof msg.created_at === 'string' ? msg.created_at : msg.created_at instanceof Date ? msg.created_at : null;
+                        }
+                        
                         return (
                           <motion.div
                             key={msg.id}
@@ -653,7 +719,7 @@ export default function MessagesSupportContent() {
                                   {formatTimestamp(timestamp)}
                                 </span>
                               </div>
-                              <p className="text-sm">{msg.content}</p>
+                              <p className="text-sm">{msg.content || ''}</p>
                               {msg.attachments && msg.attachments.length > 0 && (
                                 <div className="mt-3 space-y-2">
                                   {msg.attachments.map((att, idx) => (
