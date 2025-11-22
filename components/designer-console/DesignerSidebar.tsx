@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { 
   LayoutDashboard, 
   Image, 
@@ -11,12 +12,11 @@ import {
   MessageSquare, 
   Settings,
   Building2,
-  ChevronLeft,
-  ChevronRight,
   Lock
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
 import { useDesignerVerification } from "@/contexts/DesignerVerificationContext";
 import { useStudioAccess } from "@/contexts/StudioAccessContext";
 
@@ -27,8 +27,14 @@ interface DesignerSidebarProps {
 
 export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebarProps) {
   const pathname = usePathname();
+  const { theme } = useTheme();
   const { isVerified } = useDesignerVerification();
   const { hasFullAccess, isStudioMember, isStudioOwner } = useStudioAccess();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const lockedPaths = [
     "/designer-console/designs",
@@ -83,22 +89,29 @@ export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebar
       }`}
     >
       <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          {!collapsed && (
+        <div className="flex items-center p-4 border-b border-border">
+          {!collapsed ? (
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">W</span>
-              </div>
-              <span className="font-bold">WeDesign</span>
+              <img 
+                src="/Logos/ONLY LOGO.svg" 
+                alt="WeDesign Logo" 
+                className={`h-8 w-8 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+              />
+              <img 
+                src="/Logos/ONLY TEXT.svg" 
+                alt="WeDesign" 
+                className={`h-5 w-auto ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+              />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center mx-auto">
+              <img 
+                src="/Logos/ONLY LOGO.svg" 
+                alt="WeDesign Logo" 
+                className={`h-8 w-8 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+              />
             </div>
           )}
-          <button
-            onClick={onToggle}
-            className="p-1.5 hover:bg-accent rounded-lg transition-colors ml-auto"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
         </div>
 
         <nav className="flex-1 overflow-y-auto p-2">

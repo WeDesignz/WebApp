@@ -11,8 +11,6 @@ import {
   Moon,
   Sun,
   Zap,
-  ChevronLeft,
-  ChevronRight,
   CreditCard,
   ShoppingBag,
   Heart,
@@ -77,10 +75,16 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
                 exit={{ opacity: 0 }}
                 className="flex items-center gap-2"
               >
-                <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-                  <span className="text-primary-foreground font-bold text-xl">W</span>
-                </div>
-                <span className="font-display font-bold text-xl">WeDesignz</span>
+                <img 
+                  src="/Logos/ONLY LOGO.svg" 
+                  alt="WeDesign Logo" 
+                  className={`h-10 w-10 ${theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                />
+                <img 
+                  src="/Logos/ONLY TEXT.svg" 
+                  alt="WeDesign" 
+                  className={`h-6 w-auto ${theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                />
               </motion.div>
             ) : (
               <motion.div
@@ -88,9 +92,13 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center mx-auto"
+                className="flex items-center justify-center mx-auto"
               >
-                <span className="text-primary-foreground font-bold text-xl">W</span>
+                <img 
+                  src="/Logos/ONLY LOGO.svg" 
+                  alt="WeDesign Logo" 
+                  className={`h-10 w-10 ${theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                />
               </motion.div>
             )}
           </AnimatePresence>
@@ -203,17 +211,6 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
             {isExpanded && <span className="text-sm">Theme</span>}
           </button>
         </div>
-
-        <button
-          onClick={onToggle}
-          className="absolute -right-3 top-20 bg-card border border-border rounded-full p-1 hover:bg-muted transition-colors"
-        >
-          {collapsed ? (
-            <ChevronRight className="w-4 h-4" />
-          ) : (
-            <ChevronLeft className="w-4 h-4" />
-          )}
-        </button>
       </motion.aside>
 
       <AnimatePresence>
@@ -235,10 +232,16 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
             >
               <div className="p-4 flex items-center justify-between border-b border-border">
                 <div className="flex items-center gap-2">
-                  <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-                    <span className="text-primary-foreground font-bold text-xl">W</span>
-                  </div>
-                  <span className="font-display font-bold text-xl">WeDesignz</span>
+                  <img 
+                    src="/Logos/ONLY LOGO.svg" 
+                    alt="WeDesign Logo" 
+                    className={`h-10 w-10 ${theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                  />
+                  <img 
+                    src="/Logos/ONLY TEXT.svg" 
+                    alt="WeDesign" 
+                    className={`h-6 w-auto ${theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                  />
                 </div>
               </div>
 
