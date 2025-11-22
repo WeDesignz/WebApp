@@ -50,7 +50,11 @@ export function StudioAccessProvider({ children }: { children: ReactNode }) {
           setHasFullAccess(profileInfo.has_full_console_access || false);
           setIsStudioOwner(profileInfo.is_studio_owner || false);
           setIsStudioMember(profileInfo.is_studio_member || false);
-          setProfileType(profileInfo.profile_type || 'individual');
+          // Ensure profile_type is one of the allowed values
+          const validProfileType = profileInfo.profile_type === 'owner' || profileInfo.profile_type === 'member' || profileInfo.profile_type === 'individual'
+            ? profileInfo.profile_type
+            : 'individual';
+          setProfileType(validProfileType);
           
           // Get studio ID from owned studio, accessing_studio (for members), or membership
           if (profileInfo.owned_studio?.id) {
