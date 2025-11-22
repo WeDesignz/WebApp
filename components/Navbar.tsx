@@ -36,9 +36,9 @@ export default function Navbar() {
           {/* Logo */}
           <a href="/" className="flex items-center gap-2 flex-shrink-0" data-testid="link-home">
             <img 
-              src="/Logos/WD LOGO.svg" 
+              src="/Logos/ONLY LOGO.svg" 
               alt="WeDesign" 
-              className="h-8 md:h-10 w-auto"
+              className="h-8 md:h-10 w-auto brightness-0 invert"
             />
           </a>
 
