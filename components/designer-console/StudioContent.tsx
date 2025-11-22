@@ -736,7 +736,7 @@ export default function StudioContent() {
                           <div>
                             <Label className="text-sm text-muted-foreground">Industry Type</Label>
                             <p className="font-semibold mt-1">
-                              {studioDetailData.studio_industry_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                              {studioDetailData.studio_industry_type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                             </p>
                           </div>
                           <div>
