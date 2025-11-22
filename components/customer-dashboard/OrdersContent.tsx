@@ -918,6 +918,100 @@ function SubscriptionOrderCard({ order, onOpenChat, unreadCount = 0 }: { order: 
   );
 }
 
+// Countdown Timer Component
+function CountdownTimer({ deadline, status }: { deadline: string; status: string }) {
+  const [timeRemaining, setTimeRemaining] = useState({ minutes: 0, seconds: 0 });
+  const [isExpired, setIsExpired] = useState(false);
+
+  useEffect(() => {
+    // Don't show timer for completed/cancelled/delayed orders
+    if (status === 'completed' || status === 'cancelled' || status === 'delayed') {
+      return;
+    }
+
+    const calculateTimeRemaining = () => {
+      const now = new Date().getTime();
+      const deadlineTime = new Date(deadline).getTime();
+      const diff = deadlineTime - now;
+
+      if (diff <= 0) {
+        setIsExpired(true);
+        setTimeRemaining({ minutes: 0, seconds: 0 });
+        return;
+      }
+
+      const totalSeconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      setTimeRemaining({ minutes, seconds });
+      setIsExpired(false);
+    };
+
+    // Calculate immediately
+    calculateTimeRemaining();
+
+    // Update every second
+    const interval = setInterval(calculateTimeRemaining, 1000);
+
+    return () => clearInterval(interval);
+  }, [deadline, status]);
+
+  // Don't render if order is completed/cancelled/delayed
+  if (status === 'completed' || status === 'cancelled' || status === 'delayed') {
+    return null;
+  }
+
+  if (isExpired) {
+    return (
+      <div className="flex flex-col items-center gap-1 px-3 py-2 bg-red-500/10 border border-red-500/30 rounded-lg min-w-[80px]">
+        <Clock className="w-4 h-4 text-red-500" />
+        <span className="text-xs font-semibold text-red-600 dark:text-red-400 text-center">Expired</span>
+      </div>
+    );
+  }
+
+  const formattedMinutes = String(timeRemaining.minutes).padStart(2, '0');
+  const formattedSeconds = String(timeRemaining.seconds).padStart(2, '0');
+
+  // Determine color based on time remaining
+  const isUrgent = timeRemaining.minutes < 10;
+  const isWarning = timeRemaining.minutes < 30 && !isUrgent;
+
+  return (
+    <div className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-lg border-2 shadow-sm min-w-[90px] ${
+      isUrgent 
+        ? 'bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-400/50 dark:border-red-500/40' 
+        : isWarning 
+        ? 'bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-900/20 border-orange-400/50 dark:border-orange-500/40' 
+        : 'bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-900/20 border-blue-400/50 dark:border-blue-500/40'
+    }`}>
+      <Clock className={`w-4 h-4 ${
+        isUrgent ? 'text-red-500' : isWarning ? 'text-orange-500' : 'text-blue-500'
+      }`} />
+      <div className="flex flex-col items-center">
+        <span className={`text-lg font-mono font-bold leading-none ${
+          isUrgent 
+            ? 'text-red-600 dark:text-red-400' 
+            : isWarning 
+            ? 'text-orange-600 dark:text-orange-400' 
+            : 'text-blue-600 dark:text-blue-400'
+        }`}>
+          {formattedMinutes}:{formattedSeconds}
+        </span>
+        <span className={`text-[10px] font-medium uppercase tracking-wider mt-0.5 ${
+          isUrgent 
+            ? 'text-red-500/70 dark:text-red-400/70' 
+            : isWarning 
+            ? 'text-orange-500/70 dark:text-orange-400/70' 
+            : 'text-blue-500/70 dark:text-blue-400/70'
+        }`}>
+          Remaining
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // Custom Order Card with Unread Counter
 function CustomOrderCardWithUnread({ 
   order, 
@@ -1084,48 +1178,55 @@ function CustomOrderCard({ order, onOpenChat, onViewDetails, onViewDeliverables,
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          {onViewDetails && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => onViewDetails(order)}
-              className="hover:bg-primary/10 hover:border-primary/30 transition-colors"
-              title="View Details"
-            >
-              <Eye className="w-4 h-4 mr-2" />
-              Details
-            </Button>
-          )}
-          <div className="relative inline-block">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={onOpenChat}
-              className="hover:bg-primary/10 hover:border-primary/30 transition-colors"
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Chat
-            </Button>
-            {unreadCount > 0 ? (
-              <span 
-                className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px] px-1 z-50 shadow-lg ring-2 ring-white dark:ring-gray-900 pointer-events-none"
-                style={{ lineHeight: '1.25rem' }}
+        <div className="flex flex-col items-end gap-3 flex-shrink-0">
+          {/* Action Buttons */}
+          <div className="flex gap-2 flex-wrap justify-end">
+            {onViewDetails && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => onViewDetails(order)}
+                className="hover:bg-primary/10 hover:border-primary/30 transition-colors"
+                title="View Details"
               >
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            ) : null}
+                <Eye className="w-4 h-4 mr-2" />
+                Details
+              </Button>
+            )}
+            <div className="relative inline-block">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={onOpenChat}
+                className="hover:bg-primary/10 hover:border-primary/30 transition-colors"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Chat
+              </Button>
+              {unreadCount > 0 ? (
+                <span 
+                  className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px] px-1 z-50 shadow-lg ring-2 ring-white dark:ring-gray-900 pointer-events-none"
+                  style={{ lineHeight: '1.25rem' }}
+                >
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              ) : null}
+            </div>
+            {isCompleted && onViewDeliverables && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => onViewDeliverables(order)}
+                className="hover:bg-primary/10 hover:border-primary/30 transition-colors"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                View Deliverables
+              </Button>
+            )}
           </div>
-          {isCompleted && onViewDeliverables && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => onViewDeliverables(order)}
-              className="hover:bg-primary/10 hover:border-primary/30 transition-colors"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              View Deliverables
-            </Button>
+          {/* Countdown Timer - Right side below action buttons */}
+          {customDetails?.sla_deadline && customOrderStatus !== 'completed' && customOrderStatus !== 'cancelled' && customOrderStatus !== 'delayed' && (
+            <CountdownTimer deadline={customDetails.sla_deadline} status={customOrderStatus} />
           )}
         </div>
       </div>
