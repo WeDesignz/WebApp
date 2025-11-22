@@ -669,27 +669,8 @@ export default function MessagesSupportContent() {
                   ) : (
                     <AnimatePresence>
                       {selectedThread.messages.map((msg, index) => {
-                        // Safely extract timestamp - handle various formats
-                        let timestamp: Date | string | null | undefined = null;
-                        
-                        if (msg.timestamp) {
-                          if (typeof msg.timestamp === 'string') {
-                            timestamp = msg.timestamp;
-                          } else if (msg.timestamp instanceof Date) {
-                            timestamp = msg.timestamp;
-                          } else if (typeof msg.timestamp === 'object' && msg.timestamp !== null) {
-                            // If timestamp is an object, try to find a date value
-                            const dateValue = (msg.timestamp as any).timestamp || (msg.timestamp as any).created_at || (msg.timestamp as any).date;
-                            if (dateValue) {
-                              timestamp = typeof dateValue === 'string' ? dateValue : dateValue instanceof Date ? dateValue : null;
-                            }
-                          }
-                        }
-                        
-                        // Fallback to created_at if timestamp is not available
-                        if (!timestamp && msg.created_at) {
-                          timestamp = typeof msg.created_at === 'string' ? msg.created_at : msg.created_at instanceof Date ? msg.created_at : null;
-                        }
+                        // Timestamp is already transformed to Date or string in transformThread
+                        const timestamp = msg.timestamp;
                         
                         return (
                           <motion.div
