@@ -43,7 +43,6 @@ export default function Step3LegalInfo({ initialData, onBack, onComplete, isIndi
         }
       } catch (error) {
         // No saved data, that's okay
-        console.log('No saved Step 3 data found');
       } finally {
         setIsLoadingSaved(false);
       }

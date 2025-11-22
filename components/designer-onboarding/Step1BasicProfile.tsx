@@ -84,7 +84,6 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
         }
       } catch (error) {
         // No saved data, that's okay - use auth context data
-        console.log('No saved Step 1 data found');
         // Ensure we use user data if available
         if (user) {
           setFormData(prev => ({

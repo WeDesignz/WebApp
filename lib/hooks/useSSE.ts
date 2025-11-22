@@ -42,7 +42,6 @@ export function useSSE(options: UseSSEOptions) {
 
     // Don't reconnect if we've detected an auth error
     if (isAuthErrorRef.current) {
-      console.log('SSE: Skipping connection due to authentication error');
       return;
     }
 
@@ -86,7 +85,6 @@ export function useSSE(options: UseSSEOptions) {
           clearTimeout(authCheckTimeoutRef.current);
           authCheckTimeoutRef.current = null;
         }
-        console.log('SSE connection opened');
         hasOpenedRef.current = true;
         setIsConnected(true);
         reconnectAttempts.current = 0;
@@ -141,7 +139,6 @@ export function useSSE(options: UseSSEOptions) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 10000); // Exponential backoff, max 10s
           
           reconnectTimeoutRef.current = setTimeout(() => {
-            console.log(`Reconnecting SSE (attempt ${reconnectAttempts.current})...`);
             connect();
           }, delay);
         } else if (!hasOpenedRef.current) {

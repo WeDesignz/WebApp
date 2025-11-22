@@ -119,7 +119,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             
             // If token expires in less than 5 minutes, refresh it proactively
             if (timeUntilExpiry > 0 && timeUntilExpiry < 5 * 60 * 1000) {
-              console.log('Access token expiring soon, refreshing proactively...');
               const savedRefreshToken = localStorage.getItem('wedesign_refresh_token');
               if (savedRefreshToken) {
                 const refreshResponse = await apiClient.refreshToken(savedRefreshToken);
@@ -336,7 +335,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // If mobile already exists, that's okay - just log it
           if (mobileResponse.error.includes('already exists') || 
               mobileResponse.errorDetails?.fieldErrors?.mobile_number?.some((msg: string) => msg.includes('already exists'))) {
-            console.log('Mobile number already exists, continuing...');
+            // Mobile number already exists, continue
           } else {
             console.error('Failed to add mobile number after email verification:', mobileResponse.error);
             // Continue anyway - mobile can be added later

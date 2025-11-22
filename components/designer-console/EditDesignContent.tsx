@@ -315,8 +315,6 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
         ? designData.media_files 
         : (Array.isArray(designData.media) ? designData.media : []);
       
-      console.log('[EditDesign] Media files from API:', mediaArray);
-      
       const urls: { jpg: string | null; png: string | null; mockup: string | null; eps: string | null; cdr: string | null } = {
         jpg: null,
         png: null,
@@ -326,17 +324,8 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
       };
 
       mediaArray.forEach((media: any) => {
-        console.log('[EditDesign] Processing media:', {
-          id: media.id,
-          media_type: media.media_type,
-          file_name: media.file_name,
-          url: media.url || media.file,
-          is_mockup: media.is_mockup,
-          meta: media.meta
-        });
         const url = media.url || media.file || media.file_url;
         if (!url) {
-          console.log('[EditDesign] Skipping media - no URL:', media);
           return;
         }
         
@@ -375,7 +364,6 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
         
         // Check for EPS - check media_type first (most reliable)
         if (mediaType === 'eps') {
-          console.log('[EditDesign] Found EPS file (by media_type):', { mediaType, fileName, url });
           if (!urls.eps) {
             urls.eps = makeAbsoluteUrl(url);
           }
@@ -384,7 +372,6 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
         
         // Check for CDR - check media_type first (most reliable)
         if (mediaType === 'cdr') {
-          console.log('[EditDesign] Found CDR file (by media_type):', { mediaType, fileName, url });
           if (!urls.cdr) {
             urls.cdr = makeAbsoluteUrl(url);
           }
@@ -397,7 +384,6 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                       urlLower.includes('.eps') || 
                       urlLower.endsWith('.eps');
         if (isEps) {
-          console.log('[EditDesign] Found EPS file (by filename):', { mediaType, fileName, url, isEps });
           if (!urls.eps) {
             urls.eps = makeAbsoluteUrl(url);
           }
@@ -410,7 +396,6 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                       urlLower.includes('.cdr') || 
                       urlLower.endsWith('.cdr');
         if (isCdr) {
-          console.log('[EditDesign] Found CDR file (by filename):', { mediaType, fileName, url, isCdr });
           if (!urls.cdr) {
             urls.cdr = makeAbsoluteUrl(url);
           }
@@ -423,7 +408,6 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
         const isMockup = isMockupFlag || fileNameBase === 'mockup';
         
         if (isMockup) {
-          console.log('[EditDesign] Found MOCKUP file:', { mediaType, fileName, url, isMockup, isMockupFlag });
           if (!urls.mockup) {
           urls.mockup = makeAbsoluteUrl(url);
           }
@@ -442,7 +426,6 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
           urlLower.endsWith('.jpeg')
         );
         if (isJpg) {
-          console.log('[EditDesign] Found JPG file:', { mediaType, fileName, fileNameOnly, url, isJpg });
           if (!urls.jpg) {
           urls.jpg = makeAbsoluteUrl(url);
           }
@@ -457,22 +440,14 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
           urlLower.endsWith('.png')
         );
         if (isPng) {
-          console.log('[EditDesign] Found PNG file:', { mediaType, fileName, fileNameOnly, url, isPng });
           if (!urls.png) {
           urls.png = makeAbsoluteUrl(url);
           }
           return;
         }
         
-        // If we get here and media_type is set but we didn't match, log it for debugging
-        if (mediaType && mediaType !== 'image' && mediaType !== 'video') {
-          console.log('[EditDesign] Unmatched media type:', { mediaType, fileName, url, media });
-        } else {
-          console.log('[EditDesign] File not matched:', { mediaType, fileName, url, isMockup });
-        }
       });
 
-      console.log('[EditDesign] Final detected URLs:', urls);
       setExistingFileUrls(urls);
     }
   }, [designData]);

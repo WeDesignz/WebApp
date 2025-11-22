@@ -2271,13 +2271,9 @@ export const apiClient = {
 
   // Upload Design
   uploadDesign: async (formData: FormData) => {
-    console.log('[uploadDesign] Starting upload...');
-    
     const token = typeof window !== 'undefined' 
       ? localStorage.getItem('wedesign_access_token') 
       : null;
-
-    console.log('[uploadDesign] Token found:', token ? 'Yes' : 'No');
 
     const headers: HeadersInit = {};
     if (token) {
@@ -2297,9 +2293,6 @@ export const apiClient = {
       };
     }
 
-    console.log('[uploadDesign] Base URL:', baseUrl);
-    console.log('[uploadDesign] Endpoint: /api/catalog/upload-design/');
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       console.error('[uploadDesign] Request timeout after 5 minutes');
@@ -2307,8 +2300,6 @@ export const apiClient = {
     }, 5 * 60 * 1000); // 5 minutes
     
     try {
-      console.log('[uploadDesign] Sending fetch request...');
-      const startTime = Date.now();
       const response = await fetch(`${baseUrl}/api/catalog/upload-design/`, {
         method: 'POST',
         headers,
@@ -2317,8 +2308,6 @@ export const apiClient = {
       });
       
       clearTimeout(timeoutId);
-      const elapsedTime = Date.now() - startTime;
-      console.log(`[uploadDesign] Response received after ${elapsedTime}ms:`, response.status, response.statusText);
 
       if (!response.ok) {
         console.error('[uploadDesign] Response not OK:', response.status);
@@ -2345,9 +2334,7 @@ export const apiClient = {
         };
       }
 
-      console.log('[uploadDesign] Parsing success response...');
       const data = await response.json();
-      console.log('[uploadDesign] Success data:', data);
       return { data };
       
     } catch (error: any) {

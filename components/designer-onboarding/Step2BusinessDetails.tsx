@@ -99,7 +99,6 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
         }
       } catch (error) {
         // No saved data, that's okay
-        console.log('No saved Step 2 data found');
       } finally {
         setIsLoadingSaved(false);
       }

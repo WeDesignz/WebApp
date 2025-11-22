@@ -498,13 +498,6 @@ function DownloadMockPDFPageContent() {
           throw new Error('Invalid payment data. Missing payment_id, razorpay_payment_id, or amount.');
         }
 
-        // Log payment data being sent
-        console.log('Sending payment capture request:', {
-          payment_id,
-          razorpay_payment_id: paymentResult.razorpay_payment_id,
-          amount: price
-        });
-
         // Capture payment
         const captureResponse = await apiClient.capturePDFPayment({
           payment_id: payment_id,

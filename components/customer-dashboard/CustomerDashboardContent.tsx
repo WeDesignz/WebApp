@@ -152,7 +152,6 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
   const handlePDFPurchaseComplete = (purchase: PDFPurchase) => {
     // Trigger a refresh or update in DownloadsContent
     // This will be handled via localStorage
-    console.log("PDF Purchase completed:", purchase);
     if (purchase.type === "free") {
       setFreePDFUsed(true);
     }

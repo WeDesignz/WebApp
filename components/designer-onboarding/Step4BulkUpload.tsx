@@ -364,9 +364,7 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
     setValidationErrors([]); // Clear previous validation errors
     
     try {
-      console.log('Starting upload of zip file...');
       const response = await apiClient.saveDesignerOnboardingStep4(bulkFile);
-      console.log('Upload response received:', response);
 
       if (response.error) {
         const errorMsg = response.error;
@@ -394,7 +392,6 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
         return;
       }
 
-      console.log('Upload successful:', response.data);
       // Backend now returns immediately with task_id
       // Processing happens in background, redirect immediately
       // Show success toast and redirect
