@@ -213,20 +213,80 @@ export default function OrdersContent() {
       if (response.error) {
         throw new Error(response.error);
       }
-      // Filter media files that are delivery files (based on delivery_files_uploaded flag)
+      // Get deliverables from the serializer (already filtered by delivery_file type)
       const customRequest = response.data?.custom_request;
-      const media = customRequest?.media || [];
-      // For now, if delivery_files_uploaded is true, all media are considered deliverables
-      // In the future, this could be filtered by meta.type === 'delivery_file'
+      const deliverables = customRequest?.deliverables || [];
       return {
         custom_request: customRequest,
         delivery_message: customRequest?.delivery_message,
-        deliverables: customRequest?.delivery_files_uploaded ? media : [],
+        deliverables: deliverables,
       };
     },
     enabled: !!selectedCustomOrderForDeliverables && deliverablesModalOpen,
     staleTime: 30 * 1000,
   });
+
+  // Handle download all deliverables as ZIP
+  const handleDownloadAllDeliverables = async () => {
+    if (!selectedCustomOrderForDeliverables || !deliverablesData?.deliverables || deliverablesData.deliverables.length === 0) return;
+    
+    let customRequestId: number | null = null;
+    if (selectedCustomOrderForDeliverables.custom_order_details?.id) {
+      customRequestId = selectedCustomOrderForDeliverables.custom_order_details.id;
+    } else if (typeof selectedCustomOrderForDeliverables.id === 'number') {
+      customRequestId = selectedCustomOrderForDeliverables.id;
+    }
+    
+    if (!customRequestId) {
+      toast({
+        title: "Error",
+        description: "Unable to identify custom order",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const blob = await apiClient.downloadCustomOrderDeliverablesZip(customRequestId);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const orderTitle = selectedCustomOrderForDeliverables.title || `Custom_Order_${customRequestId}`;
+      const safeTitle = orderTitle.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
+      a.download = `${safeTitle}_deliverables.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Download started",
+        description: "Your deliverable files are being downloaded as a ZIP file.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Download failed",
+        description: error.message || "Failed to download deliverables",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle individual file download
+  const handleDownloadFile = (file: any) => {
+    const fileUrl = file.url || file.file_url || file.file;
+    if (fileUrl) {
+      const a = document.createElement('a');
+      a.href = fileUrl;
+      a.download = file.fileName || file.name || 'file';
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
 
   return (
     <div className="p-4 md:p-6 pb-24 md:pb-6">
@@ -670,11 +730,11 @@ export default function OrdersContent() {
       {/* Deliverables Modal */}
       {selectedCustomOrderForDeliverables && (
         <Dialog open={deliverablesModalOpen} onOpenChange={setDeliverablesModalOpen}>
-          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Deliverables</DialogTitle>
               <DialogDescription>
-                Download all files delivered for this custom order
+                Download files delivered for this custom order
               </DialogDescription>
             </DialogHeader>
             {isLoadingDeliverables ? (
@@ -690,42 +750,65 @@ export default function OrdersContent() {
                     </p>
                   </div>
                 )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {deliverablesData.deliverables.map((file: any, index: number) => (
-                    <Card key={file.id || index} className="p-4 hover:shadow-md transition-shadow border-border/50">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg flex-shrink-0">
-                            <Download className="w-5 h-5 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm truncate">
-                              {file.file?.name?.split('/').pop() || file.file_url?.split('/').pop() || `File ${index + 1}`}
-                            </p>
-                            {file.file_size && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {(file.file_size / 1024 / 1024).toFixed(2)} MB
+                
+                {/* Download All Button */}
+                <div className="flex justify-end pb-2 border-b">
+                  <Button
+                    onClick={handleDownloadAllDeliverables}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download All as ZIP ({deliverablesData.deliverables.length} {deliverablesData.deliverables.length === 1 ? 'file' : 'files'})
+                  </Button>
+                </div>
+
+                {/* Files List */}
+                <div className="space-y-2">
+                  {deliverablesData.deliverables.map((file: any, index: number) => {
+                    const fileName = file.fileName || file.file?.name?.split('/').pop() || file.file_url?.split('/').pop() || `File ${index + 1}`;
+                    const fileUrl = file.url || file.file_url || file.file;
+                    const fileSize = file.file_size;
+                    
+                    return (
+                      <Card key={file.id || index} className="p-4 hover:shadow-md transition-shadow border-border/50">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg flex-shrink-0">
+                              <FileText className="w-5 h-5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm truncate" title={fileName}>
+                                {fileName}
                               </p>
-                            )}
+                              {fileSize && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {(fileSize / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                              )}
+                              {file.uploadedAt && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Uploaded: {new Date(file.uploadedAt).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric"
+                                  })}
+                                </p>
+                              )}
+                            </div>
                           </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDownloadFile(file)}
+                            className="flex-shrink-0"
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download
+                          </Button>
                         </div>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            if (file.file_url) {
-                              window.open(file.file_url, '_blank');
-                            } else if (file.file) {
-                              window.open(file.file, '_blank');
-                            }
-                          }}
-                          className="flex-shrink-0"
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Download
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
             ) : (

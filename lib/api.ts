@@ -969,6 +969,37 @@ export const apiClient = {
     }>(`/api/custom-requests/${requestId}/`);
   },
 
+  downloadCustomOrderDeliverablesZip: async (requestId: number): Promise<Blob> => {
+    const token = typeof window !== 'undefined' 
+      ? localStorage.getItem('wedesign_access_token') 
+      : null;
+
+    if (!token) {
+      throw new Error('Authentication required');
+    }
+
+    const apiBaseUrl = getApiBaseUrl();
+    if (!apiBaseUrl) {
+      throw new Error('API base URL is not configured');
+    }
+
+    const url = `${apiBaseUrl}/api/custom-requests/${requestId}/deliverables/zip/`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to download deliverables zip: ${response.statusText}`);
+    }
+
+    return await response.blob();
+  },
+
   // Razorpay Payment methods
   createPaymentOrder: async (data: {
     amount: number;
