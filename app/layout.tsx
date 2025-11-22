@@ -7,6 +7,11 @@ import Script from "next/script";
 export const metadata: Metadata = {
   title: "WeDesign",
   description: "WeDesign – Empowering Creative Collaboration",
+  icons: {
+    icon: "/Logos/ONLY LOGO.png",
+    shortcut: "/Logos/ONLY LOGO.png",
+    apple: "/Logos/ONLY LOGO.png",
+  },
   other: {
     "p:domain_verify": "7efb64ebb140ef75eb3643e0a9714d6b",
   },

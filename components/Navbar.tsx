@@ -35,10 +35,11 @@ export default function Navbar() {
         <div className={`flex h-16 md:h-20 items-center justify-between rounded-full border border-border ${scrolled ? 'bg-background/90 shadow-xl backdrop-blur-xl' : 'bg-background/60 shadow-lg backdrop-blur-lg'} px-4 md:px-6`}>
           {/* Logo */}
           <a href="/" className="flex items-center gap-2 flex-shrink-0" data-testid="link-home">
-            <div className="h-8 md:h-10 w-8 md:w-10 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg md:text-xl">W</span>
-            </div>
-            <span className="font-display font-bold text-lg md:text-xl">WeDesign</span>
+            <img 
+              src="/Logos/WD LOGO.svg" 
+              alt="WeDesign" 
+              className="h-8 md:h-10 w-auto"
+            />
           </a>
 
           {/* Desktop Navigation */}
