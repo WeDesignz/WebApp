@@ -92,6 +92,7 @@ const transformThreadToMessage = (thread: any): Message => {
     timestamp: thread.last_activity || thread.updated_at || thread.created_at || new Date(),
     status: thread.has_unread ? 'unread' : 'read',
     type: 'support',
+    threadStatus: thread.status, // Add thread status to message for filtering
   };
 };
 
@@ -173,8 +174,7 @@ export default function MessagesSupportContent() {
   const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
   const [selectedThread, setSelectedThread] = useState<MessageThread | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [ticketStatusFilter, setTicketStatusFilter] = useState<'all' | 'open' | 'resolved'>('all');
   const [newMessage, setNewMessage] = useState("");
   const [showNewTicket, setShowNewTicket] = useState(false);
   const [ticketSubject, setTicketSubject] = useState("");
@@ -327,11 +327,22 @@ export default function MessagesSupportContent() {
   const filteredMessages = messages.filter((msg) => {
     const matchesSearch = msg.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          msg.preview.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = filterType === "all" || msg.type === filterType;
-    const matchesStatus = filterStatus === "all" || 
-                         (filterStatus === "unread" && msg.status === "unread") ||
-                         (filterStatus === "read" && msg.status === "read");
-    return matchesSearch && matchesType && matchesStatus;
+    
+    // Filter by ticket status (open/resolved)
+    if (ticketStatusFilter === 'open') {
+      // Open tickets: status is 'open' or 'in_progress'
+      if (msg.threadStatus !== 'open' && msg.threadStatus !== 'in_progress') {
+        return false;
+      }
+    } else if (ticketStatusFilter === 'resolved') {
+      // Resolved tickets: status is 'resolved'
+      if (msg.threadStatus !== 'resolved') {
+        return false;
+      }
+    }
+    // If ticketStatusFilter is 'all', show all tickets
+    
+    return matchesSearch;
   });
 
   const unreadCount = messages.filter((m) => m.status === "unread").length;
@@ -540,28 +551,31 @@ export default function MessagesSupportContent() {
                       className="pl-10"
                     />
                   </div>
-                  <div className="flex gap-2">
-                    <Select value={filterType} onValueChange={setFilterType}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        <SelectItem value="support">Support</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="system">System</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="unread">Unread</SelectItem>
-                        <SelectItem value="read">Read</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-2">
+                    {/* Ticket Status Filter Buttons */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant={ticketStatusFilter === 'all' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setTicketStatusFilter('all')}
+                      >
+                        All
+                      </Button>
+                      <Button
+                        variant={ticketStatusFilter === 'open' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setTicketStatusFilter('open')}
+                      >
+                        Open Tickets
+                      </Button>
+                      <Button
+                        variant={ticketStatusFilter === 'resolved' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setTicketStatusFilter('resolved')}
+                      >
+                        Resolved Tickets
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
