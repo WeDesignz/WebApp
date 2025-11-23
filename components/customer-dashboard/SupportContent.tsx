@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageCircle,
@@ -40,6 +40,7 @@ interface SupportThread {
   updated_at?: string;
   last_activity?: string;
   messages?: any[];
+  unread_count?: number;
 }
 
 const formatTimestamp = (dateString?: string): string => {
@@ -71,6 +72,18 @@ export default function SupportContent() {
   const [ticketMessage, setTicketMessage] = useState("");
   const [ticketPriority, setTicketPriority] = useState<"low" | "medium" | "high">("medium");
   const [newMessage, setNewMessage] = useState("");
+  
+  // Ref for chat scroll container
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  
+  // Scroll to bottom helper function
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      if (chatScrollRef.current) {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+      }
+    }, 100);
+  };
 
   // Fetch support threads
   const { data: threadsData, isLoading: isLoadingThreads, error: threadsError, refetch } = useQuery({
@@ -101,6 +114,13 @@ export default function SupportContent() {
     enabled: !!selectedThread?.id && threadDetailOpen,
     staleTime: 10 * 1000,
   });
+
+  // Auto-scroll when messages load or modal opens
+  useEffect(() => {
+    if (threadDetailOpen && threadMessagesData) {
+      scrollToBottom();
+    }
+  }, [threadDetailOpen, threadMessagesData]);
 
   // Create support thread mutation
   const createThreadMutation = useMutation({
@@ -148,6 +168,8 @@ export default function SupportContent() {
         title: "Message sent",
         description: "Your message has been sent successfully.",
       });
+      // Scroll to bottom after sending message
+      setTimeout(() => scrollToBottom(), 200);
     },
     onError: (error: Error) => {
       toast({
@@ -369,6 +391,11 @@ export default function SupportContent() {
                                 {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)} Priority
                               </span>
                             )}
+                            {((ticket.unread_count ?? 0) > 0) && (
+                              <Badge variant="destructive" className="bg-red-500 text-white">
+                                {ticket.unread_count} unread
+                              </Badge>
+                            )}
                           </div>
                           <h3 className="font-semibold">{ticket.subject}</h3>
                           <p className="text-sm text-muted-foreground mt-1">
@@ -525,34 +552,56 @@ export default function SupportContent() {
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div 
+                  ref={chatScrollRef}
+                  className="space-y-4 max-h-[400px] overflow-y-auto p-2 border rounded-lg"
+                >
                   {threadMessagesData?.messages && threadMessagesData.messages.length > 0 ? (
-                    threadMessagesData.messages.map((message: any, index: number) => (
-                      <Card key={index} className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 bg-primary/10 rounded-full">
-                            <MessageCircle className="w-4 h-4 text-primary" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="font-semibold text-sm">
-                                {message.sender?.username || message.sender?.first_name || message.sender?.email || message.sender_type || 'Support Team'}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {formatTimestamp(message.timestamp || message.created_at)}
-                              </span>
+                    threadMessagesData.messages.map((message: any, index: number) => {
+                      // Check if message is from customer (user) or admin (support)
+                      // sender_type can be 'support' (admin) or 'user' (customer)
+                      const isCustomer = message.sender_type === 'user' || (!message.sender_type && message.sender?.id === user?.id);
+                      
+                      return (
+                        <div
+                          key={index}
+                          className={`flex gap-3 w-full ${isCustomer ? 'justify-end' : 'justify-start'}`}
+                        >
+                          {!isCustomer && (
+                            <div className="w-8 h-8 rounded-full bg-muted/20 flex items-center justify-center flex-shrink-0">
+                              <MessageCircle className="w-4 h-4 text-muted-foreground" />
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              {message.message || message.content}
-                            </p>
+                          )}
+                          <div
+                            className={`flex flex-col gap-1 max-w-[70%] ${isCustomer ? 'items-end' : 'items-start'}`}
+                          >
+                            <div
+                              className={`rounded-lg px-4 py-2 ${
+                                isCustomer
+                                  ? 'bg-primary text-white'
+                                  : 'bg-muted/20 text-foreground'
+                              }`}
+                            >
+                              <p className="text-sm">
+                                {message.message || message.content}
+                              </p>
+                            </div>
+                            <span className={`text-xs text-muted-foreground px-1 ${isCustomer ? 'text-right' : 'text-left'}`}>
+                              {formatTimestamp(message.timestamp || message.created_at)}
+                            </span>
                           </div>
+                          {isCustomer && (
+                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                              <MessageCircle className="w-4 h-4 text-primary" />
+                            </div>
+                          )}
                         </div>
-                      </Card>
-                    ))
+                      );
+                    })
                   ) : (
-                    <Card className="p-8 text-center">
+                    <div className="p-8 text-center">
                       <p className="text-muted-foreground">No messages yet</p>
-                    </Card>
+                    </div>
                   )}
                 </div>
               )}
@@ -563,6 +612,14 @@ export default function SupportContent() {
                 <Textarea
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (newMessage.trim() && !sendMessageMutation.isPending) {
+                        handleSendMessage();
+                      }
+                    }
+                  }}
                   placeholder="Type your message..."
                   rows={3}
                   disabled={sendMessageMutation.isPending}
