@@ -33,9 +33,9 @@ export default function AuthHeader() {
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
           <img 
-            src="/Logos/WD LOGO.svg" 
+            src="/Logos/ONLY LOGO.svg" 
             alt="WeDesign" 
-            className="h-8 w-auto"
+            className="h-8 w-auto brightness-0 invert"
           />
         </Link>
 
