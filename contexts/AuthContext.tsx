@@ -104,12 +104,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Proactive token refresh - refresh token before it expires
   useEffect(() => {
-    if (!token || !refreshToken) return;
+    const isRefreshingRef = { current: false }; // Prevent concurrent refresh attempts
+    let interval: NodeJS.Timeout | null = null;
 
     const checkAndRefreshToken = async () => {
+      // Prevent concurrent refresh attempts
+      if (isRefreshingRef.current) {
+        return;
+      }
+
       try {
+        // Get fresh tokens from localStorage (don't rely on closure)
+        const currentToken = localStorage.getItem('wedesign_access_token');
+        const currentRefreshToken = localStorage.getItem('wedesign_refresh_token');
+
+        if (!currentToken || !currentRefreshToken) {
+          // Clear interval if tokens are missing
+          if (interval) {
+            clearInterval(interval);
+            interval = null;
+          }
+          return;
+        }
+
         // Decode JWT to check expiration
-        const tokenParts = token.split('.');
+        const tokenParts = currentToken.split('.');
         if (tokenParts.length === 3) {
           try {
             const payload = JSON.parse(atob(tokenParts[1]));
@@ -117,42 +136,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const currentTime = Date.now();
             const timeUntilExpiry = expirationTime - currentTime;
             
+            // Log token lifetime information
+            const minutesRemaining = Math.floor(timeUntilExpiry / (60 * 1000));
+            const secondsRemaining = Math.floor((timeUntilExpiry % (60 * 1000)) / 1000);
+            const expirationDate = new Date(expirationTime);
+            const issuedAt = payload.iat ? new Date(payload.iat * 1000) : null;
+            const tokenAgeMinutes = payload.iat ? Math.floor((currentTime - (payload.iat * 1000)) / (60 * 1000)) : null;
+            
+            console.log('[WebApp TokenRefresh] 🔑 Access Token Status:', {
+              'Expires At': expirationDate.toLocaleString(),
+              'Time Remaining': `${minutesRemaining}m ${secondsRemaining}s`,
+              'Will Refresh Soon': timeUntilExpiry < 5 * 60 * 1000 ? '✅ Yes (within 5 min)' : '❌ No',
+              'Token Age': tokenAgeMinutes !== null ? `${tokenAgeMinutes} minutes` : 'Unknown',
+              'Issued At': issuedAt ? issuedAt.toLocaleString() : 'Unknown'
+            });
+            
             // If token expires in less than 5 minutes, refresh it proactively
             if (timeUntilExpiry > 0 && timeUntilExpiry < 5 * 60 * 1000) {
-              const savedRefreshToken = localStorage.getItem('wedesign_refresh_token');
-              if (savedRefreshToken) {
-                const refreshResponse = await apiClient.refreshToken(savedRefreshToken);
+              console.log('[WebApp TokenRefresh] ⚠️ Token expiring soon, refreshing...');
+              isRefreshingRef.current = true;
+              
+              try {
+                const refreshResponse = await apiClient.refreshToken(currentRefreshToken);
                 if (refreshResponse.data) {
                   setToken(refreshResponse.data.access);
                   setRefreshToken(refreshResponse.data.refresh);
                   localStorage.setItem('wedesign_access_token', refreshResponse.data.access);
                   localStorage.setItem('wedesign_refresh_token', refreshResponse.data.refresh);
+                  console.log('[WebApp TokenRefresh] ✅ Token refreshed successfully');
                 }
+              } catch (error) {
+                // Don't log errors - let normal flow handle it
+              } finally {
+                isRefreshingRef.current = false;
               }
             }
           } catch (parseError) {
             // If we can't parse the token, it might be malformed
             // Don't do anything, let the normal 401 handling deal with it
-            console.warn('Could not parse token for expiration check:', parseError);
           }
         }
       } catch (error) {
-        console.error('Error checking token expiration:', error);
-        // Don't clear auth data on error - let normal flow handle it
+        // Don't log errors - let normal flow handle it
       }
     };
 
     // Check every 2 minutes
-    const interval = setInterval(checkAndRefreshToken, 2 * 60 * 1000);
+    interval = setInterval(checkAndRefreshToken, 2 * 60 * 1000);
     
     // Initial check after 1 second
     const initialTimeout = setTimeout(checkAndRefreshToken, 1000);
     
     return () => {
-      clearInterval(interval);
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
       clearTimeout(initialTimeout);
     };
-  }, [token, refreshToken]);
+  }, []); // Empty dependency array - only run once on mount
 
   const clearAuthData = () => {
     setUser(null);
