@@ -57,6 +57,7 @@ interface Message {
   status: MessageStatus;
   type: MessageType;
   avatar?: string;
+  threadStatus?: "open" | "resolved" | "closed" | "in_progress";
 }
 
 interface MessageThread {
