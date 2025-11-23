@@ -183,9 +183,9 @@ export default function MessagesSupportContent() {
 
   // Fetch support threads
   const { data: threadsData, isLoading: isLoadingThreads, error: threadsError, refetch } = useQuery({
-    queryKey: ['supportThreads'],
+    queryKey: ['supportThreads', 'designer'],
     queryFn: async () => {
-      const response = await apiClient.getSupportTickets();
+      const response = await apiClient.getSupportTickets('designer');
       if (response.error) {
         throw new Error(response.error);
       }
@@ -252,6 +252,7 @@ export default function MessagesSupportContent() {
       const response = await apiClient.createSupportThread({
         ...data,
         priority: data.priority as "high" | "low" | "medium",
+        thread_type: 'designer', // Explicitly set as designer ticket
       });
       if (response.error) {
         throw new Error(response.error);
@@ -259,7 +260,7 @@ export default function MessagesSupportContent() {
       return response.data;
     },
     onSuccess: async (data) => {
-      queryClient.invalidateQueries({ queryKey: ['supportThreads'] });
+      queryClient.invalidateQueries({ queryKey: ['supportThreads', 'designer'] });
       toast({
         title: "Ticket created successfully!",
         description: "Our support team will get back to you soon.",

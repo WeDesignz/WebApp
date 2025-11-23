@@ -87,9 +87,9 @@ export default function SupportContent() {
 
   // Fetch support threads
   const { data: threadsData, isLoading: isLoadingThreads, error: threadsError, refetch } = useQuery({
-    queryKey: ['supportThreads'],
+    queryKey: ['supportThreads', 'customer'],
     queryFn: async () => {
-      const response = await apiClient.getSupportTickets();
+      const response = await apiClient.getSupportTickets('customer');
       if (response.error) {
         throw new Error(response.error);
       }
@@ -133,6 +133,7 @@ export default function SupportContent() {
       return apiClient.createSupportThread({
         ...data,
         priority: data.priority as "high" | "low" | "medium",
+        thread_type: 'customer', // Explicitly set as customer ticket
       });
     },
     onSuccess: () => {
@@ -449,29 +450,20 @@ export default function SupportContent() {
               <Label className="text-base font-semibold mb-3 block">
                 Priority Level
               </Label>
-              <div className="flex gap-3">
-                {(["low", "medium", "high"] as const).map((priority) => (
-                  <Button
-                    key={priority}
-                    type="button"
-                    variant={ticketPriority === priority ? "default" : "outline"}
-                    size="lg"
-                    onClick={() => setTicketPriority(priority)}
-                    disabled={createThreadMutation.isPending}
-                    className={`flex-1 ${
-                      ticketPriority === priority
-                        ? priority === "high"
-                          ? "bg-red-500 hover:bg-red-600"
-                          : priority === "medium"
-                          ? "bg-yellow-500 hover:bg-yellow-600"
-                          : "bg-green-500 hover:bg-green-600"
-                        : ""
-                    }`}
-                  >
-                    {priority.charAt(0).toUpperCase() + priority.slice(1)} Priority
-                  </Button>
-                ))}
-              </div>
+              <Select
+                value={ticketPriority}
+                onValueChange={(value: "low" | "medium" | "high") => setTicketPriority(value)}
+                disabled={createThreadMutation.isPending}
+              >
+                <SelectTrigger className="h-12 text-base">
+                  <SelectValue placeholder="Select priority level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low Priority</SelectItem>
+                  <SelectItem value="medium">Medium Priority</SelectItem>
+                  <SelectItem value="high">High Priority</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label className="text-base font-semibold mb-3 block">

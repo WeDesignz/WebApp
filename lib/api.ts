@@ -2949,13 +2949,16 @@ export const apiClient = {
   /**
    * Get support tickets/threads
    */
-  getSupportTickets: async () => {
+  getSupportTickets: async (threadType?: 'customer' | 'designer') => {
+    const url = threadType 
+      ? `/api/feedback/support-threads/?thread_type=${threadType}`
+      : '/api/feedback/support-threads/';
     return apiRequest<{
       threads: any[];
       total_threads: number;
       open_threads: number;
       closed_threads: number;
-    }>('/api/feedback/support-threads/');
+    }>(url);
   },
 
   /**
@@ -2966,6 +2969,7 @@ export const apiClient = {
     message: string;
     priority?: 'low' | 'medium' | 'high';
     category?: string;
+    thread_type?: 'customer' | 'designer';
   }) => {
     return apiRequest<{
       message: string;
