@@ -36,7 +36,7 @@ interface Order {
   id: number | string;
   title?: string;
   order_number?: string;
-  order_type?: "cart" | "subscription" | "custom";
+  order_type?: "cart" | "subscription" | "custom" | "mock_pdf";
   type?: "custom" | "product";
   status: "pending" | "success" | "failed" | "processing" | "cancelled" | "in_progress" | "completed" | string;
   created_at: string;
@@ -48,6 +48,7 @@ interface Order {
   products_count?: number;
   custom_order_details?: any;
   subscription_details?: any;
+  pdf_download?: any;
 }
 
 interface CustomRequest {
@@ -72,12 +73,14 @@ export default function OrdersContent() {
   const [customRequestDetailOpen, setCustomRequestDetailOpen] = useState(false);
   const [customOrderDetailsOpen, setCustomOrderDetailsOpen] = useState(false);
   const [deliverablesModalOpen, setDeliverablesModalOpen] = useState(false);
+  const [orderProductsModalOpen, setOrderProductsModalOpen] = useState(false);
+  const [selectedOrderForProducts, setSelectedOrderForProducts] = useState<Order | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Get active tab from URL query parameter, default to "all"
   const activeTab = searchParams.get('tab') || 'all';
-  const validTabs = ['all', 'products', 'subscription', 'custom'];
+  const validTabs = ['all', 'products', 'subscription', 'custom', 'mock_pdf'];
   const currentTab = validTabs.includes(activeTab) ? activeTab : 'all';
 
   // Handle tab change
@@ -193,6 +196,22 @@ export default function OrdersContent() {
       return response.data;
     },
     enabled: !!selectedCustomOrderForDetails && customOrderDetailsOpen,
+    staleTime: 30 * 1000,
+  });
+
+  // Fetch order products when viewing order products modal
+  const { data: orderProductsData, isLoading: isLoadingOrderProducts } = useQuery({
+    queryKey: ['orderProducts', selectedOrderForProducts?.id],
+    queryFn: async () => {
+      if (!selectedOrderForProducts) return null;
+      const response = await apiClient.getOrderDetail(Number(selectedOrderForProducts.id));
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      // Response structure: { order: { products: [...] } }
+      return response.data?.order || response.data;
+    },
+    enabled: !!selectedOrderForProducts && orderProductsModalOpen,
     staleTime: 30 * 1000,
   });
 
@@ -312,6 +331,7 @@ export default function OrdersContent() {
             <TabsTrigger value="products">Product Orders</TabsTrigger>
             <TabsTrigger value="subscription">Subscription Orders</TabsTrigger>
             <TabsTrigger value="custom">Custom Requests</TabsTrigger>
+            <TabsTrigger value="mock_pdf">Mock PDF Downloads</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
@@ -320,6 +340,7 @@ export default function OrdersContent() {
               const cartOrders = orders.filter(o => o.order_type === 'cart' || (!o.order_type && o.type !== 'custom'));
               const subscriptionOrders = orders.filter(o => o.order_type === 'subscription');
               const customOrders = orders.filter(o => o.order_type === 'custom' || o.type === 'custom');
+              const mockPdfOrders = orders.filter(o => o.order_type === 'mock_pdf');
               
               return (
                 <>
@@ -343,6 +364,10 @@ export default function OrdersContent() {
                                 onOpenChat={() => {
                                   setSelectedOrder(order);
                                   setChatOpen(true);
+                                }}
+                                onViewDesign={(order) => {
+                                  setSelectedOrderForProducts(order);
+                                  setOrderProductsModalOpen(true);
                                 }}
                                 unreadCount={unreadCount}
                               />
@@ -374,6 +399,10 @@ export default function OrdersContent() {
                                 onOpenChat={() => {
                                   setSelectedOrder(order);
                                   setChatOpen(true);
+                                }}
+                                onViewDesign={(order) => {
+                                  setSelectedOrderForProducts(order);
+                                  setOrderProductsModalOpen(true);
                                 }}
                                 unreadCount={unreadCount}
                               />
@@ -415,6 +444,37 @@ export default function OrdersContent() {
                             }}
                           />
                         );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Mock PDF Orders */}
+                  {mockPdfOrders.length > 0 && (
+                    <div className="space-y-4 mt-6">
+                      <h2 className="text-xl font-semibold">Mock PDF Downloads</h2>
+                      {mockPdfOrders.map((order, index) => {
+                        const MockPDFOrderCardWithUnread = () => {
+                          const { user } = useAuth();
+                          const unreadCount = useUnreadMessages(order.id?.toString() || null, user?.id);
+                          return (
+                            <motion.div
+                              key={`mock-pdf-order-${order.id}`}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: (cartOrders.length + subscriptionOrders.length + customOrders.length + index) * 0.1 }}
+                            >
+                              <MockPDFOrderCard
+                                order={order}
+                                onOpenChat={() => {
+                                  setSelectedOrder(order);
+                                  setChatOpen(true);
+                                }}
+                                unreadCount={unreadCount}
+                              />
+                            </motion.div>
+                          );
+                        };
+                        return <MockPDFOrderCardWithUnread key={`mock-pdf-order-${order.id}`} />;
                       })}
                     </div>
                   )}
@@ -484,6 +544,10 @@ export default function OrdersContent() {
                             setSelectedOrder(order);
                             setChatOpen(true);
                           }}
+                          onViewDesign={(order) => {
+                            setSelectedOrderForProducts(order);
+                            setOrderProductsModalOpen(true);
+                          }}
                           unreadCount={unreadCount}
                         />
                       </motion.div>
@@ -535,6 +599,10 @@ export default function OrdersContent() {
                           onOpenChat={() => {
                             setSelectedOrder(order);
                             setChatOpen(true);
+                          }}
+                          onViewDesign={(order) => {
+                            setSelectedOrderForProducts(order);
+                            setOrderProductsModalOpen(true);
                           }}
                           unreadCount={unreadCount}
                         />
@@ -594,6 +662,62 @@ export default function OrdersContent() {
                     }}
                   />
                 ))
+              );
+            })()}
+          </TabsContent>
+
+          <TabsContent value="mock_pdf" className="space-y-4">
+            {isLoadingOrders ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : ordersError ? (
+              <Card className="p-12 text-center">
+                <AlertCircle className="w-16 h-16 mx-auto mb-4 text-destructive" />
+                <h3 className="text-xl font-semibold mb-2">Error loading mock PDF orders</h3>
+                <p className="text-muted-foreground">
+                  {ordersError instanceof Error ? ordersError.message : 'Failed to load mock PDF orders'}
+                </p>
+              </Card>
+            ) : (() => {
+              const mockPdfOrders = orders.filter(o => o.order_type === 'mock_pdf');
+              return mockPdfOrders.length === 0 ? (
+                <Card className="p-12 text-center">
+                  <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                  <h3 className="text-xl font-semibold mb-2">No mock PDF downloads yet</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Your mock PDF download orders will appear here
+                  </p>
+                  <Button onClick={() => router.push('/customer-dashboard/download-mock-pdf')}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Download Mock PDF
+                  </Button>
+                </Card>
+              ) : (
+                mockPdfOrders.map((order, index) => {
+                  const MockPDFOrderCardWithUnread = () => {
+                    const { user } = useAuth();
+                    const unreadCount = useUnreadMessages(order.id?.toString() || null, user?.id);
+                    return (
+                      <motion.div
+                        key={`mock-pdf-order-${order.id}`}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                      >
+                        <MockPDFOrderCard
+                          order={order}
+                          onOpenChat={() => {
+                            setSelectedOrder(order);
+                            setChatOpen(true);
+                          }}
+                          unreadCount={unreadCount}
+                        />
+                      </motion.div>
+                    );
+                  };
+                  return <MockPDFOrderCardWithUnread key={`mock-pdf-order-${order.id}`} />;
+                })
               );
             })()}
           </TabsContent>
@@ -823,14 +947,117 @@ export default function OrdersContent() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Order Products Modal */}
+      {selectedOrderForProducts && (
+        <Dialog open={orderProductsModalOpen} onOpenChange={setOrderProductsModalOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Order Products - #{selectedOrderForProducts.order_number || selectedOrderForProducts.id}
+              </DialogTitle>
+              <DialogDescription>
+                View all products associated with this order
+              </DialogDescription>
+            </DialogHeader>
+            {isLoadingOrderProducts ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : orderProductsData?.products && Array.isArray(orderProductsData.products) && orderProductsData.products.length > 0 ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {orderProductsData.products.map((product: any, index: number) => {
+                    // Extract product image from media array (sorted: mockup first, then jpg/png, then others)
+                    let productImage = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                    if (product.media && Array.isArray(product.media) && product.media.length > 0) {
+                      // Media is already sorted by ProductSerializer (mockup first, then jpg/png)
+                      const firstMedia = product.media[0];
+                      productImage = firstMedia.file_url || 
+                                    firstMedia.url || 
+                                    firstMedia.file ||
+                                    productImage;
+                    } else if (product.image) {
+                      productImage = product.image;
+                    }
+                    
+                    // Make absolute URL if needed
+                    const makeAbsoluteUrl = (url: string): string => {
+                      if (!url) return '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                      if (url.startsWith('http://') || url.startsWith('https://')) {
+                        return url;
+                      }
+                      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+                      if (apiBaseUrl && url.startsWith('/')) {
+                        return `${apiBaseUrl}${url}`;
+                      }
+                      if (apiBaseUrl && !url.startsWith('/')) {
+                        return `${apiBaseUrl}/${url}`;
+                      }
+                      return url;
+                    };
+                    
+                    const productTitle = product.title || `Product ${index + 1}`;
+                    const productPrice = product.price || 0;
+                    const productCategory = product.category?.name || product.category || 'Uncategorized';
+                    const productDesigner = product.created_by?.username || 
+                                          product.created_by?.first_name || 
+                                          product.designer ||
+                                          'Unknown Designer';
+
+                    return (
+                      <Card key={product.id || index} className="p-4 hover:shadow-md transition-shadow">
+                        <div className="flex gap-4">
+                          <div className="w-24 h-24 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                            <img
+                              src={makeAbsoluteUrl(productImage)}
+                              alt={productTitle}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-sm mb-1 line-clamp-2">{productTitle}</h4>
+                            <p className="text-xs text-muted-foreground mb-1">by {productDesigner}</p>
+                            <p className="text-xs text-muted-foreground mb-2">{productCategory}</p>
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-primary">₹{productPrice}</span>
+                              {product.product_plan_type && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {product.product_plan_type}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                <h3 className="text-lg font-semibold mb-2">No products found</h3>
+                <p className="text-sm text-muted-foreground">
+                  Unable to load products for this order.
+                </p>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
 
 // Base order card component with shared logic
-function BaseOrderCard({ order, onOpenChat, orderTypeLabel, iconColor, bgColor, borderColor, unreadCount = 0 }: { 
+function BaseOrderCard({ order, onOpenChat, onViewDesign, orderTypeLabel, iconColor, bgColor, borderColor, unreadCount = 0 }: { 
   order: Order; 
   onOpenChat: () => void;
+  onViewDesign?: (order: Order) => void;
   orderTypeLabel: string;
   iconColor: string;
   bgColor: string;
@@ -893,26 +1120,27 @@ function BaseOrderCard({ order, onOpenChat, orderTypeLabel, iconColor, bgColor, 
             <Icon className="w-7 h-7 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2.5">
-              <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
-                {order.title || `${orderTypeLabel} #${order.order_number || order.id}`}
-              </h3>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="flex-1">
+                <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
+                  {order.order_number ? `Order ${order.order_number}` : `Order #${order.id}`}
+                </h3>
+                <p className="text-xs text-muted-foreground -mt-0.5">
+                  {orderTypeLabel}
+                </p>
+              </div>
               <Badge variant={config.badgeVariant} className="text-xs font-semibold px-2.5 py-0.5">
                 {config.label}
               </Badge>
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                <span className="flex items-center gap-1">
-                  <span className="font-mono font-semibold text-foreground">#{order.order_number || order.id}</span>
-                </span>
                 {(order.total_amount !== undefined || order.price !== undefined) && (
-                  <>
-                    <span className="text-muted-foreground/50">•</span>
-                    <span className="font-semibold text-foreground">₹{order.total_amount || order.price || 0}</span>
-                  </>
+                  <span className="font-semibold text-foreground">₹{order.total_amount || order.price || 0}</span>
                 )}
-                <span className="text-muted-foreground/50">•</span>
+                {(order.total_amount !== undefined || order.price !== undefined) && (
+                  <span className="text-muted-foreground/50">•</span>
+                )}
                 <span>{new Date(createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
               </div>
               {(order.status === "pending" || order.status === "processing" || order.status === "in_progress") && timeRemaining > 0 && (
@@ -956,10 +1184,11 @@ function BaseOrderCard({ order, onOpenChat, orderTypeLabel, iconColor, bgColor, 
               </span>
             ) : null}
           </div>
-          {isCompleted && (
+          {isCompleted && onViewDesign && (
             <Button 
               size="sm"
               className="bg-primary hover:bg-primary/90 transition-colors shadow-sm hover:shadow-md"
+              onClick={() => onViewDesign(order)}
             >
               <ExternalLink className="w-4 h-4 mr-2" />
               View Design
@@ -972,11 +1201,17 @@ function BaseOrderCard({ order, onOpenChat, orderTypeLabel, iconColor, bgColor, 
 }
 
 // Cart Order Card
-function CartOrderCard({ order, onOpenChat, unreadCount = 0 }: { order: Order; onOpenChat: () => void; unreadCount?: number }) {
+function CartOrderCard({ order, onOpenChat, onViewDesign, unreadCount = 0 }: { 
+  order: Order; 
+  onOpenChat: () => void; 
+  onViewDesign?: (order: Order) => void;
+  unreadCount?: number;
+}) {
   return (
     <BaseOrderCard
       order={order}
       onOpenChat={onOpenChat}
+      onViewDesign={onViewDesign}
       orderTypeLabel="Cart Order"
       iconColor="from-blue-500 to-indigo-500"
       bgColor="from-blue-500/10 to-indigo-500/10"
@@ -987,17 +1222,154 @@ function CartOrderCard({ order, onOpenChat, unreadCount = 0 }: { order: Order; o
 }
 
 // Subscription Order Card
-function SubscriptionOrderCard({ order, onOpenChat, unreadCount = 0 }: { order: Order; onOpenChat: () => void; unreadCount?: number }) {
+function SubscriptionOrderCard({ order, onOpenChat, onViewDesign, unreadCount = 0 }: { 
+  order: Order; 
+  onOpenChat: () => void; 
+  onViewDesign?: (order: Order) => void;
+  unreadCount?: number;
+}) {
   return (
     <BaseOrderCard
       order={order}
       onOpenChat={onOpenChat}
+      onViewDesign={onViewDesign}
       orderTypeLabel="Subscription Order"
       iconColor="from-purple-500 to-pink-500"
       bgColor="from-purple-500/10 to-pink-500/10"
       borderColor="border-purple-500/20"
       unreadCount={unreadCount}
     />
+  );
+}
+
+// Mock PDF Order Card
+function MockPDFOrderCard({ order, onOpenChat, unreadCount = 0 }: { order: Order; onOpenChat: () => void; unreadCount?: number }) {
+  const getStatusConfig = () => {
+    // For mock PDF orders, check pdf_download status if available
+    const pdfStatus = order.pdf_download?.status;
+    if (pdfStatus === 'completed') {
+      return { icon: CheckCircle2, label: "Completed", badgeVariant: "secondary" as const };
+    } else if (pdfStatus === 'processing') {
+      return { icon: Clock, label: "Processing", badgeVariant: "default" as const };
+    } else if (pdfStatus === 'failed') {
+      return { icon: AlertCircle, label: "Failed", badgeVariant: "destructive" as const };
+    }
+    
+    // Fallback to order status
+    switch (order.status) {
+      case "pending":
+        return { icon: AlertCircle, label: "Pending", badgeVariant: "secondary" as const };
+      case "processing":
+        return { icon: Clock, label: "Processing", badgeVariant: "default" as const };
+      case "success":
+      case "completed":
+        return { icon: CheckCircle2, label: "Completed", badgeVariant: "secondary" as const };
+      case "failed":
+        return { icon: AlertCircle, label: "Failed", badgeVariant: "destructive" as const };
+      default:
+        return { icon: FileText, label: order.status || "Unknown", badgeVariant: "secondary" as const };
+    }
+  };
+
+  const config = getStatusConfig();
+  const Icon = config.icon;
+  const isCompleted = order.status === "success" || order.status === "completed" || order.pdf_download?.status === 'completed';
+  const pdfDownload = order.pdf_download;
+  const totalPages = pdfDownload?.total_pages || 0;
+  const downloadType = pdfDownload?.download_type || 'free';
+
+  return (
+    <Card className="p-6 bg-gradient-to-br from-teal-500/10 to-cyan-500/10 border-teal-500/20 hover:shadow-lg transition-all duration-300 border-2 group">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex gap-4 flex-1">
+          <div className="w-14 h-14 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-xl flex-shrink-0 shadow-md group-hover:shadow-lg transition-shadow flex items-center justify-center">
+            <FileText className="w-7 h-7 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="flex-1">
+                <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
+                  {order.order_number ? `Order ${order.order_number}` : `Order #${order.id}`}
+                </h3>
+                <p className="text-xs text-muted-foreground -mt-0.5">
+                  Mock PDF Download • {totalPages} {totalPages === 1 ? 'Design' : 'Designs'}
+                </p>
+              </div>
+              <Badge variant={config.badgeVariant} className="text-xs font-semibold px-2.5 py-0.5">
+                {config.label}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                {order.total_amount !== undefined && (
+                  <span className="font-semibold text-foreground">
+                    {order.total_amount === 0 || order.total_amount === '0.00' ? 'Free' : `₹${order.total_amount}`}
+                  </span>
+                )}
+                {order.total_amount !== undefined && (
+                  <span className="text-muted-foreground/50">•</span>
+                )}
+                <span>{new Date(order.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                {downloadType && (
+                  <>
+                    <span className="text-muted-foreground/50">•</span>
+                    <Badge variant="outline" className="text-xs">
+                      {downloadType === 'free' ? 'Free Download' : 'Paid Download'}
+                    </Badge>
+                  </>
+                )}
+              </div>
+              {isCompleted && pdfDownload?.pdf_file_path && (
+                <p className="text-sm text-green-600 dark:text-green-400 font-medium flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" />
+                  PDF ready for download! Check your downloads section.
+                </p>
+              )}
+              {pdfDownload?.status === 'processing' && (
+                <p className="text-sm text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1.5">
+                  <Clock className="w-4 h-4" />
+                  PDF is being generated. This may take a few minutes.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className="relative inline-block">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onOpenChat}
+              className="hover:bg-primary/10 hover:border-primary/30 transition-colors"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Chat
+            </Button>
+            {unreadCount > 0 ? (
+              <span 
+                className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px] px-1 z-50 shadow-lg ring-2 ring-white dark:ring-gray-900 pointer-events-none"
+                style={{ lineHeight: '1.25rem' }}
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            ) : null}
+          </div>
+          {isCompleted && pdfDownload?.pdf_file_path && (
+            <Button 
+              size="sm"
+              className="bg-primary hover:bg-primary/90 transition-colors shadow-sm hover:shadow-md"
+              onClick={() => {
+                // Navigate to downloads page or trigger download
+                window.location.href = '/customer-dashboard/downloads';
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              View Download
+            </Button>
+          )}
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -1223,10 +1595,17 @@ function CustomOrderCard({ order, onOpenChat, onViewDetails, onViewDeliverables,
             <Icon className="w-7 h-7 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2.5">
-              <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
-                {customDetails?.title || order.title || `Custom Order #${order.order_number || order.id}`}
-              </h3>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="flex-1">
+                <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
+                  {customDetails?.title || order.title || (order.order_number ? `Order ${order.order_number}` : `Order #${order.id}`)}
+                </h3>
+                {!customDetails?.title && !order.title && (
+                  <p className="text-xs text-muted-foreground -mt-0.5">
+                    Custom Order
+                  </p>
+                )}
+              </div>
               <Badge variant={statusConfig.badgeVariant} className="text-xs font-semibold px-2.5 py-0.5">
                 {statusConfig.label}
               </Badge>
@@ -1421,25 +1800,26 @@ function OrderCard({ order, onOpenChat, unreadCount = 0 }: { order: Order; onOpe
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <h3 className="font-semibold text-lg">
-                {order.title || `Order #${order.order_number || order.id}`}
-              </h3>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg">
+                  {order.order_number ? `Order ${order.order_number}` : `Order #${order.id}`}
+                </h3>
+                <p className="text-xs text-muted-foreground -mt-0.5">
+                  {order.order_type === 'cart' ? 'Cart Order' : order.order_type === 'subscription' ? 'Subscription Order' : 'Order'}
+                </p>
+              </div>
               <Badge variant={config.badgeVariant}>{config.label}</Badge>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                <span>
-                  Order ID: <span className="font-mono">{order.order_number || order.id}</span>
-                </span>
                 {(order.total_amount !== undefined || order.price !== undefined) && (
-                  <>
-                    <span>•</span>
-                    <span>₹{order.total_amount || order.price || 0}</span>
-                  </>
+                  <span>₹{order.total_amount || order.price || 0}</span>
                 )}
-                <span>•</span>
+                {(order.total_amount !== undefined || order.price !== undefined) && (
+                  <span>•</span>
+                )}
                 <span>
                   {new Date(createdAt).toLocaleDateString("en-US", {
                     month: "short",

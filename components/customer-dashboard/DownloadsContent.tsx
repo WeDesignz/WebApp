@@ -860,20 +860,25 @@ export default function DownloadsContent() {
       {/* Product Detail Modal */}
       <Dialog open={!!selectedProductId} onOpenChange={(open) => !open && setSelectedProductId(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {isLoadingProductDetail 
+                ? 'Loading Product Details' 
+                : productDetail?.title || 'Product Details'}
+            </DialogTitle>
+            <DialogDescription>
+              {isLoadingProductDetail 
+                ? 'Please wait while we load the product information' 
+                : 'View all details about this product'}
+            </DialogDescription>
+          </DialogHeader>
+          
           {isLoadingProductDetail ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : productDetail ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>{productDetail.title || 'Product Details'}</DialogTitle>
-                <DialogDescription>
-                  View all details about this product
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="space-y-6 mt-4">
+            <div className="space-y-6 mt-4">
                 {/* Product Image */}
                 {productDetail.media && productDetail.media.length > 0 && (
                   <div className="aspect-video bg-muted rounded-lg overflow-hidden">
@@ -1067,8 +1072,7 @@ export default function DownloadsContent() {
                     </div>
                   </div>
                 )}
-              </div>
-            </>
+            </div>
           ) : (
             <div className="text-center py-12">
               <AlertCircle className="w-16 h-16 mx-auto mb-4 text-destructive" />

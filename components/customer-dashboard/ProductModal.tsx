@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShoppingCart, Download, CreditCard, Heart, Loader2, Tag, Image as ImageIcon, Package, Hash, Palette, DollarSign, Info, Eye, ZoomIn, Zap, ChevronDown } from "lucide-react";
+import { X, ShoppingCart, Download, Heart, Loader2, Tag, Image as ImageIcon, Package, Hash, Palette, DollarSign, Info, Eye, ZoomIn, Zap, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -24,9 +24,10 @@ interface ProductModalProps {
   onClose: () => void;
   hasActivePlan: boolean;
   product: TransformedProduct;
+  isDownloaded?: boolean;
 }
 
-export default function ProductModal({ isOpen, onClose, hasActivePlan, product: initialProduct }: ProductModalProps) {
+export default function ProductModal({ isOpen, onClose, hasActivePlan, product: initialProduct, isDownloaded = false }: ProductModalProps) {
   const { addToCart, addToWishlist, isInWishlist } = useCartWishlist();
   const { toast } = useToast();
   const router = useRouter();
@@ -317,6 +318,38 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
     }
   };
 
+  // Download handler for downloaded products (uses ZIP download)
+  const handleDownloadDownloaded = async () => {
+    if (isDownloading) return;
+    
+    setIsDownloading(true);
+    try {
+      const blob = await apiClient.downloadProductZip(product.id);
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${product.title?.replace(/[^a-z0-9]/gi, '_') || 'design'}_${product.id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Download started",
+        description: "Your design files are being downloaded as a ZIP file.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Download failed",
+        description: error.message || "Failed to download product.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   // Check if product is free (price is 0 or null, or product_plan_type is 'free')
   const isFree = () => {
     // Check product_plan_type first
@@ -422,8 +455,8 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                     <h2 className="text-2xl font-bold">{product.title}</h2>
                     <div className="flex items-center gap-2">
                       <TooltipProvider>
-                        {/* Add to Cart Button (if no active plan and not free) */}
-                        {!hasActivePlan && !isFree() && (
+                        {/* Add to Cart and Wishlist buttons (if not free and not downloaded) */}
+                        {!isDownloaded && !isFree() && (
                           <>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -442,83 +475,28 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
-                                  onClick={handleBuyNow}
+                                  onClick={handleAddToWishlist}
                                   className="p-2 hover:bg-muted rounded-full transition-colors"
-                                  aria-label="Buy Now"
+                                  aria-label="Add to wishlist"
                                 >
-                                  <Zap className="w-5 h-5" />
+                                  <Heart 
+                                    className={`w-5 h-5 ${isInWishlist(String(product.id)) ? 'fill-destructive text-destructive' : ''}`} 
+                                  />
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>Buy Now</p>
+                                <p>{isInWishlist(String(product.id)) ? 'Remove from Wishlist' : 'Add to Wishlist'}</p>
                               </TooltipContent>
                             </Tooltip>
                           </>
                         )}
 
-                        {/* Add to Cart for Bulk Download (if has active plan) */}
-                        {hasActivePlan && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleAddToCart()}
-                                className="p-2 hover:bg-muted rounded-full transition-colors"
-                                aria-label="Add to Cart for Bulk Download"
-                              >
-                                <ShoppingCart className="w-5 h-5" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Add to Cart for Bulk Download</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-
-                        {/* Purchase Plan Button (if no active plan) */}
-                        {!hasActivePlan && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => {
-                                  onClose();
-                                  router.push('/customer-dashboard/plans');
-                                }}
-                                className="p-2 rounded-full transition-all bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 hover:scale-110"
-                                aria-label="Purchase Plan"
-                              >
-                                <CreditCard className="w-5 h-5 text-white" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Purchase Plan</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-
-                        {/* Wishlist Button */}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={handleAddToWishlist}
-                              className="p-2 hover:bg-muted rounded-full transition-colors"
-                              aria-label="Add to wishlist"
-                            >
-                              <Heart 
-                                className={`w-5 h-5 ${isInWishlist(String(product.id)) ? 'fill-destructive text-destructive' : ''}`} 
-                              />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{isInWishlist(String(product.id)) ? 'Remove from Wishlist' : 'Add to Wishlist'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-
-                        {/* Download Button with Dropdown (if has active plan or is free) */}
-                        {(hasActivePlan || isFree()) && (
+                        {/* Download Button with Dropdown (if product is downloaded or free) */}
+                        {(isDownloaded || isFree()) && (
                           <DropdownMenu>
                             <div className="flex items-center">
                               <button
-                                onClick={handleDownloadFree}
+                                onClick={isFree() ? handleDownloadFree : handleDownloadDownloaded}
                                 disabled={isDownloading}
                                 className="px-3 py-2 hover:bg-muted rounded-l-full transition-colors disabled:opacity-50 flex items-center gap-2"
                                 aria-label="Download ZIP"
@@ -544,6 +522,22 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                               <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase">
                                 FILE TYPE
                               </div>
+                              <DropdownMenuSeparator />
+                              {/* Download All as ZIP option */}
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (isFree()) {
+                                    handleDownloadFree();
+                                  } else {
+                                    handleDownloadDownloaded();
+                                  }
+                                }}
+                                className="flex items-center justify-between cursor-pointer font-medium"
+                              >
+                                <span className="text-sm">Download All as ZIP</span>
+                                <Download className="w-4 h-4" />
+                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               {(() => {
                                 const filesByType = organizeMediaByFileType();

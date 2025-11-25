@@ -11,9 +11,9 @@ import {
   Moon,
   Sun,
   Zap,
-  CreditCard,
   ShoppingBag,
   Heart,
+  CreditCard,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ const menuItems: { icon: any; label: string; view: DashboardView }[] = [
   { icon: Download, label: "My Downloads", view: "downloads" },
   { icon: ShoppingBag, label: "My Orders", view: "orders" },
   { icon: Heart, label: "Wishlist", view: "wishlist" },
-  { icon: CreditCard, label: "Plans", view: "plans" },
+  { icon: CreditCard, label: "Plans & Subscription", view: "plans" },
   { icon: HelpCircle, label: "Support", view: "support" },
 ];
 

@@ -8,15 +8,15 @@ import CustomerDashboardContent from "./CustomerDashboardContent";
 import CartDrawer from "./CartDrawer";
 import DownloadsContent from "./DownloadsContent";
 import OrdersContent from "./OrdersContent";
-import PlansContent from "./PlansContent";
 import SupportContent from "./SupportContent";
 import NotificationsContent from "./NotificationsContent";
 import FAQContent from "./FAQContent";
 import ProfileContent from "./ProfileContent";
 import WishlistContent from "./WishlistContent";
+import PlansContent from "./PlansContent";
 import LogoutModal from "./LogoutModal";
 
-export type DashboardView = "dashboard" | "downloads" | "orders" | "freelancers" | "plans" | "support" | "notifications" | "faq" | "profile" | "wishlist";
+export type DashboardView = "dashboard" | "downloads" | "orders" | "freelancers" | "support" | "notifications" | "faq" | "profile" | "wishlist" | "plans";
 
 export default function CustomerDashboard() {
   const searchParams = useSearchParams();
@@ -34,7 +34,7 @@ export default function CustomerDashboard() {
   // Check for view and category query parameters on mount
   useEffect(() => {
     const viewParam = searchParams.get('view');
-    if (viewParam && ['dashboard', 'downloads', 'orders', 'freelancers', 'plans', 'support', 'notifications', 'faq', 'profile', 'wishlist'].includes(viewParam)) {
+    if (viewParam && ['dashboard', 'downloads', 'orders', 'freelancers', 'support', 'notifications', 'faq', 'profile', 'wishlist', 'plans'].includes(viewParam)) {
       setActiveView(viewParam as DashboardView);
     }
     

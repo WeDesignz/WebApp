@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShoppingCart, Tag, ArrowRight, Trash2, Heart, Loader2, Check } from "lucide-react";
+import { X, ShoppingCart, ArrowRight, Trash2, Heart, Loader2 } from "lucide-react";
 import { useCartWishlist } from "@/contexts/CartWishlistContext";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -31,31 +31,27 @@ interface CartDrawerProps {
 
 export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { cartItems, removeFromCart, moveToWishlist, getCartTotal, isLoadingCart } = useCartWishlist();
-  const [couponCode, setCouponCode] = useState("");
-  const [couponApplied, setCouponApplied] = useState(false);
-  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [couponInfo, setCouponInfo] = useState<{
     discount_amount: number;
     coupon_name: string;
     coupon_type: 'flat' | 'percentage';
   } | null>(null);
-  const { toast } = useToast();
   const [cartSummary, setCartSummary] = useState<{
     total_amount: number;
     has_active_subscription: boolean;
     will_be_free: boolean;
   } | null>(null);
 
-  // Load coupon state from localStorage when drawer opens
+  // Load coupon state from localStorage when drawer opens (read-only, for display only)
   useEffect(() => {
     if (isOpen) {
       try {
         const savedCoupon = localStorage.getItem('appliedCoupon');
         if (savedCoupon) {
           const couponData = JSON.parse(savedCoupon);
-          setCouponCode(couponData.code || '');
-          setCouponApplied(couponData.applied || false);
-          setCouponInfo(couponData.info || null);
+          if (couponData.applied && couponData.info) {
+            setCouponInfo(couponData.info);
+          }
         }
       } catch (error) {
         // Ignore localStorage errors
@@ -84,101 +80,6 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
   const handleMoveToWishlist = async (itemId: string, title: string) => {
     await moveToWishlist(itemId);
-  };
-
-  const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) {
-      toast({
-        title: "Invalid coupon code",
-        description: "Please enter a coupon code",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsValidatingCoupon(true);
-    try {
-      const orderAmount = cartSummary?.total_amount || getCartTotal();
-      const response = await apiClient.validateCoupon({
-        coupon_code: couponCode.trim(),
-        order_amount: orderAmount,
-      });
-
-      if (response.error || !response.data?.valid) {
-        // Extract error message from response
-        let errorMessage = 'Invalid coupon code';
-        
-        if (response.error) {
-          // If error is in response.error, use it
-          errorMessage = response.error;
-        } else if (response.data?.error) {
-          // If error is in response.data.error, use it
-          errorMessage = response.data.error;
-        } else if (response.errorDetails?.message) {
-          // If error is in errorDetails, use it
-          errorMessage = response.errorDetails.message;
-        }
-        
-        setCouponApplied(false);
-        setCouponInfo(null);
-        
-        // Clear from localStorage
-        try {
-          localStorage.removeItem('appliedCoupon');
-        } catch (error) {
-          // Ignore localStorage errors
-        }
-        
-        toast({
-          title: "Coupon validation failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (response.data) {
-        setCouponApplied(true);
-        const couponInfoData = {
-          discount_amount: response.data.discount_amount || 0,
-          coupon_name: response.data.coupon?.name || couponCode.trim(),
-          coupon_type: response.data.coupon?.coupon_discount_type || 'percentage',
-        };
-        setCouponInfo(couponInfoData);
-        
-        // Save to localStorage
-        try {
-          localStorage.setItem('appliedCoupon', JSON.stringify({
-            code: couponCode.trim(),
-            applied: true,
-            info: couponInfoData,
-          }));
-        } catch (error) {
-          // Ignore localStorage errors
-        }
-      toast({
-        title: "Coupon applied",
-          description: `Discount of ${formatPrice(response.data.discount_amount || 0)} applied!`,
-        });
-      }
-    } catch (error: any) {
-      setCouponApplied(false);
-      setCouponInfo(null);
-      
-      // Clear from localStorage
-      try {
-        localStorage.removeItem('appliedCoupon');
-      } catch (error) {
-        // Ignore localStorage errors
-      }
-      toast({
-        title: "Error applying coupon",
-        description: error.message || "Failed to validate coupon. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsValidatingCoupon(false);
-    }
   };
 
   const discount = couponInfo?.discount_amount || 0;
@@ -310,70 +211,13 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
             {cartItems.length > 0 && (
               <div className="border-t border-border p-6 space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Tag className="w-4 h-4 text-muted-foreground" />
-                    <input
-                      type="text"
-                      value={couponCode}
-                      onChange={(e) => {
-                        setCouponCode(e.target.value);
-                        // Clear applied coupon if user changes the code
-                        if (couponApplied) {
-                          setCouponApplied(false);
-                          setCouponInfo(null);
-                          // Clear from localStorage
-                          try {
-                            localStorage.removeItem('appliedCoupon');
-                          } catch (error) {
-                            // Ignore localStorage errors
-                          }
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !couponApplied && !isValidatingCoupon && couponCode.trim()) {
-                          e.preventDefault();
-                          handleApplyCoupon();
-                        }
-                      }}
-                      placeholder="Enter coupon code"
-                      className="flex-1 px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                    />
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={handleApplyCoupon}
-                      disabled={couponApplied || isValidatingCoupon}
-                    >
-                      {isValidatingCoupon ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                          Validating...
-                        </>
-                      ) : couponApplied ? (
-                        <>
-                          <Check className="w-4 h-4 mr-1" />
-                          Applied
-                        </>
-                      ) : (
-                        'Apply'
-                      )}
-                    </Button>
-                  </div>
-                  
-                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                    <p className="text-sm text-primary font-medium">
-                      🎉 Free download on orders over $50!
-                    </p>
-                  </div>
-                </div>
 
                 <div className="space-y-2 pt-3 border-t border-border">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="font-semibold">{formatPrice(getCartTotal())}</span>
                   </div>
-                  {couponApplied && couponInfo && (
+                  {couponInfo && (
                   <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">
                         Discount {couponInfo.coupon_type === 'percentage' 

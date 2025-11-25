@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useCartWishlist } from "@/contexts/CartWishlistContext";
-import { Trash2, Heart, ShoppingCart, Tag, CreditCard, Lock, ArrowLeft, Check, Loader2 } from "lucide-react";
+import { Trash2, Heart, ShoppingCart, Tag, Lock, ArrowLeft, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
@@ -752,24 +752,6 @@ export default function CartPage() {
                 >
                   Continue Shopping
                 </Button>
-              </div>
-
-              <div className="bg-card border border-border rounded-xl p-6">
-                <h3 className="font-semibold mb-3">We Accept</h3>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <div className="px-3 py-2 bg-muted border border-border rounded flex items-center gap-2">
-                    <CreditCard className="w-4 h-4" />
-                    <span className="text-xs font-medium">Visa</span>
-                  </div>
-                  <div className="px-3 py-2 bg-muted border border-border rounded flex items-center gap-2">
-                    <CreditCard className="w-4 h-4" />
-                    <span className="text-xs font-medium">Mastercard</span>
-                  </div>
-                  <div className="px-3 py-2 bg-muted border border-border rounded flex items-center gap-2">
-                    <CreditCard className="w-4 h-4" />
-                    <span className="text-xs font-medium">PayPal</span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

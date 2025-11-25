@@ -12,6 +12,10 @@ import {
   Crown,
   Loader2,
   AlertCircle,
+  Download,
+  FileText,
+  Clock,
+  Percent,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -43,6 +47,10 @@ interface Plan {
   plan_duration: string;
   status: string;
   subscriptions_count?: number;
+  discount?: number;
+  custom_design_hour?: number;
+  mock_pdf_count?: number;
+  no_of_free_downloads?: number;
 }
 
 interface Subscription {
@@ -52,6 +60,10 @@ interface Subscription {
   auto_renew: boolean;
   created_at: string;
   updated_at: string;
+  free_downloads_used?: number;
+  mock_pdf_downloads_used?: number;
+  remaining_free_downloads?: number;
+  remaining_mock_pdf_downloads?: number;
 }
 
 // Icon mapping for plan names
@@ -418,30 +430,81 @@ export default function PlansContent() {
                 </Button>
               </div>
 
-              <div className="grid md:grid-cols-3 gap-6">
-                {usageData && (
-                <div className="bg-background/50 backdrop-blur-sm rounded-lg p-4 border">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">Usage This Month</span>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Designs</span>
-                      <span className="font-semibold">
-                          {usageData.designs_used || 0} of {usageData.designs_limit || 'Unlimited'}
-                      </span>
+              {/* Plan Features & Benefits */}
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                {/* Discount */}
+                {currentPlan.discount !== undefined && currentPlan.discount > 0 && (
+                  <div className="bg-background/50 backdrop-blur-sm rounded-lg p-4 border">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Percent className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">Discount</span>
                     </div>
-                      {usageData.designs_limit && (
-                    <Progress
-                          value={((usageData.designs_used || 0) / usageData.designs_limit) * 100}
-                      className="h-2"
-                    />
-                      )}
+                    <p className="text-2xl font-bold">{currentPlan.discount}%</p>
+                    <p className="text-xs text-muted-foreground mt-1">On all purchases</p>
+                  </div>
+                )}
+
+                {/* Custom Design Hours */}
+                {currentPlan.custom_design_hour !== undefined && (
+                  <div className="bg-background/50 backdrop-blur-sm rounded-lg p-4 border">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">Custom Design</span>
+                    </div>
+                    <p className="text-2xl font-bold">
+                      {currentPlan.custom_design_hour} hour{currentPlan.custom_design_hour !== 1 ? 's' : ''}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Delivery time</p>
+                  </div>
+                )}
+
+                {/* Free Downloads */}
+                {currentPlan.no_of_free_downloads !== undefined && currentPlan.no_of_free_downloads > 0 && (
+                  <div className="bg-background/50 backdrop-blur-sm rounded-lg p-4 border">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Download className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">Free Downloads</span>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-2xl font-bold">
+                        {currentSubscription.remaining_free_downloads ?? currentPlan.no_of_free_downloads} / {currentPlan.no_of_free_downloads}
+                      </p>
+                      <Progress
+                        value={((currentSubscription.remaining_free_downloads ?? currentPlan.no_of_free_downloads) / currentPlan.no_of_free_downloads) * 100}
+                        className="h-2"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {currentSubscription.free_downloads_used ?? 0} used
+                      </p>
                     </div>
                   </div>
                 )}
 
+                {/* Mock PDF Downloads */}
+                {currentPlan.mock_pdf_count !== undefined && currentPlan.mock_pdf_count > 0 && (
+                  <div className="bg-background/50 backdrop-blur-sm rounded-lg p-4 border">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">Mock PDFs</span>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-2xl font-bold">
+                        {currentSubscription.remaining_mock_pdf_downloads ?? currentPlan.mock_pdf_count} / {currentPlan.mock_pdf_count}
+                      </p>
+                      <Progress
+                        value={((currentSubscription.remaining_mock_pdf_downloads ?? currentPlan.mock_pdf_count) / currentPlan.mock_pdf_count) * 100}
+                        className="h-2"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {currentSubscription.mock_pdf_downloads_used ?? 0} used
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Additional Info Grid */}
+              <div className="grid md:grid-cols-3 gap-6 pt-4 border-t border-border">
                 <div className="bg-background/50 backdrop-blur-sm rounded-lg p-4 border">
                   <div className="flex items-center gap-2 mb-2">
                     <Calendar className="w-4 h-4 text-primary" />
@@ -466,6 +529,20 @@ export default function PlansContent() {
                       {currentSubscription.auto_renew ? "Enabled" : "Disabled"}
                     </Badge>
                   </div>
+                </div>
+
+                <div className="bg-background/50 backdrop-blur-sm rounded-lg p-4 border">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Subscription Started</span>
+                  </div>
+                  <p className="text-sm font-semibold">
+                    {new Date(currentSubscription.created_at).toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
                 </div>
               </div>
             </Card>

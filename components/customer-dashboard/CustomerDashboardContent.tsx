@@ -10,8 +10,9 @@ import ProductModal from "./ProductModal";
 import PDFDownloadModal, { PDFPurchase } from "./PDFDownloadModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { catalogAPI } from "@/lib/api";
+import { catalogAPI, apiClient } from "@/lib/api";
 import { transformProduct, transformProducts, transformCategories, type TransformedProduct, type TransformedCategory } from "@/lib/utils/transformers";
+import { useToast } from "@/hooks/use-toast";
 
 interface ContentProps {
   searchQuery: string;
@@ -62,6 +63,9 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
   const [isClaimingFreePDF, setIsClaimingFreePDF] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const observerRef = useRef<HTMLDivElement>(null);
+  const [downloadedProductIds, setDownloadedProductIds] = useState<Set<number>>(new Set());
+  const [downloadingProductId, setDownloadingProductId] = useState<number | null>(null);
+  const { toast } = useToast();
 
   const isAuthenticated = !!user;
 
@@ -79,6 +83,33 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
   });
 
   const categories = categoriesData || [];
+
+  // Fetch user's downloaded products
+  const { data: downloadsData, isLoading: isLoadingDownloads } = useQuery({
+    queryKey: ['userDownloads'],
+    queryFn: async () => {
+      const response = await apiClient.getDownloads('all');
+      if (response.error) {
+        console.error('Error fetching downloads:', response.error);
+        return { products: [] };
+      }
+      const data = response.data || { products: [] };
+      return data;
+    },
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Update downloadedProductIds when downloadsData changes
+  useEffect(() => {
+    if (downloadsData?.products && Array.isArray(downloadsData.products)) {
+      // Convert all IDs to numbers for consistent comparison
+      const ids = new Set(downloadsData.products.map((p: any) => Number(p.id)).filter((id: number) => !isNaN(id)));
+      setDownloadedProductIds(ids);
+    } else {
+      setDownloadedProductIds(new Set());
+    }
+  }, [downloadsData]);
 
   // Fetch products using infinite query for pagination
   const {
@@ -147,6 +178,37 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
     setIsModalOpen(true);
+  };
+
+  const handleDownloadProduct = async (e: React.MouseEvent, productId: number) => {
+    e.stopPropagation(); // Prevent opening modal
+    if (downloadingProductId === productId) return;
+    
+    setDownloadingProductId(productId);
+    try {
+      const blob = await apiClient.downloadProductZip(productId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `design_${productId}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Download started",
+        description: "Your design files are being downloaded.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Download failed",
+        description: error.message || "Failed to download product.",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingProductId(null);
+    }
   };
 
   const handlePDFPurchaseComplete = (purchase: PDFPurchase) => {
@@ -372,13 +434,10 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
                       </div>
                     )}
 
-                    {/* Modern hover overlay with glassmorphism */}
+                    {/* Modern hover overlay */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out pointer-events-none">
                       {/* Gradient backdrop that adapts to theme */}
                       <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/60 to-transparent dark:from-background/98 dark:via-background/70" />
-                      
-                      {/* Glassmorphism overlay */}
-                      <div className="absolute inset-0 backdrop-blur-[2px]" />
                       
                       {/* Content container with smooth slide-up animation */}
                       <div className="absolute bottom-0 left-0 right-0 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 ease-out">
@@ -395,7 +454,7 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
                             </p>
                           )}
                           
-                          {/* CTA hint with subtle styling */}
+                          {/* Always show View Details on hover */}
                           <div className="flex items-center gap-1.5 pt-1">
                             <div className="h-px flex-1 bg-primary/20 dark:bg-primary/30" />
                             <span className="text-xs font-medium text-primary dark:text-primary">
@@ -438,6 +497,7 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
           onClose={() => setIsModalOpen(false)}
           hasActivePlan={hasActivePlan}
           product={selectedProduct}
+          isDownloaded={isAuthenticated && downloadedProductIds.has(Number(selectedProduct.id))}
         />
       )}
 
