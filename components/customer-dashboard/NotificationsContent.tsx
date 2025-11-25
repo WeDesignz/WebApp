@@ -75,14 +75,7 @@ export default function NotificationsContent() {
         status: filter === "all" ? undefined : filter,
       });
       if (response.error) {
-        console.error('❌ [NOTIFICATIONS] API Error:', response.error);
         throw new Error(response.error);
-      }
-      console.log('🔔 [NOTIFICATIONS] API Response:', response);
-      console.log('🔔 [NOTIFICATIONS] Response data:', response.data);
-      console.log('🔔 [NOTIFICATIONS] Notifications array:', response.data?.notifications);
-      if ((response.data?.notifications?.length ?? 0) > 0) {
-        console.log('🔔 [NOTIFICATIONS] First notification structure:', JSON.stringify(response.data?.notifications?.[0], null, 2));
       }
       return response.data;
     },
@@ -132,14 +125,6 @@ export default function NotificationsContent() {
 
   const notifications: Notification[] = notificationsData?.notifications || [];
   const unreadCount = notificationsData?.unread_count || 0;
-  
-  // Debug logging
-  console.log('🔔 [NOTIFICATIONS] Component state:', {
-    notificationsData,
-    notificationsCount: notifications.length,
-    unreadCount,
-    filter
-  });
 
   // Filter notifications based on read status
   const filteredNotifications = useMemo(() => {
@@ -149,35 +134,11 @@ export default function NotificationsContent() {
       // Check both read and is_read fields
       const isRead = notif.read === true || notif.is_read === true;
       
-      console.log('🔔 [FILTER] Checking notification:', {
-        id: notif.id,
-        title: notif.title,
-        isRead,
-        read: notif.read,
-        is_read: notif.is_read,
-        filter,
-        willInclude: filter === "all" ? true : (filter === "unread" ? !isRead : isRead)
-      });
-      
       if (filter === "unread") return !isRead;
       if (filter === "read") return isRead;
       return true; // "all" filter - include all notifications
     });
   }, [notifications, filter]);
-  
-  console.log('🔔 [FILTER] Filter result:', {
-    originalCount: notifications.length,
-    filteredCount: filteredNotifications.length,
-    filter,
-    notifications: notifications.map(n => ({ 
-      id: n.id, 
-      title: n.title, 
-      is_read: n.is_read, 
-      read: n.read,
-      readValue: n.read,
-      is_readValue: n.is_read
-    }))
-  });
 
   const handleMarkAsRead = (notification: Notification) => {
     if (typeof notification.id === 'number') {
@@ -319,7 +280,6 @@ export default function NotificationsContent() {
         </div>
 
         {/* Notifications List */}
-        {console.log('🔔 [RENDER] About to render notifications list. filteredNotifications.length:', filteredNotifications.length, 'filteredNotifications:', filteredNotifications)}
         {filteredNotifications.length === 0 ? (
           <Card className="p-12 text-center">
             <Bell className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
@@ -336,8 +296,6 @@ export default function NotificationsContent() {
         ) : (
           <div className="space-y-3">
             {filteredNotifications.map((notification, index) => {
-              console.log('🔔 [RENDER] Rendering notification:', notification.id, notification.title);
-              
               const isRead = notification.read || notification.is_read || false;
               const type = getNotificationType(notification.type || notification.notification_type);
               const timestamp = notification.timestamp || notification.created_at;
