@@ -46,6 +46,11 @@ export default function CartPage() {
     has_active_subscription: boolean;
     will_be_free: boolean;
     subscription_plan?: string;
+    remaining_free_downloads?: number;
+    plan_discount?: number;
+    free_items_count?: number;
+    paid_items_count?: number;
+    discounted_amount?: number;
   } | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -77,6 +82,11 @@ export default function CartPage() {
             has_active_subscription: response.data.has_active_subscription || false,
             will_be_free: response.data.will_be_free || false,
             subscription_plan: response.data.subscription_plan || undefined,
+            remaining_free_downloads: response.data.remaining_free_downloads || 0,
+            plan_discount: response.data.plan_discount || 0,
+            free_items_count: response.data.free_items_count || 0,
+            paid_items_count: response.data.paid_items_count || 0,
+            discounted_amount: response.data.discounted_amount || response.data.total_amount || 0,
           });
         }
       });
@@ -218,7 +228,9 @@ export default function CartPage() {
   };
 
   const discount = couponInfo?.discount_amount || 0;
-  const total = (cartSummary?.total_amount || getCartTotal()) - discount;
+  // Use discounted_amount if available (when plan discount applies), otherwise use total_amount
+  const baseAmount = cartSummary?.discounted_amount ?? cartSummary?.total_amount ?? getCartTotal();
+  const total = Math.max(0, baseAmount - discount);
 
   const handleCheckout = async () => {
     if (cartItems.length === 0) {
@@ -682,10 +694,38 @@ export default function CartPage() {
                   </div>
                 </div>
 
+                {/* Case 1: Partial free downloads available */}
+                {cartSummary?.has_active_subscription && 
+                 cartSummary.free_items_count && 
+                 cartSummary.free_items_count > 0 && 
+                 cartSummary.free_items_count < cartItems.length && (
+                  <div className="p-3 bg-warning/5 border border-warning/20 rounded-lg mb-4">
+                    <p className="text-sm text-warning font-medium">
+                      ⚠️ You can only purchase {cartSummary.free_items_count} free design{cartSummary.free_items_count !== 1 ? 's' : ''} as part of your current subscription ({cartSummary.subscription_plan || 'Plan'}). 
+                      {cartSummary.paid_items_count && cartSummary.paid_items_count > 0 && (
+                        <span> The remaining {cartSummary.paid_items_count} design{cartSummary.paid_items_count !== 1 ? 's' : ''} will be charged{cartSummary.plan_discount && cartSummary.plan_discount > 0 ? ` with ${cartSummary.plan_discount}% discount` : ''}.</span>
+                      )}
+                    </p>
+                  </div>
+                )}
+
+                {/* Case 2: All items free */}
                 {cartSummary?.will_be_free && (
                   <div className="p-3 bg-success/5 border border-success/20 rounded-lg mb-4">
                     <p className="text-sm text-success font-medium">
                       🎉 Your active subscription ({cartSummary.subscription_plan || 'Plan'}) makes this purchase free!
+                    </p>
+                  </div>
+                )}
+
+                {/* Case 3: No free downloads, but has subscription with discount */}
+                {cartSummary?.has_active_subscription && 
+                 cartSummary.free_items_count === 0 && 
+                 cartSummary.plan_discount && 
+                 cartSummary.plan_discount > 0 && (
+                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg mb-4">
+                    <p className="text-sm text-primary font-medium">
+                      💳 Your active subscription ({cartSummary.subscription_plan || 'Plan'}) provides {cartSummary.plan_discount}% discount on all purchases.
                     </p>
                   </div>
                 )}
@@ -695,6 +735,7 @@ export default function CartPage() {
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="font-semibold">{formatPrice(getCartTotal())}</span>
                   </div>
+                  
                   {couponApplied && couponInfo && (
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">
@@ -705,12 +746,55 @@ export default function CartPage() {
                       <span className="text-success">-{formatPrice(discount)}</span>
                     </div>
                   )}
+                  
+                  {/* Subscription discount - show when all items are free */}
                   {cartSummary?.will_be_free && (
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Subscription Discount</span>
                       <span className="text-success">-{formatPrice(getCartTotal())}</span>
                     </div>
                   )}
+                  
+                  {/* Plan discount - show when free downloads exhausted but subscription has discount */}
+                  {cartSummary?.has_active_subscription && 
+                   cartSummary.free_items_count === 0 && 
+                   cartSummary.plan_discount && 
+                   cartSummary.plan_discount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">
+                        Subscription Discount ({cartSummary.plan_discount}%)
+                      </span>
+                      <span className="text-success">
+                        -{formatPrice(getCartTotal() - (cartSummary.discounted_amount || getCartTotal()))}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Partial free downloads - show breakdown */}
+                  {cartSummary?.has_active_subscription && 
+                   cartSummary.free_items_count && 
+                   cartSummary.free_items_count > 0 && 
+                   cartSummary.free_items_count < cartItems.length && (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {cartSummary.free_items_count} item{cartSummary.free_items_count !== 1 ? 's' : ''} (Free)
+                        </span>
+                        <span className="text-success">-{formatPrice((getCartTotal() / cartItems.length) * cartSummary.free_items_count)}</span>
+                      </div>
+                      {cartSummary.plan_discount && cartSummary.plan_discount > 0 && cartSummary.paid_items_count && cartSummary.paid_items_count > 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            {cartSummary.paid_items_count} item{cartSummary.paid_items_count !== 1 ? 's' : ''} ({cartSummary.plan_discount}% discount)
+                          </span>
+                          <span className="text-success">
+                            -{formatPrice(((getCartTotal() / cartItems.length) * cartSummary.paid_items_count) * (cartSummary.plan_discount / 100))}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Tax</span>
                     <span className="font-semibold">₹0</span>
@@ -719,8 +803,17 @@ export default function CartPage() {
 
                 <div className="flex items-center justify-between text-xl font-bold pt-4 mb-6">
                   <span>Total</span>
-                  <span>{formatPrice(cartSummary?.will_be_free ? 0 : Math.max(0, total))}</span>
+                  <span>
+                    {formatPrice(
+                      cartSummary?.will_be_free 
+                        ? 0 
+                        : cartSummary?.discounted_amount 
+                          ? Math.max(0, (cartSummary.discounted_amount || 0) - discount)
+                          : Math.max(0, total)
+                    )}
+                  </span>
                 </div>
+
                 {cartSummary?.will_be_free && (
                   <div className="text-sm text-muted-foreground text-center mb-4">
                     Original price: {formatPrice(getCartTotal())}

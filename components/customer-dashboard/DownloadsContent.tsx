@@ -17,6 +17,11 @@ import {
   Filter,
   X,
   File,
+  DollarSign,
+  Info,
+  Package,
+  Tag,
+  Hash,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -49,6 +54,7 @@ interface Download {
   format?: string;
   downloadDate?: string;
   created_at?: string;
+  purchase_date?: string;
   type?: "free" | "paid" | "subscription";
   transactionId?: string;
   price?: number;
@@ -178,6 +184,7 @@ export default function DownloadsContent() {
     format: 'ZIP',
     downloadDate: product.created_at,
     created_at: product.created_at,
+    purchase_date: product.purchase_date, // Preserve purchase_date from backend for sorting
     type: 'paid' as const,
     price: product.price,
     productId: product.id,
@@ -210,46 +217,59 @@ export default function DownloadsContent() {
       isMockPDF: true,
     }));
 
-  // Apply filters to combined downloads
-  let filteredDownloads = [...transformedProducts, ...transformedPDFDownloads];
-
-  // Filter by download type (products vs mock PDF)
-  if (downloadTypeFilter === 'products') {
-    filteredDownloads = filteredDownloads.filter(d => !d.isMockPDF);
-  } else if (downloadTypeFilter === 'mock_pdf') {
-    filteredDownloads = filteredDownloads.filter(d => d.isMockPDF);
+  // Apply filters to products first (preserve backend order)
+  let filteredProducts = [...transformedProducts];
+  
+  // Filter products by download type
+  if (downloadTypeFilter === 'mock_pdf') {
+    filteredProducts = [];
   }
-
-  // Filter by free/paid
+  
+  // Filter products by free/paid
   if (typeFilter === 'free') {
-    filteredDownloads = filteredDownloads.filter(d => d.type === 'free');
+    filteredProducts = filteredProducts.filter(d => d.type === 'free');
   } else if (typeFilter === 'paid') {
-    filteredDownloads = filteredDownloads.filter(d => d.type === 'paid');
+    filteredProducts = filteredProducts.filter(d => d.type === 'paid');
   }
-
-  // Filter by category (for products only)
+  
+  // Filter products by category
   if (categoryFilter !== 'all') {
-    filteredDownloads = filteredDownloads.filter(d => {
-      if (d.isMockPDF) return true; // Keep all PDFs
+    filteredProducts = filteredProducts.filter(d => {
       const categoryId = typeof d.category === 'object' ? d.category?.id : d.category;
       return categoryId?.toString() === categoryFilter;
     });
   }
 
-  // Filter by status (for PDFs only)
-  if (statusFilter !== 'all') {
-    filteredDownloads = filteredDownloads.filter(d => {
-      if (!d.isMockPDF) return true; // Keep all products
-      return d.status === statusFilter;
-    });
+  // Apply filters to PDF downloads
+  let filteredPDFs = transformedPDFDownloads;
+  
+  // Filter PDFs by download type
+  if (downloadTypeFilter === 'products') {
+    filteredPDFs = [];
   }
-
-  // Sort by date
-  const allDownloads = filteredDownloads.sort((a, b) => {
+  
+  // Filter PDFs by free/paid
+  if (typeFilter === 'free') {
+    filteredPDFs = filteredPDFs.filter(d => d.type === 'free');
+  } else if (typeFilter === 'paid') {
+    filteredPDFs = filteredPDFs.filter(d => d.type === 'paid');
+  }
+  
+  // Filter PDFs by status
+  if (statusFilter !== 'all') {
+    filteredPDFs = filteredPDFs.filter(d => d.status === statusFilter);
+  }
+  
+  // Sort PDFs by date (they don't have purchase_date)
+  filteredPDFs.sort((a, b) => {
     const dateA = new Date(a.downloadDate || a.created_at || 0).getTime();
     const dateB = new Date(b.downloadDate || b.created_at || 0).getTime();
     return dateB - dateA;
   });
+
+  // Combine: Products first (already sorted by backend by purchase_date), then PDFs
+  // Backend already sorts products by purchase_date (latest first), so we preserve that order
+  const allDownloads = [...filteredProducts, ...filteredPDFs];
 
   const totalDownloads = downloadsData?.total_downloads || 0;
   const paidDownloads = downloadsData?.paid_downloads || 0;
@@ -608,16 +628,14 @@ export default function DownloadsContent() {
                           </Badge>
                         )}
                         {download.productId && hoveredProductId === download.id && (
-                          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                            <Button
-                              size="sm"
-                              variant="default"
-                              className="shadow-lg"
+                          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 rounded-t-xl">
+                            <button
                               onClick={() => setSelectedProductId(download.productId!)}
+                              className="p-3 bg-black hover:bg-black/90 rounded-full shadow-lg transition-all transform hover:scale-110"
+                              aria-label="View product details"
                             >
-                              <Eye className="w-4 h-4 mr-2" />
-                              View Details
-                            </Button>
+                              <Eye className="w-5 h-5 text-white" />
+                            </button>
                           </div>
                         )}
                       </div>
@@ -730,16 +748,14 @@ export default function DownloadsContent() {
                             <FileImage className="w-8 h-8 text-muted-foreground/30" />
                           )}
                           {download.productId && hoveredProductId === download.id && (
-                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                              <Button
-                                size="sm"
-                                variant="default"
-                                className="shadow-lg h-8"
+                            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 rounded">
+                              <button
                                 onClick={() => setSelectedProductId(download.productId!)}
+                                className="p-2.5 bg-black hover:bg-black/90 rounded-full shadow-lg transition-all transform hover:scale-110"
+                                aria-label="View product details"
                               >
-                                <Eye className="w-3 h-3 mr-1" />
-                                View
-                              </Button>
+                                <Eye className="w-4 h-4 text-white" />
+                              </button>
                             </div>
                           )}
                         </div>
@@ -859,8 +875,8 @@ export default function DownloadsContent() {
 
       {/* Product Detail Modal */}
       <Dialog open={!!selectedProductId} onOpenChange={(open) => !open && setSelectedProductId(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden p-0 gap-0 [&>button]:hidden">
+          <DialogHeader className="sr-only">
             <DialogTitle>
               {isLoadingProductDetail 
                 ? 'Loading Product Details' 
@@ -869,143 +885,186 @@ export default function DownloadsContent() {
             <DialogDescription>
               {isLoadingProductDetail 
                 ? 'Please wait while we load the product information' 
-                : 'View all details about this product'}
+                : productDetail ? `View all details about ${productDetail.title}` : 'Product details'}
             </DialogDescription>
           </DialogHeader>
           
           {isLoadingProductDetail ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center space-y-4">
+                <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
+                <p className="text-sm text-muted-foreground">Loading product details...</p>
+              </div>
             </div>
           ) : productDetail ? (
-            <div className="space-y-6 mt-4">
-                {/* Product Image */}
-                {productDetail.media && productDetail.media.length > 0 && (
-                  <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                    <img
-                      src={productDetail.media[0]?.file_url || productDetail.media[0]?.url || productDetail.media[0]?.file}
-                      alt={productDetail.title}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  </div>
-                )}
-
-                {/* Product Information */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-1">Product ID</h3>
-                    <p className="text-sm">{productDetail.id}</p>
-                  </div>
-                  {productDetail.product_number && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-muted-foreground mb-1">Design Number</h3>
-                      <p className="text-sm">{productDetail.product_number}</p>
-                    </div>
-                  )}
-                  {productDetail.category && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-muted-foreground mb-1">Category</h3>
-                      <p className="text-sm">{productDetail.category?.name || productDetail.category}</p>
-                    </div>
-                  )}
-                  {productDetail.product_plan_type && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-muted-foreground mb-1">Plan Type</h3>
-                      <Badge variant="secondary">{productDetail.product_plan_type}</Badge>
-                    </div>
-                  )}
-                  {productDetail.price && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-muted-foreground mb-1">Price</h3>
-                      <p className="text-sm font-semibold">₹{productDetail.price}</p>
-                    </div>
-                  )}
-                  {productDetail.status && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-muted-foreground mb-1">Status</h3>
-                      <Badge variant={productDetail.status === 'active' ? 'default' : 'secondary'}>
-                        {productDetail.status}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-
-                {/* Description */}
-                {productDetail.description && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">Description</h3>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                      {productDetail.description}
+            <div className="flex flex-col h-full max-h-[95vh]">
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-border bg-gradient-to-r from-primary/5 to-purple-500/5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-2xl font-bold mb-1 line-clamp-2">
+                      {productDetail.title}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Product ID: {productDetail.id}
                     </p>
                   </div>
-                )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSelectedProductId(null)}
+                    className="flex-shrink-0"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+              </div>
 
-                {/* Media Files */}
-                {productDetail.media && productDetail.media.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">
-                      Media Files ({productDetail.media.length})
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {productDetail.media.map((media: any, idx: number) => {
-                          const fileUrl = media.file_url || media.url || media.file;
-                          const fileName = fileUrl?.split('/').pop() || `file_${idx + 1}`;
-                          const fileExtension = fileName.split('.').pop()?.toLowerCase() || '';
-                          const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension);
-                          const isCdrOrEps = ['cdr', 'eps'].includes(fileExtension);
-                          
-                          // Skip CDR and EPS files from image display, but show them in the list
-                          if (isCdrOrEps) {
-                            return (
-                              <div key={idx} className="border rounded-lg p-4 space-y-3">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-20 h-20 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                                    <FileText className="w-8 h-8 text-muted-foreground/50" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">{fileName}</p>
-                                    <p className="text-xs text-muted-foreground uppercase">{fileExtension || 'file'}</p>
-                                    {media.meta?.type && (
-                                      <Badge variant="outline" className="text-xs mt-1">
-                                        {media.meta.type}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="w-full"
-                                  onClick={() => {
-                                    // Create download link
-                                    const link = document.createElement('a');
-                                    link.href = fileUrl;
-                                    link.download = fileName;
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                    
-                                    toast({
-                                      title: "Download started",
-                                      description: `Downloading ${fileName}`,
-                                    });
-                                  }}
+              {/* Scrollable Content */}
+              <div className="overflow-y-auto flex-1 px-6 py-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Left Column - Image Gallery (Smaller) */}
+                  <div className="lg:col-span-1 space-y-3">
+                    {productDetail.media && productDetail.media.length > 0 && (
+                      <>
+                        <div className="aspect-square max-h-[300px] bg-gradient-to-br from-muted to-muted/50 rounded-lg overflow-hidden border border-border shadow-sm">
+                          <img
+                            src={productDetail.media[0]?.file_url || productDetail.media[0]?.url || productDetail.media[0]?.file}
+                            alt={productDetail.title}
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
+                        {productDetail.media.length > 1 && (
+                          <div className="flex gap-2 overflow-x-auto pb-2">
+                            {productDetail.media.slice(0, 4).map((media: any, idx: number) => {
+                              const fileUrl = media.file_url || media.url || media.file;
+                              const fileExtension = fileUrl?.split('.').pop()?.toLowerCase() || '';
+                              const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension);
+                              
+                              return isImage ? (
+                                <div
+                                  key={idx}
+                                  className="flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border border-border hover:border-primary transition-colors cursor-pointer"
                                 >
-                                  <Download className="w-4 h-4 mr-2" />
-                                  Download
-                                </Button>
-                              </div>
-                            );
-                          }
-                          
-                          return (
-                            <div key={idx} className="border rounded-lg p-4 space-y-3">
-                              <div className="flex items-center gap-3">
+                                  <img
+                                    src={fileUrl}
+                                    alt={`Preview ${idx + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : null;
+                            })}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Right Column - Product Details */}
+                  <div className="lg:col-span-2 space-y-4">
+                    {/* Badges Row */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {productDetail.category && (
+                        <Badge variant="secondary" className="px-2.5 py-1 text-xs">
+                          <Package className="w-3 h-3 mr-1" />
+                          {productDetail.category?.name || productDetail.category}
+                        </Badge>
+                      )}
+                      {productDetail.product_plan_type && (
+                        <Badge className="px-2.5 py-1 text-xs bg-gradient-to-r from-primary/20 to-purple-500/20 border-primary/30">
+                          {productDetail.product_plan_type}
+                        </Badge>
+                      )}
+                      {productDetail.status && (
+                        <Badge 
+                          variant={productDetail.status === 'active' ? 'default' : 'secondary'}
+                          className="px-2.5 py-1 text-xs"
+                        >
+                          {productDetail.status}
+                        </Badge>
+                      )}
+                      {productDetail.price && (
+                        <Badge variant="outline" className="px-2.5 py-1 text-xs font-semibold">
+                          ₹{productDetail.price}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Product Information Grid */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {productDetail.product_number && (
+                        <div className="p-3 bg-card rounded-lg border border-border hover:border-primary/50 transition-colors">
+                          <div className="flex items-center gap-1.5 text-muted-foreground mb-1.5">
+                            <Hash className="w-3.5 h-3.5" />
+                            <span className="text-xs font-medium uppercase tracking-wide">Design Number</span>
+                          </div>
+                          <p className="text-sm font-semibold font-mono">{productDetail.product_number}</p>
+                        </div>
+                      )}
+                      {productDetail.id && (
+                        <div className="p-3 bg-card rounded-lg border border-border hover:border-primary/50 transition-colors">
+                          <div className="flex items-center gap-1.5 text-muted-foreground mb-1.5">
+                            <Hash className="w-3.5 h-3.5" />
+                            <span className="text-xs font-medium uppercase tracking-wide">Product ID</span>
+                          </div>
+                          <p className="text-sm font-semibold font-mono">{productDetail.id}</p>
+                        </div>
+                      )}
+                      {productDetail.price && (
+                        <div className="p-3 bg-card rounded-lg border border-border hover:border-primary/50 transition-colors">
+                          <div className="flex items-center gap-1.5 text-muted-foreground mb-1.5">
+                            <DollarSign className="w-3.5 h-3.5" />
+                            <span className="text-xs font-medium uppercase tracking-wide">Price</span>
+                          </div>
+                          <p className="text-base font-bold text-primary">₹{productDetail.price}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Description */}
+                    {productDetail.description && (
+                      <div className="p-3 bg-muted/30 rounded-lg border border-border">
+                        <h3 className="text-xs font-semibold text-foreground mb-1.5 flex items-center gap-1.5">
+                          <Info className="w-3.5 h-3.5 text-primary" />
+                          Description
+                        </h3>
+                        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap line-clamp-4">
+                          {productDetail.description}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Media Files Section - Full Width */}
+                {productDetail.media && productDetail.media.length > 0 && (
+                  <div className="space-y-4 mt-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <FileImage className="w-5 h-5 text-primary" />
+                        Media Files
+                        <Badge variant="secondary" className="ml-2">
+                          {productDetail.media.length}
+                        </Badge>
+                      </h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {productDetail.media.map((media: any, idx: number) => {
+                        const fileUrl = media.file_url || media.url || media.file;
+                        const fileName = fileUrl?.split('/').pop() || `file_${idx + 1}`;
+                        const fileExtension = fileName.split('.').pop()?.toLowerCase() || '';
+                        const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension);
+                        const isCdrOrEps = ['cdr', 'eps'].includes(fileExtension);
+                        
+                        return (
+                          <Card key={idx} className="overflow-hidden hover:shadow-lg transition-all border-border hover:border-primary/50">
+                            <div className="p-4 space-y-3">
+                              <div className="flex items-start gap-3">
                                 {isImage ? (
-                                  <div className="w-20 h-20 bg-muted rounded overflow-hidden flex-shrink-0">
+                                  <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0 border border-border">
                                     <img
                                       src={fileUrl}
                                       alt={fileName}
@@ -1016,26 +1075,33 @@ export default function DownloadsContent() {
                                     />
                                   </div>
                                 ) : (
-                                  <div className="w-20 h-20 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                                    <FileImage className="w-8 h-8 text-muted-foreground/50" />
+                                  <div className="w-16 h-16 bg-gradient-to-br from-muted to-muted/50 rounded-lg flex items-center justify-center flex-shrink-0 border border-border">
+                                    {isCdrOrEps ? (
+                                      <FileText className="w-7 h-7 text-primary/60" />
+                                    ) : (
+                                      <FileImage className="w-7 h-7 text-muted-foreground/50" />
+                                    )}
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium truncate">{fileName}</p>
-                                  <p className="text-xs text-muted-foreground uppercase">{fileExtension || 'file'}</p>
-                                  {media.meta?.type && (
-                                    <Badge variant="outline" className="text-xs mt-1">
-                                      {media.meta.type}
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant="outline" className="text-xs">
+                                      {fileExtension.toUpperCase() || 'FILE'}
                                     </Badge>
-                                  )}
+                                    {media.meta?.type && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        {media.meta.type}
+                                      </Badge>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="default"
                                 className="w-full"
                                 onClick={() => {
-                                  // Create download link
                                   const link = document.createElement('a');
                                   link.href = fileUrl;
                                   link.download = fileName;
@@ -1053,33 +1119,41 @@ export default function DownloadsContent() {
                                 Download
                               </Button>
                             </div>
-                          );
-                        })}
+                          </Card>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
 
-                {/* Tags */}
+                {/* Tags - Full Width */}
                 {productDetail.tags && productDetail.tags.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">Tags</h3>
+                  <div className="space-y-3 mt-6">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Tag className="w-5 h-5 text-primary" />
+                      Tags
+                    </h3>
                     <div className="flex flex-wrap gap-2">
                       {productDetail.tags.map((tag: any, idx: number) => (
-                        <Badge key={idx} variant="outline">
+                        <Badge key={idx} variant="outline" className="px-3 py-1.5">
                           {tag.name || tag}
                         </Badge>
                       ))}
                     </div>
                   </div>
                 )}
+              </div>
             </div>
           ) : (
-            <div className="text-center py-12">
+            <div className="text-center py-20 px-6">
               <AlertCircle className="w-16 h-16 mx-auto mb-4 text-destructive" />
               <h3 className="text-xl font-semibold mb-2">Product not found</h3>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground mb-4">
                 Unable to load product details
               </p>
+              <Button onClick={() => setSelectedProductId(null)}>
+                Close
+              </Button>
             </div>
           )}
         </DialogContent>
