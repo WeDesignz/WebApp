@@ -289,9 +289,6 @@ export default function NotificationsContent() {
                 ? "You're all caught up! No unread notifications."
                 : "You don't have any notifications yet."}
             </p>
-            <div className="mt-4 text-xs text-muted-foreground">
-              Debug: Total notifications: {notifications.length}, Filtered: {filteredNotifications.length}, Filter: {filter}
-            </div>
           </Card>
         ) : (
           <div className="space-y-3">
@@ -326,12 +323,6 @@ export default function NotificationsContent() {
                               {!isRead && (
                                 <Badge variant="default" className="bg-primary text-xs">
                                   New
-                                </Badge>
-                              )}
-                              {/* Debug: Show customer name to verify ownership */}
-                              {notification.customer_name && (
-                                <Badge variant="outline" className="text-xs">
-                                  For: {notification.customer_name}
                                 </Badge>
                               )}
                             </div>
