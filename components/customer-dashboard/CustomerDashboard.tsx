@@ -35,9 +35,18 @@ export default function CustomerDashboard() {
   // Check for view and category query parameters on mount
   useEffect(() => {
     const viewParam = searchParams.get('view');
-    if (viewParam && ['dashboard', 'downloads', 'orders', 'freelancers', 'support', 'notifications', 'faq', 'profile', 'wishlist', 'plans', 'downloadMockPDF'].includes(viewParam)) {
-      setActiveView(viewParam as DashboardView);
-    }
+    const expectedView = (viewParam && ['dashboard', 'downloads', 'orders', 'freelancers', 'support', 'notifications', 'faq', 'profile', 'wishlist', 'plans', 'downloadMockPDF'].includes(viewParam)) 
+      ? (viewParam as DashboardView) 
+      : 'dashboard';
+    
+    // Only update activeView if it's different from the expected view to prevent infinite loops
+    // Use functional update to avoid needing activeView in dependencies
+    setActiveView(prevView => {
+      if (prevView !== expectedView) {
+        return expectedView;
+      }
+      return prevView;
+    });
     
     // Read category from URL params
     const categoryParam = searchParams.get('category');
@@ -48,18 +57,19 @@ export default function CustomerDashboard() {
     }
     
     setIsInitialized(true);
-  }, [searchParams]);
+  }, [searchParams]); // Remove activeView from dependencies to prevent loop
 
   // Update URL when activeView changes (after initial load from URL)
   useEffect(() => {
     if (!isInitialized) return; // Don't update URL during initial mount
 
+    // Read current view from URL without triggering on searchParams changes
     const viewParam = searchParams.get('view');
     const currentView = viewParam || 'dashboard';
     
     // Only update URL if it's different from the current param
     if (currentView !== activeView) {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(window.location.search);
       if (activeView === 'dashboard') {
         // Remove view param for dashboard (default view)
         params.delete('view');
@@ -69,7 +79,7 @@ export default function CustomerDashboard() {
       const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
       router.replace(newUrl, { scroll: false });
     }
-  }, [activeView, pathname, router, searchParams, isInitialized]);
+  }, [activeView, pathname, router, isInitialized]); // Removed searchParams from dependencies
 
   // Sync selectedCategory from URL params (child component updates URL directly)
   useEffect(() => {

@@ -320,9 +320,10 @@ export default function DownloadMockPDFContent() {
     ? allProducts.slice(0, actualDesignCount)
     : allProducts;
   
-  // Get first N designs for "firstN" mode (use actualDesignCount)
+  // Get first N designs for "firstN" mode - this should match exactly what's displayed
+  // IMPORTANT: The order of firstNDesigns must match the display order in the grid
   const firstNDesigns = selectionMode === "firstN" 
-    ? products.slice(0, actualDesignCount)
+    ? products.slice(0, actualDesignCount)  // Already limited by products, but ensure exact count
     : [];
   
   // Get selected designs for "selected" mode
@@ -437,11 +438,13 @@ export default function DownloadMockPDFContent() {
 
       if (selectionMode === "firstN") {
         // Use first N designs from current filtered results
-        // Get product IDs from the first N designs that are currently loaded
+        // IMPORTANT: Get product IDs in the exact same order as they appear on screen
+        // firstNDesigns is already in display order (from the grid rendering)
         const firstNProductIds = firstNDesigns.map(p => p.id);
         
         // Use the required count (freeDesignsCount for free, selectedDesignCount for paid)
         const productCount = isFreeDownload ? freeDesignsCount : selectedDesignCount;
+        // Ensure we're using exactly the first N products in display order
         const productIdsToUse = firstNProductIds.slice(0, productCount);
         
         // Ensure we have enough products
@@ -449,12 +452,15 @@ export default function DownloadMockPDFContent() {
           throw new Error(`Not enough products available. Required: ${productCount}, Available: ${productIdsToUse.length}`);
         }
 
-        // Create PDF request - for "firstN" mode, use "search_results" selection type
+        // Log the order for debugging (can be removed in production)
+        console.log('Product IDs in display order:', productIdsToUse);
+
+        // Create PDF request - for "firstN" mode, use "specific" selection type to preserve exact order
         const createResponse = await apiClient.createPDFRequest({
           download_type: downloadType,
           total_pages: productCount,
-          selection_type: "search_results", // First N from search results
-          selected_products: productIdsToUse,
+          selection_type: "specific", // Use "specific" to preserve the exact sequence as shown on screen
+          selected_products: productIdsToUse, // This array preserves the exact order as shown on screen
           search_filters: {
           q: searchQuery || undefined,
             category: selectedCategory !== 'all' ? selectedCategory : undefined,
