@@ -15,8 +15,9 @@ import ProfileContent from "./ProfileContent";
 import WishlistContent from "./WishlistContent";
 import PlansContent from "./PlansContent";
 import LogoutModal from "./LogoutModal";
+import DownloadMockPDFContent from "./DownloadMockPDFContent";
 
-export type DashboardView = "dashboard" | "downloads" | "orders" | "freelancers" | "support" | "notifications" | "faq" | "profile" | "wishlist" | "plans";
+export type DashboardView = "dashboard" | "downloads" | "orders" | "freelancers" | "support" | "notifications" | "faq" | "profile" | "wishlist" | "plans" | "downloadMockPDF";
 
 export default function CustomerDashboard() {
   const searchParams = useSearchParams();
@@ -34,7 +35,7 @@ export default function CustomerDashboard() {
   // Check for view and category query parameters on mount
   useEffect(() => {
     const viewParam = searchParams.get('view');
-    if (viewParam && ['dashboard', 'downloads', 'orders', 'freelancers', 'support', 'notifications', 'faq', 'profile', 'wishlist', 'plans'].includes(viewParam)) {
+    if (viewParam && ['dashboard', 'downloads', 'orders', 'freelancers', 'support', 'notifications', 'faq', 'profile', 'wishlist', 'plans', 'downloadMockPDF'].includes(viewParam)) {
       setActiveView(viewParam as DashboardView);
     }
     
@@ -117,6 +118,8 @@ export default function CustomerDashboard() {
         return <FAQContent />;
       case "profile":
         return <ProfileContent />;
+      case "downloadMockPDF":
+        return <DownloadMockPDFContent />;
       case "dashboard":
       default:
         return (

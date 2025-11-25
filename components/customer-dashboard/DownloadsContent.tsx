@@ -267,14 +267,48 @@ export default function DownloadsContent() {
     return dateB - dateA;
   });
 
-  // Combine: Products first (already sorted by backend by purchase_date), then PDFs
-  // Backend already sorts products by purchase_date (latest first), so we preserve that order
-  const allDownloads = [...filteredProducts, ...filteredPDFs];
+  // Sort products by date as well (for consistent sorting)
+  filteredProducts.sort((a, b) => {
+    const dateA = new Date(a.purchase_date || a.downloadDate || a.created_at || 0).getTime();
+    const dateB = new Date(b.purchase_date || b.downloadDate || b.created_at || 0).getTime();
+    return dateB - dateA;
+  });
+
+  // Combine and sort all downloads together by date (most recent first)
+  // This ensures the most recent download (whether product or PDF) appears at the top
+  const allDownloads = [...filteredProducts, ...filteredPDFs].sort((a, b) => {
+    const dateA = new Date(a.purchase_date || a.downloadDate || a.created_at || 0).getTime();
+    const dateB = new Date(b.purchase_date || b.downloadDate || b.created_at || 0).getTime();
+    return dateB - dateA; // Most recent first
+  });
 
   const totalDownloads = downloadsData?.total_downloads || 0;
   const paidDownloads = downloadsData?.paid_downloads || 0;
   const freeDownloads = transformedPDFDownloads.filter((d) => d.type === "free").length;
   const mockPDFDownloads = transformedPDFDownloads.length;
+
+  // Helper function to format plan name (consistent with PlansContent)
+  const getPlanDisplayName = (planName: string) => {
+    const nameMap: Record<string, string> = {
+      basic: "Starter",
+      prime: "Pro",
+      premium: "Enterprise",
+    };
+    return nameMap[planName] || planName.charAt(0).toUpperCase() + planName.slice(1);
+  };
+
+  // Fetch subscription data for Subscription Benefits box
+  const { data: subscriptionData } = useQuery({
+    queryKey: ['mySubscription'],
+    queryFn: async () => {
+      const response = await apiClient.getMySubscription();
+      if (response.error) {
+        return null;
+      }
+      return response.data;
+    },
+    staleTime: 30 * 1000, // 30 seconds
+  });
 
   // Fetch product details when a product is selected
   const { data: productDetail, isLoading: isLoadingProductDetail } = useQuery({
@@ -830,22 +864,93 @@ export default function DownloadsContent() {
             <div className="sticky top-6 space-y-4">
               <Card className="p-4 bg-gradient-to-br from-primary/5 to-purple-500/5 border-primary/20">
                 <h3 className="font-semibold mb-3">Subscription Benefits</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Plan</span>
-                    <Badge>Pro Monthly</Badge>
+                {subscriptionData?.has_active_subscription && subscriptionData?.subscription ? (
+                  <div className="space-y-4">
+                    {/* Active Plan */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Active Plan</span>
+                      <Badge className="bg-primary/20 text-primary border-primary/30">
+                        {subscriptionData.plan?.plan_name 
+                          ? `${getPlanDisplayName(subscriptionData.plan.plan_name)} ${subscriptionData.plan.plan_duration === 'monthly' ? 'Monthly' : 'Annually'}`
+                          : 'Active'}
+                      </Badge>
+                    </div>
+
+                    {/* Free Downloads Progress */}
+                    {subscriptionData.plan?.no_of_free_downloads !== undefined && subscriptionData.plan.no_of_free_downloads > 0 && (() => {
+                      const remaining = subscriptionData.subscription?.remaining_free_downloads ?? subscriptionData.plan.no_of_free_downloads;
+                      const used = subscriptionData.subscription?.free_downloads_used ?? 0;
+                      const isExhausted = remaining === 0;
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Free Downloads</span>
+                            <span className={`font-semibold text-sm ${isExhausted ? 'text-destructive' : ''}`}>
+                              {remaining} / {subscriptionData.plan.no_of_free_downloads}
+                            </span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full transition-all duration-300 ${isExhausted ? 'bg-destructive' : 'bg-primary'}`}
+                              style={{ 
+                                width: `${Math.min(100, (remaining / subscriptionData.plan.no_of_free_downloads) * 100)}%` 
+                              }} 
+                            />
+                          </div>
+                          <p className={`text-xs ${isExhausted ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                            {isExhausted ? 'All downloads have been used' : `${used} used so far`}
+                          </p>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Mock PDF Downloads Progress */}
+                    {subscriptionData.plan?.mock_pdf_count !== undefined && subscriptionData.plan.mock_pdf_count > 0 && (() => {
+                      const remaining = subscriptionData.subscription?.remaining_mock_pdf_downloads ?? subscriptionData.plan.mock_pdf_count;
+                      const used = subscriptionData.subscription?.mock_pdf_downloads_used ?? 0;
+                      const isExhausted = remaining === 0;
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Mock PDF Downloads</span>
+                            <span className={`font-semibold text-sm ${isExhausted ? 'text-destructive' : ''}`}>
+                              {remaining} / {subscriptionData.plan.mock_pdf_count}
+                            </span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full transition-all duration-300 ${isExhausted ? 'bg-destructive' : 'bg-purple-500'}`}
+                              style={{ 
+                                width: `${Math.min(100, (remaining / subscriptionData.plan.mock_pdf_count) * 100)}%` 
+                              }} 
+                            />
+                          </div>
+                          <p className={`text-xs ${isExhausted ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                            {isExhausted ? 'All downloads have been used' : `${used} used so far`}
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Downloads</span>
-                    <span className="font-semibold">32 / 50</span>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Plan</span>
+                      <Badge variant="outline">No Active Plan</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Subscribe to a plan to unlock free downloads and mock PDF benefits.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      size="sm"
+                      onClick={() => router.push('/customer-dashboard?view=plans')}
+                    >
+                      View Plans
+                    </Button>
                   </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-primary w-[64%]" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    18 downloads remaining this month
-                  </p>
-                </div>
+                )}
               </Card>
 
               <Card className="p-4">

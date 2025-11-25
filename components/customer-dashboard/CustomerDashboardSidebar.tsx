@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   Heart,
   CreditCard,
+  FileText,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ interface SidebarProps {
 const menuItems: { icon: any; label: string; view: DashboardView }[] = [
   { icon: LayoutDashboard, label: "Dashboard", view: "dashboard" },
   { icon: Download, label: "My Downloads", view: "downloads" },
+  { icon: FileText, label: "Download Mock PDF", view: "downloadMockPDF" },
   { icon: ShoppingBag, label: "My Orders", view: "orders" },
   { icon: Heart, label: "Wishlist", view: "wishlist" },
   { icon: CreditCard, label: "Plans & Subscription", view: "plans" },

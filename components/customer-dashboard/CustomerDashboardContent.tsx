@@ -354,7 +354,7 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
               <Button 
                 size="lg" 
                 className="whitespace-nowrap"
-                onClick={() => router.push('/customer-dashboard/download-mock-pdf')}
+                onClick={() => router.push('/customer-dashboard?view=downloadMockPDF')}
               >
                 <Download className="w-5 h-5 mr-2" />
                 Download PDFs

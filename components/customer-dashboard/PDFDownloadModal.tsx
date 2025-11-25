@@ -256,7 +256,9 @@ export default function PDFDownloadModal({
   const calculatePrice = () => {
     if (!pdfConfig) return 0;
     
-    const freeDesignsCount = pdfConfig.free_pdf_designs_count;
+    // Calculate free designs count
+    const freeDesignsCount = pdfConfig.paid_pdf_designs_options?.[0] || pdfConfig.free_pdf_designs_count || 50;
+    
     if (!freePDFUsed && quantity === freeDesignsCount && isAuthenticated) {
       return 0; // Free PDF
     }
@@ -278,14 +280,15 @@ export default function PDFDownloadModal({
       return;
     }
 
-    const freeDesignsCount = pdfConfig?.free_pdf_designs_count || 50;
+    // Calculate free designs count
+    const freeDesignsCount = pdfConfig?.paid_pdf_designs_options?.[0] || pdfConfig?.free_pdf_designs_count || 50;
     const downloadType = !freePDFUsed && quantity === freeDesignsCount ? "free" : "paid";
     const canUseFreeNow = !freePDFUsed && quantity === freeDesignsCount && isAuthenticated;
     
     // If it's a free PDF, redirect to the dedicated selection page
     if (downloadType === "free" && canUseFreeNow) {
       onClose(); // Close the modal first
-      router.push('/customer-dashboard/download-mock-pdf');
+      router.push('/customer-dashboard?view=downloadMockPDF');
       return;
     }
 
@@ -403,10 +406,6 @@ export default function PDFDownloadModal({
 
   if (!isOpen) return null;
 
-  // Calculate download type
-  const freeDesignsCount = pdfConfig?.free_pdf_designs_count || 50;
-  const downloadType = !freePDFUsed && quantity === freeDesignsCount ? "free" : "paid";
-
   // Show loading state while config is being fetched
   if (!pdfConfig) {
     return (
@@ -435,6 +434,12 @@ export default function PDFDownloadModal({
     );
   }
 
+  // Calculate free designs count (after pdfConfig check)
+  const freeDesignsCount = pdfConfig.paid_pdf_designs_options?.[0] || pdfConfig.free_pdf_designs_count || 50;
+  
+  // Calculate download type
+  const downloadType = !freePDFUsed && quantity === freeDesignsCount ? "free" : "paid";
+  
   const price = calculatePrice();
   const canUseFree = !freePDFUsed && quantity === freeDesignsCount && isAuthenticated;
 

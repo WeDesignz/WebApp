@@ -61,6 +61,39 @@ interface CustomRequest {
   updated_at: string;
 }
 
+// Order Card Skeleton Component
+function OrderCardSkeleton() {
+  return (
+    <Card className="p-6 bg-gradient-to-br from-muted/50 to-muted/30 border-2 animate-pulse">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex gap-4 flex-1">
+          <div className="w-14 h-14 bg-muted rounded-xl flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="flex-1">
+                <div className="h-5 bg-muted rounded w-32 mb-2" />
+                <div className="h-3 bg-muted rounded w-24" />
+              </div>
+              <div className="h-5 bg-muted rounded w-20" />
+            </div>
+            <div className="space-y-2 mt-3">
+              <div className="flex items-center gap-4">
+                <div className="h-4 bg-muted rounded w-16" />
+                <div className="h-4 bg-muted rounded w-1" />
+                <div className="h-4 bg-muted rounded w-24" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className="h-9 bg-muted rounded w-20" />
+          <div className="h-9 bg-muted rounded w-24" />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function OrdersContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -131,6 +164,15 @@ export default function OrdersContent() {
 
   const orders: Order[] = ordersData || [];
   const customRequests: CustomRequest[] = customRequestsData || [];
+
+  // Find the latest order ID based on created_at
+  const latestOrderId = orders.length > 0 
+    ? orders.reduce((latest, order) => {
+        const latestDate = new Date(latest.created_at || 0).getTime();
+        const orderDate = new Date(order.created_at || 0).getTime();
+        return orderDate > latestDate ? order : latest;
+      }, orders[0]).id
+    : null;
 
   const handleOrderPlaced = async (orderId: string) => {
     await queryClient.invalidateQueries({ queryKey: ['customRequests'] });
@@ -335,166 +377,179 @@ export default function OrdersContent() {
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
-            {/* Group orders by order_type */}
-            {(() => {
-              const cartOrders = orders.filter(o => o.order_type === 'cart' || (!o.order_type && o.type !== 'custom'));
-              const subscriptionOrders = orders.filter(o => o.order_type === 'subscription');
-              const customOrders = orders.filter(o => o.order_type === 'custom' || o.type === 'custom');
-              const mockPdfOrders = orders.filter(o => o.order_type === 'mock_pdf');
-              
-              return (
-                <>
-                  {/* Cart Orders */}
-                  {cartOrders.length > 0 && (
-                    <div className="space-y-4">
-                      <h2 className="text-xl font-semibold">Cart Orders</h2>
-                      {cartOrders.map((order, index) => {
-                        const CartOrderCardWithUnread = () => {
-                          const { user } = useAuth();
-                          const unreadCount = useUnreadMessages(order.id?.toString() || null, user?.id);
+            {isLoadingOrders ? (
+              // Show skeleton cards while loading
+              <div className="space-y-4">
+                <OrderCardSkeleton />
+                <OrderCardSkeleton />
+                <OrderCardSkeleton />
+              </div>
+            ) : (
+              // Group orders by order_type
+              (() => {
+                const cartOrders = orders.filter(o => o.order_type === 'cart' || (!o.order_type && o.type !== 'custom'));
+                const subscriptionOrders = orders.filter(o => o.order_type === 'subscription');
+                const customOrders = orders.filter(o => o.order_type === 'custom' || o.type === 'custom');
+                const mockPdfOrders = orders.filter(o => o.order_type === 'mock_pdf');
+                
+                return (
+                  <>
+                    {/* Cart Orders */}
+                    {cartOrders.length > 0 && (
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-semibold">Cart Orders</h2>
+                        {cartOrders.map((order, index) => {
+                          const CartOrderCardWithUnread = () => {
+                            const { user } = useAuth();
+                            const unreadCount = useUnreadMessages(order.id?.toString() || null, user?.id);
+                            return (
+                              <motion.div
+                                key={`cart-order-${order.id}`}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.1 }}
+                              >
+                                <CartOrderCard
+                                  order={order}
+                                  onOpenChat={() => {
+                                    setSelectedOrder(order);
+                                    setChatOpen(true);
+                                  }}
+                                  onViewDesign={(order) => {
+                                    setSelectedOrderForProducts(order);
+                                    setOrderProductsModalOpen(true);
+                                  }}
+                                  unreadCount={unreadCount}
+                                  isNew={order.id === latestOrderId}
+                                />
+                              </motion.div>
+                            );
+                          };
+                          return <CartOrderCardWithUnread key={`cart-order-${order.id}`} />;
+                        })}
+                      </div>
+                    )}
+
+                    {/* Subscription Orders */}
+                    {subscriptionOrders.length > 0 && (
+                      <div className="space-y-4 mt-6">
+                        <h2 className="text-xl font-semibold">Subscription Orders</h2>
+                        {subscriptionOrders.map((order, index) => {
+                          const SubscriptionOrderCardWithUnread = () => {
+                            const { user } = useAuth();
+                            const unreadCount = useUnreadMessages(order.id?.toString() || null, user?.id);
+                            return (
+                              <motion.div
+                                key={`subscription-order-${order.id}`}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: (cartOrders.length + index) * 0.1 }}
+                              >
+                                <SubscriptionOrderCard
+                                  order={order}
+                                  onOpenChat={() => {
+                                    setSelectedOrder(order);
+                                    setChatOpen(true);
+                                  }}
+                                  onViewDesign={(order) => {
+                                    setSelectedOrderForProducts(order);
+                                    setOrderProductsModalOpen(true);
+                                  }}
+                                  unreadCount={unreadCount}
+                                  isNew={order.id === latestOrderId}
+                                />
+                              </motion.div>
+                            );
+                          };
+                          return <SubscriptionOrderCardWithUnread key={`subscription-order-${order.id}`} />;
+                        })}
+                      </div>
+                    )}
+
+                    {/* Custom Orders */}
+                    {customOrders.length > 0 && (
+                      <div className="space-y-4 mt-6">
+                        <h2 className="text-xl font-semibold">Custom Orders</h2>
+                        {customOrders.map((order, index) => {
+                          const UnreadCounter = ({ orderId }: { orderId: string }) => {
+                            const { user } = useAuth();
+                            const unreadCount = useUnreadMessages(orderId, user?.id);
+                            return null; // This component is just for the hook, we'll use the count in the card
+                          };
                           return (
-                            <motion.div
-                              key={`cart-order-${order.id}`}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: index * 0.1 }}
-                            >
-                              <CartOrderCard
-                                order={order}
-                                onOpenChat={() => {
-                                  setSelectedOrder(order);
-                                  setChatOpen(true);
-                                }}
-                                onViewDesign={(order) => {
-                                  setSelectedOrderForProducts(order);
-                                  setOrderProductsModalOpen(true);
-                                }}
-                                unreadCount={unreadCount}
-                              />
-                            </motion.div>
+                            <CustomOrderCardWithUnread
+                              key={`custom-order-${order.id}`}
+                              order={order}
+                              index={index}
+                              totalPrevious={cartOrders.length + subscriptionOrders.length}
+                              onOpenChat={() => {
+                                setSelectedOrder(order);
+                                setChatOpen(true);
+                              }}
+                              onViewDetails={(order) => {
+                                setSelectedCustomOrderForDetails(order);
+                                setCustomOrderDetailsOpen(true);
+                              }}
+                              onViewDeliverables={(order) => {
+                                setSelectedCustomOrderForDeliverables(order);
+                                setDeliverablesModalOpen(true);
+                              }}
+                              isNew={order.id === latestOrderId}
+                            />
                           );
-                        };
-                        return <CartOrderCardWithUnread key={`cart-order-${order.id}`} />;
-                      })}
-                    </div>
-                  )}
+                        })}
+                      </div>
+                    )}
 
-                  {/* Subscription Orders */}
-                  {subscriptionOrders.length > 0 && (
-                    <div className="space-y-4 mt-6">
-                      <h2 className="text-xl font-semibold">Subscription Orders</h2>
-                      {subscriptionOrders.map((order, index) => {
-                        const SubscriptionOrderCardWithUnread = () => {
-                          const { user } = useAuth();
-                          const unreadCount = useUnreadMessages(order.id?.toString() || null, user?.id);
-                          return (
-                            <motion.div
-                              key={`subscription-order-${order.id}`}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: (cartOrders.length + index) * 0.1 }}
-                            >
-                              <SubscriptionOrderCard
-                                order={order}
-                                onOpenChat={() => {
-                                  setSelectedOrder(order);
-                                  setChatOpen(true);
-                                }}
-                                onViewDesign={(order) => {
-                                  setSelectedOrderForProducts(order);
-                                  setOrderProductsModalOpen(true);
-                                }}
-                                unreadCount={unreadCount}
-                              />
-                            </motion.div>
-                          );
-                        };
-                        return <SubscriptionOrderCardWithUnread key={`subscription-order-${order.id}`} />;
-                      })}
-                    </div>
-                  )}
+                    {/* Mock PDF Orders */}
+                    {mockPdfOrders.length > 0 && (
+                      <div className="space-y-4 mt-6">
+                        <h2 className="text-xl font-semibold">Mock PDF Downloads</h2>
+                        {mockPdfOrders.map((order, index) => {
+                          const MockPDFOrderCardWithUnread = () => {
+                            const { user } = useAuth();
+                            const unreadCount = useUnreadMessages(order.id?.toString() || null, user?.id);
+                            return (
+                              <motion.div
+                                key={`mock-pdf-order-${order.id}`}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: (cartOrders.length + subscriptionOrders.length + customOrders.length + index) * 0.1 }}
+                              >
+                                <MockPDFOrderCard
+                                  order={order}
+                                  onOpenChat={() => {
+                                    setSelectedOrder(order);
+                                    setChatOpen(true);
+                                  }}
+                                  unreadCount={unreadCount}
+                                  isNew={order.id === latestOrderId}
+                                />
+                              </motion.div>
+                            );
+                          };
+                          return <MockPDFOrderCardWithUnread key={`mock-pdf-order-${order.id}`} />;
+                        })}
+                      </div>
+                    )}
 
-                  {/* Custom Orders */}
-                  {customOrders.length > 0 && (
-                    <div className="space-y-4 mt-6">
-                      <h2 className="text-xl font-semibold">Custom Orders</h2>
-                      {customOrders.map((order, index) => {
-                        const UnreadCounter = ({ orderId }: { orderId: string }) => {
-                          const { user } = useAuth();
-                          const unreadCount = useUnreadMessages(orderId, user?.id);
-                          return null; // This component is just for the hook, we'll use the count in the card
-                        };
-                        return (
-                          <CustomOrderCardWithUnread
-                            key={`custom-order-${order.id}`}
-                            order={order}
-                            index={index}
-                            totalPrevious={cartOrders.length + subscriptionOrders.length}
-                            onOpenChat={() => {
-                              setSelectedOrder(order);
-                              setChatOpen(true);
-                            }}
-                            onViewDetails={(order) => {
-                              setSelectedCustomOrderForDetails(order);
-                              setCustomOrderDetailsOpen(true);
-                            }}
-                            onViewDeliverables={(order) => {
-                              setSelectedCustomOrderForDeliverables(order);
-                              setDeliverablesModalOpen(true);
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Mock PDF Orders */}
-                  {mockPdfOrders.length > 0 && (
-                    <div className="space-y-4 mt-6">
-                      <h2 className="text-xl font-semibold">Mock PDF Downloads</h2>
-                      {mockPdfOrders.map((order, index) => {
-                        const MockPDFOrderCardWithUnread = () => {
-                          const { user } = useAuth();
-                          const unreadCount = useUnreadMessages(order.id?.toString() || null, user?.id);
-                          return (
-                            <motion.div
-                              key={`mock-pdf-order-${order.id}`}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: (cartOrders.length + subscriptionOrders.length + customOrders.length + index) * 0.1 }}
-                            >
-                              <MockPDFOrderCard
-                                order={order}
-                                onOpenChat={() => {
-                                  setSelectedOrder(order);
-                                  setChatOpen(true);
-                                }}
-                                unreadCount={unreadCount}
-                              />
-                            </motion.div>
-                          );
-                        };
-                        return <MockPDFOrderCardWithUnread key={`mock-pdf-order-${order.id}`} />;
-                      })}
-                    </div>
-                  )}
-
-                  {/* Empty State */}
-                  {orders.length === 0 && (
-                    <Card className="p-12 text-center">
-                      <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-                      <h3 className="text-xl font-semibold mb-2">No orders yet</h3>
-                      <p className="text-muted-foreground mb-4">
-                        Your orders will appear here
-                      </p>
-                      <Button onClick={() => setCustomOrderModalOpen(true)}>
-                        Create Custom Order
-                      </Button>
-                    </Card>
-                  )}
-                </>
-              );
-            })()}
+                    {/* Empty State - only show when not loading and no orders */}
+                    {orders.length === 0 && (
+                      <Card className="p-12 text-center">
+                        <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                        <h3 className="text-xl font-semibold mb-2">No orders yet</h3>
+                        <p className="text-muted-foreground mb-4">
+                          Your orders will appear here
+                        </p>
+                        <Button onClick={() => setCustomOrderModalOpen(true)}>
+                          Create Custom Order
+                        </Button>
+                      </Card>
+                    )}
+                  </>
+                );
+              })()
+            )}
           </TabsContent>
 
           <TabsContent value="products" className="space-y-4">
@@ -549,6 +604,7 @@ export default function OrdersContent() {
                             setOrderProductsModalOpen(true);
                           }}
                           unreadCount={unreadCount}
+                          isNew={order.id === latestOrderId}
                         />
                       </motion.div>
                     );
@@ -605,6 +661,7 @@ export default function OrdersContent() {
                             setOrderProductsModalOpen(true);
                           }}
                           unreadCount={unreadCount}
+                          isNew={order.id === latestOrderId}
                         />
                       </motion.div>
                     );
@@ -660,6 +717,7 @@ export default function OrdersContent() {
                       setSelectedCustomOrderForDeliverables(order);
                       setDeliverablesModalOpen(true);
                     }}
+                    isNew={order.id === latestOrderId}
                   />
                 ))
               );
@@ -688,7 +746,7 @@ export default function OrdersContent() {
                   <p className="text-muted-foreground mb-4">
                     Your mock PDF download orders will appear here
                   </p>
-                  <Button onClick={() => router.push('/customer-dashboard/download-mock-pdf')}>
+                  <Button onClick={() => router.push('/customer-dashboard?view=downloadMockPDF')}>
                     <Download className="w-4 h-4 mr-2" />
                     Download Mock PDF
                   </Button>
@@ -712,6 +770,7 @@ export default function OrdersContent() {
                             setChatOpen(true);
                           }}
                           unreadCount={unreadCount}
+                          isNew={order.id === latestOrderId}
                         />
                       </motion.div>
                     );
@@ -1054,7 +1113,7 @@ export default function OrdersContent() {
 }
 
 // Base order card component with shared logic
-function BaseOrderCard({ order, onOpenChat, onViewDesign, orderTypeLabel, iconColor, bgColor, borderColor, unreadCount = 0 }: { 
+function BaseOrderCard({ order, onOpenChat, onViewDesign, orderTypeLabel, iconColor, bgColor, borderColor, unreadCount = 0, isNew = false }: { 
   order: Order; 
   onOpenChat: () => void;
   onViewDesign?: (order: Order) => void;
@@ -1063,6 +1122,7 @@ function BaseOrderCard({ order, onOpenChat, onViewDesign, orderTypeLabel, iconCo
   bgColor: string;
   borderColor: string;
   unreadCount?: number;
+  isNew?: boolean;
 }) {
   const getStatusConfig = () => {
     switch (order.status) {
@@ -1122,9 +1182,16 @@ function BaseOrderCard({ order, onOpenChat, onViewDesign, orderTypeLabel, iconCo
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <div className="flex-1">
-                <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
-                  {order.order_number ? `Order ${order.order_number}` : `Order #${order.id}`}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
+                    {order.order_number ? `Order ${order.order_number}` : `Order #${order.id}`}
+                  </h3>
+                  {isNew && (
+                    <Badge className="bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-2 py-0.5 animate-pulse">
+                      NEW
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground -mt-0.5">
                   {orderTypeLabel}
                 </p>
@@ -1201,11 +1268,12 @@ function BaseOrderCard({ order, onOpenChat, onViewDesign, orderTypeLabel, iconCo
 }
 
 // Cart Order Card
-function CartOrderCard({ order, onOpenChat, onViewDesign, unreadCount = 0 }: { 
+function CartOrderCard({ order, onOpenChat, onViewDesign, unreadCount = 0, isNew = false }: { 
   order: Order; 
   onOpenChat: () => void; 
   onViewDesign?: (order: Order) => void;
   unreadCount?: number;
+  isNew?: boolean;
 }) {
   return (
     <BaseOrderCard
@@ -1217,16 +1285,18 @@ function CartOrderCard({ order, onOpenChat, onViewDesign, unreadCount = 0 }: {
       bgColor="from-blue-500/10 to-indigo-500/10"
       borderColor="border-blue-500/20"
       unreadCount={unreadCount}
+      isNew={isNew}
     />
   );
 }
 
 // Subscription Order Card
-function SubscriptionOrderCard({ order, onOpenChat, onViewDesign, unreadCount = 0 }: { 
+function SubscriptionOrderCard({ order, onOpenChat, onViewDesign, unreadCount = 0, isNew = false }: { 
   order: Order; 
   onOpenChat: () => void; 
   onViewDesign?: (order: Order) => void;
   unreadCount?: number;
+  isNew?: boolean;
 }) {
   return (
     <BaseOrderCard
@@ -1238,12 +1308,13 @@ function SubscriptionOrderCard({ order, onOpenChat, onViewDesign, unreadCount = 
       bgColor="from-purple-500/10 to-pink-500/10"
       borderColor="border-purple-500/20"
       unreadCount={unreadCount}
+      isNew={isNew}
     />
   );
 }
 
 // Mock PDF Order Card
-function MockPDFOrderCard({ order, onOpenChat, unreadCount = 0 }: { order: Order; onOpenChat: () => void; unreadCount?: number }) {
+function MockPDFOrderCard({ order, onOpenChat, unreadCount = 0, isNew = false }: { order: Order; onOpenChat: () => void; unreadCount?: number; isNew?: boolean }) {
   const getStatusConfig = () => {
     // For mock PDF orders, check pdf_download status if available
     const pdfStatus = order.pdf_download?.status;
@@ -1288,9 +1359,16 @@ function MockPDFOrderCard({ order, onOpenChat, unreadCount = 0 }: { order: Order
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <div className="flex-1">
-                <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
-                  {order.order_number ? `Order ${order.order_number}` : `Order #${order.id}`}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
+                    {order.order_number ? `Order ${order.order_number}` : `Order #${order.id}`}
+                  </h3>
+                  {isNew && (
+                    <Badge className="bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-2 py-0.5 animate-pulse">
+                      NEW
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground -mt-0.5">
                   Mock PDF Download • {totalPages} {totalPages === 1 ? 'Design' : 'Designs'}
                 </p>
@@ -1472,7 +1550,8 @@ function CustomOrderCardWithUnread({
   onViewDetails, 
   onViewDeliverables,
   index,
-  totalPrevious
+  totalPrevious,
+  isNew = false
 }: { 
   order: Order; 
   onOpenChat: () => void;
@@ -1480,6 +1559,7 @@ function CustomOrderCardWithUnread({
   onViewDeliverables?: (order: Order) => void;
   index: number;
   totalPrevious: number;
+  isNew?: boolean;
 }) {
   const { user } = useAuth();
   const unreadCount = useUnreadMessages(order.id?.toString() || null, user?.id);
@@ -1496,18 +1576,20 @@ function CustomOrderCardWithUnread({
         onViewDetails={onViewDetails}
         onViewDeliverables={onViewDeliverables}
         unreadCount={unreadCount}
+        isNew={isNew}
       />
     </motion.div>
   );
 }
 
 // Custom Order Card
-function CustomOrderCard({ order, onOpenChat, onViewDetails, onViewDeliverables, unreadCount = 0 }: { 
+function CustomOrderCard({ order, onOpenChat, onViewDetails, onViewDeliverables, unreadCount = 0, isNew = false }: { 
   order: Order; 
   onOpenChat: () => void;
   onViewDetails?: (order: Order) => void;
   onViewDeliverables?: (order: Order) => void;
   unreadCount?: number;
+  isNew?: boolean;
 }) {
   const customDetails = order.custom_order_details;
   // For custom orders, use the status from custom_order_details (CustomOrderRequest) instead of order.status (Order)
@@ -1597,9 +1679,16 @@ function CustomOrderCard({ order, onOpenChat, onViewDetails, onViewDeliverables,
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <div className="flex-1">
-                <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
-                  {customDetails?.title || order.title || (order.order_number ? `Order ${order.order_number}` : `Order #${order.id}`)}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
+                    {customDetails?.title || order.title || (order.order_number ? `Order ${order.order_number}` : `Order #${order.id}`)}
+                  </h3>
+                  {isNew && (
+                    <Badge className="bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-2 py-0.5 animate-pulse">
+                      NEW
+                    </Badge>
+                  )}
+                </div>
                 {!customDetails?.title && !order.title && (
                   <p className="text-xs text-muted-foreground -mt-0.5">
                     Custom Order

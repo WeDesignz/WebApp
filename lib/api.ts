@@ -1210,6 +1210,7 @@ export const apiClient = {
     selection_type?: 'specific' | 'search_results';
     selected_products?: number[];
     search_filters?: any;
+    use_subscription_mock_pdf?: boolean;
   }): Promise<ApiResponse<{
     download_id?: number;
     id?: number;
@@ -2634,6 +2635,35 @@ export const apiClient = {
       has_active_subscription: boolean;
       plan?: any;
     }>('/api/plans/subscription/');
+  },
+
+  /**
+   * Check free downloads availability (including mock PDF downloads from subscription)
+   */
+  checkFreeDownloadsAvailability: async (): Promise<ApiResponse<{
+    has_subscription: boolean;
+    remaining_free_downloads: number;
+    total_free_downloads: number;
+    used_free_downloads: number;
+    remaining_mock_pdf_downloads: number;
+    total_mock_pdf_downloads: number;
+    used_mock_pdf_downloads: number;
+    plan_name?: string;
+    plan_discount?: number;
+    message?: string;
+  }>> => {
+    return apiRequest<{
+      has_subscription: boolean;
+      remaining_free_downloads: number;
+      total_free_downloads: number;
+      used_free_downloads: number;
+      remaining_mock_pdf_downloads: number;
+      total_mock_pdf_downloads: number;
+      used_mock_pdf_downloads: number;
+      plan_name?: string;
+      plan_discount?: number;
+      message?: string;
+    }>('/api/orders/check-free-downloads/');
   },
 
   /**
