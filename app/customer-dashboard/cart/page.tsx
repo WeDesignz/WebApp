@@ -77,16 +77,17 @@ export default function CartPage() {
     if (cartItems.length > 0) {
       apiClient.getCartSummary().then((response) => {
         if (response.data) {
+          const data = response.data as any;
           setCartSummary({
-            total_amount: response.data.total_amount || 0,
-            has_active_subscription: response.data.has_active_subscription || false,
-            will_be_free: response.data.will_be_free || false,
-            subscription_plan: response.data.subscription_plan || undefined,
-            remaining_free_downloads: response.data.remaining_free_downloads || 0,
-            plan_discount: response.data.plan_discount || 0,
-            free_items_count: response.data.free_items_count || 0,
-            paid_items_count: response.data.paid_items_count || 0,
-            discounted_amount: response.data.discounted_amount || response.data.total_amount || 0,
+            total_amount: data.total_amount || 0,
+            has_active_subscription: data.has_active_subscription || false,
+            will_be_free: data.will_be_free || false,
+            subscription_plan: data.subscription_plan || undefined,
+            remaining_free_downloads: data.remaining_free_downloads || 0,
+            plan_discount: data.plan_discount || 0,
+            free_items_count: data.free_items_count || 0,
+            paid_items_count: data.paid_items_count || 0,
+            discounted_amount: data.discounted_amount || data.total_amount || 0,
           });
         }
       });
