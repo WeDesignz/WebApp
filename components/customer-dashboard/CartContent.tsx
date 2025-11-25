@@ -685,14 +685,15 @@ export default function CartContent() {
 
                 {/* Case 1: Partial free downloads available */}
                 {cartSummary?.has_active_subscription && 
-                 cartSummary.free_items_count && 
+                 cartSummary.free_items_count !== undefined &&
+                 cartSummary.free_items_count !== null &&
                  cartSummary.free_items_count > 0 && 
                  cartSummary.free_items_count < cartItems.length && (
                   <div className="p-3 bg-warning/5 border border-warning/20 rounded-lg mb-4">
                     <p className="text-sm text-warning font-medium">
                       ⚠️ You can only purchase {cartSummary.free_items_count} free design{cartSummary.free_items_count !== 1 ? 's' : ''} as part of your current subscription ({cartSummary.subscription_plan || 'Plan'}). 
-                      {cartSummary.paid_items_count && cartSummary.paid_items_count > 0 && (
-                        <span> The remaining {cartSummary.paid_items_count} design{cartSummary.paid_items_count !== 1 ? 's' : ''} will be charged{cartSummary.plan_discount && cartSummary.plan_discount > 0 ? ` with ${cartSummary.plan_discount}% discount` : ''}.</span>
+                      {cartSummary.paid_items_count !== undefined && cartSummary.paid_items_count !== null && cartSummary.paid_items_count > 0 && (
+                        <span> The remaining {cartSummary.paid_items_count} design{cartSummary.paid_items_count !== 1 ? 's' : ''} will be charged{cartSummary.plan_discount !== undefined && cartSummary.plan_discount !== null && cartSummary.plan_discount > 0 ? ` with ${cartSummary.plan_discount}% discount` : ''}.</span>
                       )}
                     </p>
                   </div>
@@ -710,7 +711,8 @@ export default function CartContent() {
                 {/* Case 3: No free downloads, but has subscription with discount */}
                 {cartSummary?.has_active_subscription && 
                  cartSummary.free_items_count === 0 && 
-                 cartSummary.plan_discount && 
+                 cartSummary.plan_discount !== undefined && 
+                 cartSummary.plan_discount !== null &&
                  cartSummary.plan_discount > 0 && (
                   <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg mb-4">
                     <p className="text-sm text-primary font-medium">
@@ -725,7 +727,7 @@ export default function CartContent() {
                     <span className="font-semibold">{formatPrice(getCartTotal())}</span>
                   </div>
                   
-                  {couponApplied && couponInfo && (
+                  {couponApplied && couponInfo && discount > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">
                         Discount {couponInfo.coupon_type === 'percentage' 
@@ -747,21 +749,33 @@ export default function CartContent() {
                   {/* Plan discount - show when free downloads exhausted but subscription has discount */}
                   {cartSummary?.has_active_subscription && 
                    cartSummary.free_items_count === 0 && 
-                   cartSummary.plan_discount && 
+                   cartSummary.plan_discount !== undefined && 
+                   cartSummary.plan_discount !== null &&
                    cartSummary.plan_discount > 0 && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">
-                        Subscription Discount ({cartSummary.plan_discount}%)
-                      </span>
-                      <span className="text-success">
-                        -{formatPrice(getCartTotal() - (cartSummary.discounted_amount || getCartTotal()))}
-                      </span>
-                    </div>
+                    (() => {
+                      // Calculate discount amount from plan discount percentage
+                      const planDiscountAmount = (getCartTotal() * cartSummary.plan_discount) / 100;
+                      // Only show if discount amount is greater than 0
+                      if (planDiscountAmount > 0) {
+                        return (
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">
+                              Subscription Discount ({cartSummary.plan_discount}%)
+                            </span>
+                            <span className="text-success">
+                              -{formatPrice(planDiscountAmount)}
+                            </span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()
                   )}
                   
                   {/* Partial free downloads - show breakdown */}
                   {cartSummary?.has_active_subscription && 
-                   cartSummary.free_items_count && 
+                   cartSummary.free_items_count !== undefined &&
+                   cartSummary.free_items_count !== null &&
                    cartSummary.free_items_count > 0 && 
                    cartSummary.free_items_count < cartItems.length && (
                     <>
@@ -771,7 +785,12 @@ export default function CartContent() {
                         </span>
                         <span className="text-success">-{formatPrice((getCartTotal() / cartItems.length) * cartSummary.free_items_count)}</span>
                       </div>
-                      {cartSummary.plan_discount && cartSummary.plan_discount > 0 && cartSummary.paid_items_count && cartSummary.paid_items_count > 0 && (
+                      {cartSummary.plan_discount !== undefined && 
+                       cartSummary.plan_discount !== null &&
+                       cartSummary.plan_discount > 0 && 
+                       cartSummary.paid_items_count !== undefined && 
+                       cartSummary.paid_items_count !== null &&
+                       cartSummary.paid_items_count > 0 && (
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">
                             {cartSummary.paid_items_count} item{cartSummary.paid_items_count !== 1 ? 's' : ''} ({cartSummary.plan_discount}% discount)
