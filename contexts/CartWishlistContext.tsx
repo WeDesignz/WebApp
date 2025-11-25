@@ -183,7 +183,7 @@ export const CartWishlistProvider = ({ children }: { children: ReactNode }) => {
       },
       (error) => {
         // Check if it's an already_purchased error
-        if (error.message?.includes('already purchased') || error.message?.includes('already purchased')) {
+        if (error.message?.includes('already purchased')) {
           toast({
             title: "Already Purchased",
             description: `${item.title} is already in your Downloads. You can find it there!`,
@@ -464,7 +464,7 @@ export const CartWishlistProvider = ({ children }: { children: ReactNode }) => {
       const response = await apiClient.moveToCart(cartItemId);
       if (response.error) {
         // Check if it's an already_purchased error
-        if (response.errorDetails?.already_purchased || response.error?.includes('already purchased')) {
+        if (response.error.includes('already purchased')) {
           throw new Error(response.error || 'This item has already been purchased');
         }
         throw new Error(response.error);
@@ -482,7 +482,7 @@ export const CartWishlistProvider = ({ children }: { children: ReactNode }) => {
       if (previousWishlist) queryClient.setQueryData(['wishlist'], previousWishlist);
       
       // Show appropriate message for already purchased items
-      if (error.message?.includes('already purchased') || error.message?.includes('already purchased')) {
+      if (error.message?.includes('already purchased')) {
         toast({
           title: "Already Purchased",
           description: `${item.title} is already in your Downloads. You can find it there!`,
