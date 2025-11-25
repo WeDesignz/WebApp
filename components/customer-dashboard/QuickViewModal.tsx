@@ -42,6 +42,16 @@ export default function QuickViewModal({ item, isOpen, onClose }: QuickViewModal
   };
 
   const handleAddToCart = () => {
+    // Check if item is already purchased
+    if (item.isPurchased) {
+      toast({
+        title: "Already Purchased",
+        description: `${item.title} is already in your Downloads. You can find it there!`,
+        variant: "default",
+      });
+      return;
+    }
+
     if (!isInCart(item.productId)) {
       addToCart({
         id: item.id,
@@ -130,6 +140,14 @@ export default function QuickViewModal({ item, isOpen, onClose }: QuickViewModal
                         </span>
                       </div>
                     )}
+                    {item.isPurchased && (
+                      <div className="absolute top-4 right-4">
+                        <span className="px-3 py-1.5 bg-green-500 text-white text-sm font-bold rounded-full flex items-center gap-1.5">
+                          <span>✓</span>
+                          Purchased
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-col">
@@ -198,10 +216,11 @@ export default function QuickViewModal({ item, isOpen, onClose }: QuickViewModal
                         <Button
                           className="flex-1 h-12 rounded-full"
                           onClick={handleAddToCart}
-                          disabled={isInCart(item.productId)}
+                          disabled={isInCart(item.productId) || item.isPurchased}
+                          variant={item.isPurchased ? "outline" : "default"}
                         >
                           <ShoppingCart className="w-4 h-4 mr-2" />
-                          {isInCart(item.productId) ? 'In Cart' : 'Add to Cart'}
+                          {item.isPurchased ? 'Already Purchased' : isInCart(item.productId) ? 'In Cart' : 'Add to Cart'}
                         </Button>
                         {item.price === 0 && (
                           <Button

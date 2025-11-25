@@ -31,6 +31,7 @@ export interface WishlistItem {
   image: string;
   tags: string[];
   isPremium: boolean;
+  isPurchased?: boolean;
 }
 
 interface CartWishlistContextType {
@@ -181,11 +182,20 @@ export const CartWishlistProvider = ({ children }: { children: ReactNode }) => {
         });
       },
       (error) => {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to add item to cart",
-          variant: "destructive",
-        });
+        // Check if it's an already_purchased error
+        if (error.message?.includes('already purchased') || error.message?.includes('already purchased')) {
+          toast({
+            title: "Already Purchased",
+            description: `${item.title} is already in your Downloads. You can find it there!`,
+            variant: "default",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message || "Failed to add item to cart",
+            variant: "destructive",
+          });
+        }
       }
     );
   }, [cartItems, optimisticUpdate, toast]);
@@ -418,6 +428,16 @@ export const CartWishlistProvider = ({ children }: { children: ReactNode }) => {
     const item = wishlistItems.find((i) => i.id === itemId);
     if (!item) return;
 
+    // Check if item is already purchased
+    if (item.isPurchased) {
+      toast({
+        title: "Already Purchased",
+        description: `${item.title} is already in your Downloads. You can find it there!`,
+        variant: "default",
+      });
+      return;
+    }
+
     const optimisticWishlist = wishlistItems.filter((i) => i.id !== itemId);
     const optimisticCart = [...cartItems, {
         id: item.id,
@@ -443,6 +463,10 @@ export const CartWishlistProvider = ({ children }: { children: ReactNode }) => {
 
       const response = await apiClient.moveToCart(cartItemId);
       if (response.error) {
+        // Check if it's an already_purchased error
+        if (response.errorDetails?.already_purchased || response.error?.includes('already purchased')) {
+          throw new Error(response.error || 'This item has already been purchased');
+        }
         throw new Error(response.error);
       }
 
@@ -456,11 +480,21 @@ export const CartWishlistProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       if (previousCart) queryClient.setQueryData(['cart'], previousCart);
       if (previousWishlist) queryClient.setQueryData(['wishlist'], previousWishlist);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to move item to cart",
-        variant: "destructive",
-      });
+      
+      // Show appropriate message for already purchased items
+      if (error.message?.includes('already purchased') || error.message?.includes('already purchased')) {
+        toast({
+          title: "Already Purchased",
+          description: `${item.title} is already in your Downloads. You can find it there!`,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to move item to cart",
+          variant: "destructive",
+        });
+      }
     }
   }, [cartItems, wishlistItems, queryClient, toast]);
 

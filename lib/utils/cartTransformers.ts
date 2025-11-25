@@ -120,6 +120,7 @@ export function transformWishlistItem(apiCartItem: any): WishlistItem {
     image: mediaUrls[0] || '/generated_images/Brand_Identity_Design_67fa7e1f.png',
     tags: tags.length > 0 ? tags : [categoryName],
     isPremium,
+    isPurchased: apiCartItem.is_purchased || false,
   };
 }
 

@@ -13,11 +13,12 @@ import NotificationsContent from "./NotificationsContent";
 import FAQContent from "./FAQContent";
 import ProfileContent from "./ProfileContent";
 import WishlistContent from "./WishlistContent";
+import CartContent from "./CartContent";
 import PlansContent from "./PlansContent";
 import LogoutModal from "./LogoutModal";
 import DownloadMockPDFContent from "./DownloadMockPDFContent";
 
-export type DashboardView = "dashboard" | "downloads" | "orders" | "freelancers" | "support" | "notifications" | "faq" | "profile" | "wishlist" | "plans" | "downloadMockPDF";
+export type DashboardView = "dashboard" | "downloads" | "orders" | "freelancers" | "support" | "notifications" | "faq" | "profile" | "wishlist" | "cart" | "plans" | "downloadMockPDF";
 
 export default function CustomerDashboard() {
   const searchParams = useSearchParams();
@@ -35,7 +36,7 @@ export default function CustomerDashboard() {
   // Check for view and category query parameters on mount
   useEffect(() => {
     const viewParam = searchParams.get('view');
-    const expectedView = (viewParam && ['dashboard', 'downloads', 'orders', 'freelancers', 'support', 'notifications', 'faq', 'profile', 'wishlist', 'plans', 'downloadMockPDF'].includes(viewParam)) 
+    const expectedView = (viewParam && ['dashboard', 'downloads', 'orders', 'freelancers', 'support', 'notifications', 'faq', 'profile', 'wishlist', 'cart', 'plans', 'downloadMockPDF'].includes(viewParam)) 
       ? (viewParam as DashboardView) 
       : 'dashboard';
     
@@ -118,6 +119,8 @@ export default function CustomerDashboard() {
         return <OrdersContent />;
       case "wishlist":
         return <WishlistContent />;
+      case "cart":
+        return <CartContent />;
       case "plans":
         return <PlansContent />;
       case "support":
@@ -170,7 +173,11 @@ export default function CustomerDashboard() {
 
       <CartDrawer 
         isOpen={cartDrawerOpen} 
-        onClose={() => setCartDrawerOpen(false)} 
+        onClose={() => setCartDrawerOpen(false)}
+        onViewCart={() => {
+          setCartDrawerOpen(false);
+          setActiveView("cart");
+        }}
       />
 
       <LogoutModal

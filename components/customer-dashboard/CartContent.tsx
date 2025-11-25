@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useCartWishlist } from "@/contexts/CartWishlistContext";
-import { Trash2, Heart, ShoppingCart, Tag, Lock, ArrowLeft, Check, Loader2 } from "lucide-react";
+import { Trash2, Heart, ShoppingCart, Tag, Lock, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
@@ -29,7 +29,7 @@ const makeAbsoluteUrl = (url: string | null | undefined): string | null => {
   return url;
 };
 
-export default function CartPage() {
+export default function CartContent() {
   const { cartItems, removeFromCart, moveToWishlist, getCartTotal, clearCart, isLoadingCart } = useCartWishlist();
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [couponCode, setCouponCode] = useState("");
@@ -471,24 +471,20 @@ export default function CartPage() {
 
   if (isLoadingCart) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="p-4 md:p-6 pb-24 md:pb-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        </div>
       </div>
     );
   }
 
   if (cartItems.length === 0) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <a 
-            href="/customer-dashboard"
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to Dashboard</span>
-          </a>
-
+      <div className="p-4 md:p-6 pb-24 md:pb-6">
+        <div className="max-w-7xl mx-auto">
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-32 h-32 rounded-full bg-muted flex items-center justify-center mb-6">
               <ShoppingCart className="w-16 h-16 text-muted-foreground" />
@@ -497,11 +493,9 @@ export default function CartPage() {
             <p className="text-muted-foreground mb-8 max-w-md">
               Discover amazing designs from talented creators. Start adding items to your cart!
             </p>
-            <a href="/customer-dashboard">
-              <Button size="lg" className="rounded-full">
-                Browse Designs
-              </Button>
-            </a>
+            <Button size="lg" className="rounded-full" onClick={() => router.push('/customer-dashboard')}>
+              Browse Designs
+            </Button>
           </div>
         </div>
       </div>
@@ -509,18 +503,12 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <a 
-          href="/customer-dashboard"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Dashboard</span>
-        </a>
-
+    <div className="p-4 md:p-6 pb-24 md:pb-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Shopping Cart</h1>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent mb-2">
+            Shopping Cart
+          </h1>
           <p className="text-muted-foreground">{cartItems.length} items in your cart</p>
         </div>
 
@@ -554,7 +542,7 @@ export default function CartPage() {
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-xl">
               <Checkbox
-                checked={selectedItems.length === cartItems.length}
+                checked={selectedItems.length === cartItems.length && cartItems.length > 0}
                 onCheckedChange={handleSelectAll}
               />
               <span className="text-sm font-medium">Select All</span>
@@ -842,7 +830,7 @@ export default function CartPage() {
                 <Button 
                   variant="outline" 
                   className="w-full h-12 rounded-full"
-                  onClick={() => window.location.href = '/customer-dashboard'}
+                  onClick={() => router.push('/customer-dashboard')}
                 >
                   Continue Shopping
                 </Button>
@@ -851,7 +839,7 @@ export default function CartPage() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }
+

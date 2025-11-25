@@ -69,17 +69,43 @@ export default function WishlistContent() {
   };
 
   const handleBulkMoveToCart = () => {
-    selectedItems.forEach(id => {
-      moveToCart(id);
+    const purchasedItems = wishlistItems.filter(item => 
+      selectedItems.includes(item.id) && item.isPurchased
+    );
+    const unpurchasedItems = wishlistItems.filter(item => 
+      selectedItems.includes(item.id) && !item.isPurchased
+    );
+
+    if (purchasedItems.length > 0) {
+      toast({
+        title: "Some items already purchased",
+        description: `${purchasedItems.length} item(s) are already in your Downloads. Only ${unpurchasedItems.length} item(s) will be added to cart.`,
+        variant: "default",
+      });
+    }
+
+    unpurchasedItems.forEach(item => {
+      moveToCart(item.id);
     });
     setSelectedItems([]);
-    toast({
-      title: "Added to cart",
-      description: `${selectedItems.length} items have been added to your cart.`,
-    });
+    
+    if (unpurchasedItems.length > 0) {
+      toast({
+        title: "Added to cart",
+        description: `${unpurchasedItems.length} items have been added to your cart.`,
+      });
+    }
   };
 
-  const handleAddToCart = (itemId: string, title: string) => {
+  const handleAddToCart = (itemId: string, title: string, isPurchased?: boolean) => {
+    if (isPurchased) {
+      toast({
+        title: "Already Purchased",
+        description: `${title} is already in your Downloads. You can find it there!`,
+        variant: "default",
+      });
+      return;
+    }
     moveToCart(itemId);
     toast({
       title: "Added to cart",
@@ -239,6 +265,14 @@ export default function WishlistContent() {
                           </Badge>
                         </div>
                       )}
+                      {item.isPurchased && (
+                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
+                          <Badge className="bg-green-500 text-white">
+                            <span className="mr-1">✓</span>
+                            Purchased
+                          </Badge>
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                         <Button
                           size="sm"
@@ -264,10 +298,12 @@ export default function WishlistContent() {
                         <span className="text-lg font-bold">{formatPrice(item.price)}</span>
                         <Button
                           size="sm"
-                          onClick={() => handleAddToCart(item.id, item.title)}
+                          onClick={() => handleAddToCart(item.id, item.title, item.isPurchased)}
+                          disabled={item.isPurchased}
+                          variant={item.isPurchased ? "outline" : "default"}
                         >
                           <ShoppingCart className="w-4 h-4 mr-2" />
-                          Add to Cart
+                          {item.isPurchased ? "Already Purchased" : "Add to Cart"}
                         </Button>
                       </div>
                     </div>
@@ -323,12 +359,20 @@ export default function WishlistContent() {
                         </div>
 
                         <div className="flex items-center gap-3">
+                          {item.isPurchased && (
+                            <Badge className="bg-green-500 text-white mr-2">
+                              <span className="mr-1">✓</span>
+                              Purchased
+                            </Badge>
+                          )}
                           <Button
                             size="sm"
-                            onClick={() => handleAddToCart(item.id, item.title)}
+                            onClick={() => handleAddToCart(item.id, item.title, item.isPurchased)}
+                            disabled={item.isPurchased}
+                            variant={item.isPurchased ? "outline" : "default"}
                           >
                             <ShoppingCart className="w-4 h-4 mr-2" />
-                            Add to Cart
+                            {item.isPurchased ? "Already Purchased" : "Add to Cart"}
                           </Button>
                           <Button
                             size="sm"

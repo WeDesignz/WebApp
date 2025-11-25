@@ -27,9 +27,10 @@ const makeAbsoluteUrl = (url: string | null | undefined): string | null => {
 interface CartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  onViewCart?: () => void;
 }
 
-export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
+export default function CartDrawer({ isOpen, onClose, onViewCart }: CartDrawerProps) {
   const { cartItems, removeFromCart, moveToWishlist, getCartTotal, isLoadingCart } = useCartWishlist();
   const [couponInfo, setCouponInfo] = useState<{
     discount_amount: number;
@@ -246,12 +247,20 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <a href="/customer-dashboard/cart">
-                    <Button className="w-full h-12 rounded-full" size="lg">
-                      View Cart
-                      <ArrowRight className="w-5 h-5 ml-2" />
-                    </Button>
-                  </a>
+                  <Button 
+                    className="w-full h-12 rounded-full" 
+                    size="lg"
+                    onClick={() => {
+                      if (onViewCart) {
+                        onViewCart();
+                      } else {
+                        window.location.href = '/customer-dashboard?view=cart';
+                      }
+                    }}
+                  >
+                    View Cart
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
                   <Button 
                     variant="outline" 
                     className="w-full h-12 rounded-full" 

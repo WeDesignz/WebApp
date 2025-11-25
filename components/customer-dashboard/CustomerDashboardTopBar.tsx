@@ -95,8 +95,8 @@ export default function CustomerDashboardTopBar({
           {/* Notifications */}
           <NotificationDropdown />
 
-          <a 
-            href="/customer-dashboard/wishlist"
+          <button 
+            onClick={() => onViewChange("wishlist")}
             className="relative p-2 hover:bg-muted rounded-full transition-colors hidden sm:flex flex-shrink-0"
             title="Wishlist"
           >
@@ -106,7 +106,7 @@ export default function CustomerDashboardTopBar({
                 {getWishlistCount()}
               </span>
             )}
-          </a>
+          </button>
 
           <button 
             onClick={onOpenCart}

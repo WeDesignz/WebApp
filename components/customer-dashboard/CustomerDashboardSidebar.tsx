@@ -12,7 +12,6 @@ import {
   Sun,
   Zap,
   ShoppingBag,
-  Heart,
   CreditCard,
   FileText,
 } from "lucide-react";
@@ -36,7 +35,6 @@ const menuItems: { icon: any; label: string; view: DashboardView }[] = [
   { icon: Download, label: "My Downloads", view: "downloads" },
   { icon: FileText, label: "Download Mock PDF", view: "downloadMockPDF" },
   { icon: ShoppingBag, label: "My Orders", view: "orders" },
-  { icon: Heart, label: "Wishlist", view: "wishlist" },
   { icon: CreditCard, label: "Plans & Subscription", view: "plans" },
   { icon: HelpCircle, label: "Support", view: "support" },
 ];
