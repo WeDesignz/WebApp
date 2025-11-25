@@ -81,7 +81,7 @@ export default function NotificationsContent() {
       console.log('🔔 [NOTIFICATIONS] API Response:', response);
       console.log('🔔 [NOTIFICATIONS] Response data:', response.data);
       console.log('🔔 [NOTIFICATIONS] Notifications array:', response.data?.notifications);
-      if (response.data?.notifications?.length > 0) {
+      if ((response.data?.notifications?.length ?? 0) > 0) {
         console.log('🔔 [NOTIFICATIONS] First notification structure:', JSON.stringify(response.data.notifications[0], null, 2));
       }
       return response.data;
