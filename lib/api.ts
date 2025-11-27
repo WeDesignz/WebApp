@@ -2316,6 +2316,25 @@ export const apiClient = {
     });
   },
 
+  // Category and Tag methods
+  getCategories: async (): Promise<ApiResponse<{
+    categories: any[];
+  }>> => {
+    return apiRequest('/api/catalog/categories/');
+  },
+
+  getCategorySubcategories: async (categoryId: number): Promise<ApiResponse<{
+    subcategories: any[];
+  }>> => {
+    return apiRequest(`/api/catalog/categories/${categoryId}/subcategories/`);
+  },
+
+  getTags: async (): Promise<ApiResponse<{
+    tags: any[];
+  }>> => {
+    return apiRequest('/api/catalog/tags/');
+  },
+
   // Upload Design
   uploadDesign: async (formData: FormData) => {
     const token = typeof window !== 'undefined' 
@@ -3120,5 +3139,8 @@ export const apiClient = {
       validationErrors: response.validationErrors,
     };
   },
+
+  // Catalog API methods
+  catalogAPI: catalogAPI,
 };
 
