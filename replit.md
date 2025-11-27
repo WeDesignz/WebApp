@@ -73,6 +73,15 @@ The application expects the following API endpoints:
 
 ## Recent Changes (Nov 27, 2025)
 
+### Hero Section Redesign
+- Replaced centered search-focused hero with split-layout design
+- Left side: Large headline "Discover, collect, and sell extraordinary Designs", subtitle with lightning icon, Explore/Create buttons
+- Right side: Featured design card with countdown timer, creator info, and current bid price
+- Added floating mini cards around the main featured card
+- Added grid background pattern effect
+- Added rotating circular "Explore Designs" button
+- Added `spin-slow` animation for rotating text
+
 ### Navbar Redesign (ForestLock Style)
 - Made navbar transparent with glass effect (`bg-black/20 backdrop-blur-md`)
 - Removed navbar border for cleaner look
