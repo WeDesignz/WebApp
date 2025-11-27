@@ -73,6 +73,11 @@ The application expects the following API endpoints:
 
 ## Recent Changes (Nov 27, 2025)
 
+### Particle Effect Upgrade
+- Replaced CSS-based particle effect with WebGL-based OGL particle effect on the landing page
+- Uses `components/Particles.tsx` with WebGL rendering for smoother, more performant animations
+- Configuration: 200 particles, white colors, hover interaction enabled, slow rotation
+
 ### Initial Replit Setup
 1. Installed Node.js 20 and npm dependencies
 2. Configured Next.js for Replit environment:

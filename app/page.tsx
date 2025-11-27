@@ -2,8 +2,6 @@ import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import GallerySection from "@/components/GallerySection";
 import SpotlightCard from "@/components/SpotlightCard";
-import dynamic from "next/dynamic";
-import CSSParticles from "@/components/CSSParticles";
 import JerseyShowcase from "@/components/JerseyShowcase";
 import MagicBento from "@/components/MagicBento";
 import PricingPlans from "@/components/PricingPlans";
@@ -14,6 +12,7 @@ import Footer from "@/components/Footer";
 import ClientsStats from "@/components/ClientsStats";
 import SpotlightFeatures from "@/components/SpotlightFeatures";
 import CardSlider from "@/components/CardSlider";
+import Particles from "@/components/Particles";
 
 export const metadata = {
   title: "WeDesign - Creative Design Marketplace",
@@ -24,7 +23,17 @@ export default function Page() {
   return (
     <div className="relative min-h-screen bg-background">
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <CSSParticles particleCount={150} className="opacity-60" />
+        <Particles
+          particleColors={['#ffffff', '#ffffff']}
+          particleCount={200}
+          particleSpread={10}
+          speed={0.1}
+          particleBaseSize={100}
+          moveParticlesOnHover={true}
+          alphaParticles={false}
+          disableRotation={false}
+          className="opacity-60"
+        />
       </div>
       <div className="relative z-10">
       <Navbar />
