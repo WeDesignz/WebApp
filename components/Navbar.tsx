@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ChevronDown, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -17,7 +17,7 @@ export default function Navbar() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-4 pt-4">
       <nav className="mx-auto max-w-7xl">
-        <div className="relative flex h-16 md:h-20 items-center justify-between rounded-2xl border border-white/10 bg-black/20 backdrop-blur-md px-6 md:px-8">
+        <div className="relative flex h-16 md:h-20 items-center justify-between rounded-2xl bg-black/20 backdrop-blur-md px-6 md:px-8 overflow-visible">
           {/* Logo */}
           <a href="/" className="flex items-center gap-2 flex-shrink-0" data-testid="link-home">
             <img 
@@ -30,13 +30,19 @@ export default function Navbar() {
           {/* Desktop Navigation - Center */}
           <div className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
             {/* Resources Dropdown */}
-            <div className="relative">
+            <div className="relative group/resources">
               <button
                 onClick={() => setResourcesOpen(!resourcesOpen)}
                 onBlur={() => setTimeout(() => setResourcesOpen(false), 200)}
                 className="flex items-center gap-1.5 text-sm font-medium text-white/80 hover:text-white transition-colors"
+                style={{ perspective: '500px' }}
               >
-                Resources
+                <span 
+                  className="inline-block group-hover/resources:animate-spin-y"
+                  style={{ transformStyle: 'preserve-3d' }}
+                >
+                  Resources
+                </span>
                 <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${resourcesOpen ? 'rotate-180' : ''}`} />
               </button>
               {resourcesOpen && (
@@ -55,8 +61,17 @@ export default function Navbar() {
             </div>
 
             {/* Blog */}
-            <a href="#blog" className="text-sm font-medium text-white/80 hover:text-white transition-colors">
-              Blog
+            <a 
+              href="#blog" 
+              className="text-sm font-medium text-white/80 hover:text-white transition-colors group/blog"
+              style={{ perspective: '500px' }}
+            >
+              <span 
+                className="inline-block group-hover/blog:animate-spin-y"
+                style={{ transformStyle: 'preserve-3d' }}
+              >
+                Blog
+              </span>
             </a>
           </div>
 
@@ -91,24 +106,24 @@ export default function Navbar() {
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
 
-          {/* Tube Light Effect - Bottom Glow */}
-          <div className="absolute -bottom-px left-1/2 -translate-x-1/2 w-2/3 h-[2px] overflow-visible">
-            {/* Core bright line */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 to-transparent" />
-            {/* Inner glow */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent blur-[2px]" />
+          {/* Tube Light Effect - Bottom Glow (Only downward) */}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 w-2/3 h-0 overflow-visible pointer-events-none">
+            {/* Core bright line at the edge */}
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/70 to-transparent" />
+            {/* Soft glow layer 1 */}
+            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-transparent via-white/40 to-transparent blur-[3px]" />
             {/* Medium spread glow */}
-            <div className="absolute -bottom-2 -left-4 -right-4 h-6 bg-gradient-to-r from-transparent via-white/30 to-transparent blur-md" />
+            <div className="absolute top-0 -left-4 -right-4 h-4 bg-gradient-to-r from-transparent via-white/25 to-transparent blur-md" />
             {/* Wide ambient glow */}
-            <div className="absolute -bottom-4 -left-8 -right-8 h-10 bg-gradient-to-r from-transparent via-white/20 to-transparent blur-xl" />
+            <div className="absolute top-0 -left-8 -right-8 h-8 bg-gradient-to-r from-transparent via-white/15 to-transparent blur-xl" />
             {/* Soft downward light cast */}
-            <div className="absolute -bottom-6 left-1/4 right-1/4 h-12 bg-gradient-to-b from-white/15 via-white/5 to-transparent blur-2xl" />
+            <div className="absolute top-1 left-1/4 right-1/4 h-12 bg-gradient-to-b from-white/20 via-white/5 to-transparent blur-xl" />
           </div>
         </div>
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden mt-4 rounded-2xl border border-white/10 bg-black/80 backdrop-blur-xl shadow-xl p-6 space-y-4">
+          <div className="lg:hidden mt-4 rounded-2xl bg-black/80 backdrop-blur-xl shadow-xl p-6 space-y-4">
             {/* Resources Section */}
             <div className="space-y-2">
               <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Resources</p>

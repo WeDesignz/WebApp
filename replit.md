@@ -75,10 +75,13 @@ The application expects the following API endpoints:
 
 ### Navbar Redesign (ForestLock Style)
 - Made navbar transparent with glass effect (`bg-black/20 backdrop-blur-md`)
+- Removed navbar border for cleaner look
 - Simplified navigation to: Logo, Resources dropdown (About, Contact, FAQ), Blog, Customer Dashboard, Designer Console
-- Added tube light glow effect at the bottom of the navbar (multi-layer gradient glow)
+- Added tube light glow effect at the bottom of the navbar (casts light downward only, not inside navbar)
+- Added 360-degree vertical spin animation on hover for nav menu text (Resources, Blog)
 - Removed: Pricing, Sign In, Designer Onboarding from navbar
 - Updated mobile menu with same simplified navigation structure
+- Added `spin-y` keyframe animation to Tailwind config
 
 ### Particle Effect Upgrade
 - Replaced CSS-based particle effect with WebGL-based OGL particle effect on the landing page
