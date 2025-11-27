@@ -1,43 +1,121 @@
 "use client";
 
-import { useState } from "react";
-import dynamic from "next/dynamic";
-import { motion } from "framer-motion";
-import { Rotate3D, ZoomIn, MousePointer2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { Rotate3D, ZoomIn, MousePointer2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const ModelViewer = dynamic(
-  () => import("@/components/ModelViewerSafe"),
-  { 
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-full flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    )
-  }
-);
 
 const jerseyModels = [
   {
     name: "Classic Sports Jersey",
-    url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/ToyCar/glTF-Binary/ToyCar.glb",
+    image: "/generated_images/classic_sports_jersey_photo.png",
     description: "Premium polyester blend with moisture-wicking technology",
     color: "Blue & White"
   },
   {
     name: "Modern Football Kit",
-    url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/BoxAnimated/glTF-Binary/BoxAnimated.glb",
+    image: "/generated_images/football_kit_jersey_photo.png",
     description: "Lightweight fabric designed for maximum performance",
     color: "Red & Black"
   },
   {
     name: "Retro Basketball Jersey",
-    url: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/Duck/glTF-Binary/Duck.glb",
+    image: "/generated_images/retro_basketball_jersey_photo.png",
     description: "Classic mesh design with authentic team branding",
     color: "Gold & Purple"
   }
 ];
+
+function Jersey3DCard({ jersey, isActive }: { jersey: typeof jerseyModels[0]; isActive: boolean }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  
+  const mouseXSpring = useSpring(x, { stiffness: 150, damping: 15 });
+  const mouseYSpring = useSpring(y, { stiffness: 150, damping: 15 });
+  
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["25deg", "-25deg"]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-25deg", "25deg"]);
+  const shadowX = useTransform(mouseXSpring, [-0.5, 0.5], [30, -30]);
+  const shadowY = useTransform(mouseYSpring, [-0.5, 0.5], [30, -30]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const mouseX = (e.clientX - centerX) / rect.width;
+    const mouseY = (e.clientY - centerY) / rect.height;
+    x.set(mouseX);
+    y.set(mouseY);
+  };
+
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+  };
+
+  return (
+    <motion.div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className="relative w-full h-full"
+      style={{ perspective: 1000 }}
+    >
+      <motion.div
+        className="relative w-full h-full"
+        style={{
+          rotateX,
+          rotateY,
+          transformStyle: "preserve-3d",
+        }}
+        animate={isActive ? { scale: 1 } : { scale: 0.95 }}
+        transition={{ duration: 0.3 }}
+      >
+        <motion.div
+          className="absolute inset-0 rounded-2xl bg-black/20 blur-2xl"
+          style={{
+            x: shadowX,
+            y: shadowY,
+            transformStyle: "preserve-3d",
+            transform: "translateZ(-50px)",
+          }}
+        />
+        
+        <div 
+          className="relative w-full h-full rounded-2xl overflow-hidden bg-gradient-to-b from-white/10 to-white/5 border border-white/10"
+          style={{ transformStyle: "preserve-3d" }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-primary/10" />
+          
+          <motion.img
+            src={jersey.image}
+            alt={jersey.name}
+            className="w-full h-full object-contain p-4"
+            style={{
+              transformStyle: "preserve-3d",
+              transform: "translateZ(50px)",
+            }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+          />
+          
+          <motion.div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%, rgba(0,0,0,0.1) 100%)",
+              transformStyle: "preserve-3d",
+              transform: "translateZ(60px)",
+            }}
+          />
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
 
 export default function JerseyShowcase() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -67,12 +145,11 @@ export default function JerseyShowcase() {
             Experience Designs in 3D
           </h2>
           <p className="text-foreground/70 text-lg max-w-2xl mx-auto">
-            Rotate, zoom, and explore jersey designs from every angle. See exactly what you're getting before you buy.
+            Interact with jersey designs from every angle. Move your mouse to see the 3D effect in action.
           </p>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          {/* 3D Viewer */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -82,21 +159,13 @@ export default function JerseyShowcase() {
           >
             <div className="relative rounded-3xl overflow-hidden border border-border bg-card/50 backdrop-blur-sm p-8">
               <div className="aspect-square flex items-center justify-center">
-                <ModelViewer
-                  key={currentJersey.url}
-                  url={currentJersey.url}
-                  width="100%"
-                  height="100%"
-                  enableManualRotation
-                  enableManualZoom
-                  autoRotate
-                  autoRotateSpeed={0.5}
-                  environmentPreset="studio"
-                  fadeIn
+                <Jersey3DCard 
+                  key={currentIndex}
+                  jersey={currentJersey} 
+                  isActive={true} 
                 />
               </div>
               
-              {/* Navigation Arrows */}
               <div className="absolute top-1/2 -translate-y-1/2 left-4 right-4 flex justify-between pointer-events-none">
                 <Button
                   onClick={handlePrevious}
@@ -116,14 +185,12 @@ export default function JerseyShowcase() {
                 </Button>
               </div>
 
-              {/* Model Counter */}
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-background/80 backdrop-blur-sm border border-border/50 text-xs font-medium">
                 {currentIndex + 1} / {jerseyModels.length}
               </div>
             </div>
           </motion.div>
 
-          {/* Information Panel */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -132,8 +199,22 @@ export default function JerseyShowcase() {
             className="space-y-8"
           >
             <div>
-              <h3 className="text-3xl font-bold mb-3">{currentJersey.name}</h3>
-              <p className="text-foreground/70 mb-2">{currentJersey.description}</p>
+              <motion.h3 
+                key={currentJersey.name}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-3xl font-bold mb-3"
+              >
+                {currentJersey.name}
+              </motion.h3>
+              <motion.p 
+                key={currentJersey.description}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-foreground/70 mb-2"
+              >
+                {currentJersey.description}
+              </motion.p>
               <div className="flex items-center gap-2 text-sm">
                 <span className="px-3 py-1 rounded-full bg-primary/10 text-primary font-medium">
                   {currentJersey.color}
@@ -141,7 +222,6 @@ export default function JerseyShowcase() {
               </div>
             </div>
 
-            {/* Interactive Controls Guide */}
             <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-6 space-y-4">
               <h4 className="font-semibold text-lg mb-4">Interactive Controls</h4>
               
@@ -150,8 +230,8 @@ export default function JerseyShowcase() {
                   <Rotate3D className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">Rotate</p>
-                  <p className="text-sm text-foreground/60">Click and drag to rotate the model in any direction</p>
+                  <p className="font-medium">3D Tilt Effect</p>
+                  <p className="text-sm text-foreground/60">Move your mouse over the jersey to see it tilt in 3D</p>
                 </div>
               </div>
 
@@ -160,8 +240,8 @@ export default function JerseyShowcase() {
                   <ZoomIn className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">Zoom</p>
-                  <p className="text-sm text-foreground/60">Scroll or pinch to zoom in and see fine details</p>
+                  <p className="font-medium">Dynamic Shadows</p>
+                  <p className="text-sm text-foreground/60">Watch the shadows move realistically as you interact</p>
                 </div>
               </div>
 
@@ -170,13 +250,12 @@ export default function JerseyShowcase() {
                   <MousePointer2 className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">Auto-Rotate</p>
-                  <p className="text-sm text-foreground/60">Model rotates automatically when not interacting</p>
+                  <p className="font-medium">Parallax Depth</p>
+                  <p className="text-sm text-foreground/60">Experience depth with layered parallax movement</p>
                 </div>
               </div>
             </div>
 
-            {/* Model Selector */}
             <div className="space-y-3">
               <h4 className="font-semibold">Browse Designs</h4>
               <div className="grid grid-cols-3 gap-3">
@@ -184,14 +263,23 @@ export default function JerseyShowcase() {
                   <button
                     key={index}
                     onClick={() => setCurrentIndex(index)}
-                    className={`relative rounded-xl border-2 transition-all p-3 text-left ${
+                    className={`relative rounded-xl border-2 transition-all overflow-hidden ${
                       index === currentIndex
-                        ? 'border-primary bg-primary/5'
+                        ? 'border-primary bg-primary/5 scale-105'
                         : 'border-border bg-card/30 hover:border-primary/50'
                     }`}
                   >
-                    <p className="text-sm font-medium truncate">{jersey.name}</p>
-                    <p className="text-xs text-foreground/60 truncate">{jersey.color}</p>
+                    <div className="aspect-square p-2">
+                      <img 
+                        src={jersey.image} 
+                        alt={jersey.name}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <div className="p-2 pt-0">
+                      <p className="text-xs font-medium truncate">{jersey.name}</p>
+                      <p className="text-[10px] text-foreground/60 truncate">{jersey.color}</p>
+                    </div>
                   </button>
                 ))}
               </div>

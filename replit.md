@@ -84,6 +84,17 @@ The application expects the following API endpoints:
 - Implemented stacked card carousel with 3 designs that auto-rotate every 4 seconds
 - Cards are smaller and positioned in a queue-like stack with perspective effect
 
+### Jersey Showcase - 2D to 3D Effect
+- Replaced WebGL 3D model viewer with 2D images featuring interactive 3D effects
+- Generated jersey images: Classic Sports Jersey (blue/white), Football Kit (red/black), Retro Basketball (gold/purple)
+- Implemented using Framer Motion for interactive tilt effects:
+  - Mouse-responsive 3D rotation (rotateX, rotateY transforms)
+  - Dynamic shadow movement following cursor
+  - Parallax depth layers with translateZ
+  - Spring physics for smooth, natural movement
+- Thumbnail selector shows jersey previews
+- Navigation arrows for browsing designs
+
 ### Navbar Redesign (ForestLock Style)
 - Made navbar transparent with glass effect (`bg-black/20 backdrop-blur-md`)
 - Removed navbar border for cleaner look
