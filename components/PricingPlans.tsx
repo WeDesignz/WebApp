@@ -109,15 +109,6 @@ export default function PricingPlans() {
                   ? 'bg-card border border-border' 
                   : 'bg-card border border-border'
               }`}>
-                {plan.highlight && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-lg">
-                      <Zap className="w-3.5 h-3.5" />
-                      Most Popular
-                    </div>
-                  </div>
-                )}
-                
                 <div className="text-center mb-8">
                   <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
                   <p className="text-sm text-foreground/60 mb-6">{plan.tag}</p>
@@ -189,10 +180,18 @@ export default function PricingPlans() {
               >
                 {plan.highlight ? (
                   <div className="relative">
+                    {plan.highlight && (
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-50">
+                        <div className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-lg">
+                          <Zap className="w-3.5 h-3.5" />
+                          Most Popular
+                        </div>
+                      </div>
+                    )}
                     <ElectricBorder 
                       color="#7df9ff" 
                       speed={1} 
-                      chaos={0.5} 
+                      chaos={0.35} 
                       thickness={2} 
                       className="overflow-visible"
                       style={{ borderRadius: 24 }}

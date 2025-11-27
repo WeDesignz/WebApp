@@ -55,11 +55,16 @@ export default function Footer() {
         <div className="max-w-7xl mx-auto px-6 md:px-8 pt-16 pb-8">
           <div className="grid grid-cols-1 lg:grid-cols-6 gap-12 lg:gap-8">
             <div className="lg:col-span-2 space-y-6">
-              <Link href="/" className="inline-block">
+              <Link href="/" className="inline-flex items-center gap-2.5 flex-shrink-0">
                 <img 
                   src="/Logos/ONLY LOGO.svg" 
                   alt="WeDesignz Logo" 
                   className="h-10 w-auto brightness-0 invert"
+                />
+                <img 
+                  src="/Logos/ONLY TEXT.svg" 
+                  alt="WeDesignz" 
+                  className="h-7 w-auto brightness-0 invert"
                 />
               </Link>
               
