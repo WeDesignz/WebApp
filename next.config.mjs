@@ -4,9 +4,7 @@ const nextConfig = {
   experimental: {
     externalDir: true
   },
-  devIndicators: {
-    appIsrStatus: false
-  },
+  allowedDevOrigins: ['*'],
   async headers() {
     return [
       {
