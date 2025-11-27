@@ -3172,8 +3172,5 @@ export const apiClient = {
       validationErrors: response.validationErrors,
     };
   },
-
-  // Catalog API methods
-  catalogAPI: catalogAPI,
 };
 
