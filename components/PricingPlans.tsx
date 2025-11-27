@@ -4,25 +4,29 @@ import ElectricBorder from "@/components/ElectricBorder";
 import { Button } from "@/components/ui/button";
 import { Check, Zap } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState } from "react";
 
 const plans = [
   { 
     name: "Free", 
-    price: "$0", 
+    monthlyPrice: 0, 
+    annualPrice: 0,
     tag: "Perfect for getting started", 
     bullets: ["5 design posts per month", "Basic profile", "Community support", "Limited AI tools"],
     highlight: false
   },
   { 
     name: "Pro", 
-    price: "$29", 
+    monthlyPrice: 29, 
+    annualPrice: 290,
     tag: "For professional designers", 
     bullets: ["Unlimited design posts", "Advanced AI tools", "Priority support", "Custom portfolio", "Analytics dashboard", "Early access to features"],
     highlight: true
   },
   { 
     name: "Agency", 
-    price: "$99", 
+    monthlyPrice: 99, 
+    annualPrice: 990,
     tag: "For teams and agencies", 
     bullets: ["Everything in Pro", "Team collaboration", "White-label options", "Custom integrations", "Dedicated account manager", "Advanced analytics"],
     highlight: false
@@ -30,6 +34,20 @@ const plans = [
 ];
 
 export default function PricingPlans() {
+  const [isAnnual, setIsAnnual] = useState(false);
+
+  const getPrice = (plan: typeof plans[0]) => {
+    if (plan.monthlyPrice === 0) return "$0";
+    return isAnnual ? `$${plan.annualPrice}` : `$${plan.monthlyPrice}`;
+  };
+
+  const getSavings = (plan: typeof plans[0]) => {
+    if (plan.monthlyPrice === 0) return null;
+    const monthlyCost = plan.monthlyPrice * 12;
+    const savings = monthlyCost - plan.annualPrice;
+    return savings > 0 ? savings : null;
+  };
+
   return (
     <section id="pricing" className="py-24 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
@@ -40,7 +58,7 @@ export default function PricingPlans() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="text-center mb-12"
         >
           <h2 className="text-4xl md:text-6xl font-bold tracking-tight bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
             Choose Your Plan
@@ -48,8 +66,45 @@ export default function PricingPlans() {
           <p className="text-foreground/70 text-lg mt-4">Transparent pricing for every team size. No hidden fees.</p>
         </motion.div>
 
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="flex items-center justify-center gap-4 mb-12"
+        >
+          <span className={`text-sm font-medium transition-colors ${!isAnnual ? 'text-foreground' : 'text-foreground/50'}`}>
+            Monthly
+          </span>
+          <button
+            onClick={() => setIsAnnual(!isAnnual)}
+            className="relative w-16 h-8 rounded-full bg-primary/20 border border-primary/30 transition-colors hover:bg-primary/30 focus:outline-none focus:ring-2 focus:ring-primary/50"
+            aria-label={isAnnual ? "Switch to monthly billing" : "Switch to annual billing"}
+          >
+            <motion.div
+              className="absolute top-1 w-6 h-6 rounded-full bg-primary shadow-lg"
+              animate={{ left: isAnnual ? 'calc(100% - 28px)' : '4px' }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            />
+          </button>
+          <span className={`text-sm font-medium transition-colors ${isAnnual ? 'text-foreground' : 'text-foreground/50'}`}>
+            Annually
+          </span>
+          {isAnnual && (
+            <motion.span
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="ml-2 px-2.5 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-semibold"
+            >
+              Save up to 17%
+            </motion.span>
+          )}
+        </motion.div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {plans.map((plan, index) => {
+            const savings = getSavings(plan);
+            
             const cardContent = (
               <div className={`relative rounded-3xl p-8 h-full flex flex-col ${
                 plan.highlight 
@@ -69,11 +124,28 @@ export default function PricingPlans() {
                   <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
                   <p className="text-sm text-foreground/60 mb-6">{plan.tag}</p>
                   <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-5xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-                      {plan.price}
+                    <motion.span 
+                      key={isAnnual ? 'annual' : 'monthly'}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="text-5xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent"
+                    >
+                      {getPrice(plan)}
+                    </motion.span>
+                    <span className="text-foreground/60 text-sm">
+                      /{isAnnual ? 'year' : 'month'}
                     </span>
-                    <span className="text-foreground/60 text-sm">/month</span>
                   </div>
+                  {isAnnual && savings && (
+                    <motion.p
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-green-400 text-sm mt-2"
+                    >
+                      Save ${savings}/year
+                    </motion.p>
+                  )}
                 </div>
 
                 <ul className="space-y-4 mb-8 flex-1">
@@ -142,5 +214,3 @@ export default function PricingPlans() {
     </section>
   );
 }
-
-
