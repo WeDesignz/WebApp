@@ -51,8 +51,6 @@ const socialLinks = [
 export default function Footer() {
   return (
     <footer className="relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-t from-primary/5 via-transparent to-transparent pointer-events-none" />
-      
       <div className="border-t border-border/50">
         <div className="max-w-7xl mx-auto px-6 md:px-8 pt-16 pb-8">
           <div className="grid grid-cols-1 lg:grid-cols-6 gap-12 lg:gap-8">

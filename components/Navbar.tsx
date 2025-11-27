@@ -19,11 +19,16 @@ export default function Navbar() {
       <nav className="mx-auto max-w-7xl">
         <div className="relative flex h-16 md:h-20 items-center justify-between rounded-2xl bg-black/20 backdrop-blur-md px-6 md:px-8 overflow-visible">
           {/* Logo */}
-          <a href="/" className="flex items-center gap-2 flex-shrink-0" data-testid="link-home">
+          <a href="/" className="flex items-center gap-2.5 flex-shrink-0" data-testid="link-home">
             <img 
               src="/Logos/ONLY LOGO.svg" 
-              alt="WeDesign" 
+              alt="WeDesign Logo" 
               className="h-8 md:h-10 w-auto brightness-0 invert"
+            />
+            <img 
+              src="/Logos/ONLY TEXT.svg" 
+              alt="WeDesign" 
+              className="h-6 md:h-7 w-auto brightness-0 invert"
             />
           </a>
 

@@ -134,10 +134,10 @@ export default function NotificationsContent() {
       // Check both read and is_read fields
       const isRead = notif.read === true || notif.is_read === true;
       
-      if (filter === "unread") return !isRead;
-      if (filter === "read") return isRead;
+    if (filter === "unread") return !isRead;
+    if (filter === "read") return isRead;
       return true; // "all" filter - include all notifications
-    });
+  });
   }, [notifications, filter]);
 
   const handleMarkAsRead = (notification: Notification) => {

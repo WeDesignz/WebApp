@@ -85,10 +85,9 @@ function Jersey3DCard({ jersey, isActive }: { jersey: typeof jerseyModels[0]; is
         />
         
         <div 
-          className="relative w-full h-full rounded-2xl overflow-hidden bg-gradient-to-b from-white/10 to-white/5 border border-white/10"
+          className="relative w-full h-full rounded-2xl overflow-hidden bg-card border border-border"
           style={{ transformStyle: "preserve-3d" }}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-primary/10" />
           
           <motion.img
             src={jersey.image}
@@ -131,8 +130,6 @@ export default function JerseyShowcase() {
 
   return (
     <section className="py-24 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-500/5 to-transparent pointer-events-none" />
-      
       <div className="max-w-7xl mx-auto px-6 md:px-8 relative">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -157,7 +154,7 @@ export default function JerseyShowcase() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="relative"
           >
-            <div className="relative rounded-3xl overflow-hidden border border-border bg-card/50 backdrop-blur-sm p-8">
+            <div className="relative rounded-3xl overflow-hidden border border-border bg-card p-8">
               <div className="aspect-square flex items-center justify-center">
                 <Jersey3DCard 
                   key={currentIndex}
@@ -222,7 +219,7 @@ export default function JerseyShowcase() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-6 space-y-4">
+            <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
               <h4 className="font-semibold text-lg mb-4">Interactive Controls</h4>
               
               <div className="flex items-start gap-3">
@@ -266,7 +263,7 @@ export default function JerseyShowcase() {
                     className={`relative rounded-xl border-2 transition-all overflow-hidden ${
                       index === currentIndex
                         ? 'border-primary bg-primary/5 scale-105'
-                        : 'border-border bg-card/30 hover:border-primary/50'
+                        : 'border-border bg-card hover:border-primary/50'
                     }`}
                   >
                     <div className="aspect-square p-2">
@@ -285,7 +282,7 @@ export default function JerseyShowcase() {
               </div>
             </div>
 
-            <Button className="w-full rounded-full py-6 bg-gradient-to-r from-primary to-purple-600 hover:shadow-xl hover:shadow-primary/30 hover:scale-105 transition-all font-semibold text-base">
+            <Button className="w-full rounded-full py-6 bg-primary hover:shadow-xl hover:shadow-primary/30 hover:scale-105 transition-all font-semibold text-base">
               Explore Full Collection →
             </Button>
           </motion.div>

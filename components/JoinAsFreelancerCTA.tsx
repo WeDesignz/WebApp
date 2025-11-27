@@ -3,7 +3,6 @@
 import { ArrowRight, Award, Palette, Rocket, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import ElectricBorder from "@/components/ElectricBorder";
 
 export default function JoinAsFreelancerCTA() {
   const benefits = [
@@ -14,8 +13,6 @@ export default function JoinAsFreelancerCTA() {
 
   return (
     <section className="py-32 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
-      
       <div className="max-w-7xl mx-auto px-6 md:px-8 relative">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <motion.div
@@ -32,9 +29,7 @@ export default function JoinAsFreelancerCTA() {
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] mb-6">
               Showcase Your Work.
               <br />
-              <span className="bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent">
-                Get Discovered.
-              </span>
+              Get Discovered.
             </h2>
 
             <p className="text-lg text-foreground/70 mb-8 leading-relaxed">
@@ -66,7 +61,7 @@ export default function JoinAsFreelancerCTA() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="flex flex-wrap gap-4"
             >
-              <Button className="px-8 py-6 rounded-full text-base font-semibold bg-gradient-to-r from-primary to-purple-600 hover:shadow-2xl hover:shadow-primary/30 hover:scale-105 transition-all">
+              <Button className="px-8 py-6 rounded-full text-base font-semibold bg-primary hover:shadow-2xl hover:shadow-primary/30 hover:scale-105 transition-all">
                 Start Your Journey
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
@@ -87,51 +82,49 @@ export default function JoinAsFreelancerCTA() {
             transition={{ duration: 0.6 }}
             className="relative"
           >
-            <ElectricBorder color="#7df9ff" speed={1} chaos={0.5} thickness={2} style={{ borderRadius: 24 }}>
-              <div className="relative rounded-3xl bg-gradient-to-br from-card/80 to-primary/5 backdrop-blur-xl p-8 md:p-10">
-                <div className="space-y-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center flex-shrink-0">
-                      <Star className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg mb-1">Premium Exposure</h3>
-                      <p className="text-sm text-foreground/70">Get featured on our homepage and reach 10,000+ monthly visitors</p>
-                    </div>
+            <div className="relative rounded-3xl border border-border bg-gradient-to-br from-card/80 to-primary/5 backdrop-blur-xl p-8 md:p-10">
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center flex-shrink-0">
+                    <Star className="w-6 h-6 text-white" />
                   </div>
-
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-primary flex items-center justify-center flex-shrink-0">
-                      <Award className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg mb-1">Verified Badge</h3>
-                      <p className="text-sm text-foreground/70">Stand out with our exclusive verification badge for professionals</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center flex-shrink-0">
-                      <Rocket className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg mb-1">Growth Tools</h3>
-                      <p className="text-sm text-foreground/70">Analytics, AI tools, and insights to accelerate your creative business</p>
-                    </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1">Premium Exposure</h3>
+                    <p className="text-sm text-foreground/70">Get featured on our homepage and reach 10,000+ monthly visitors</p>
                   </div>
                 </div>
 
-                <div className="mt-8 pt-8 border-t border-border/50">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-foreground/60">Avg. Designer Income</span>
-                    <span className="text-2xl font-bold text-primary">$4.2K/mo</span>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center flex-shrink-0">
+                    <Award className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1">Verified Badge</h3>
+                    <p className="text-sm text-foreground/70">Stand out with our exclusive verification badge for professionals</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center flex-shrink-0">
+                    <Rocket className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1">Growth Tools</h3>
+                    <p className="text-sm text-foreground/70">Analytics, AI tools, and insights to accelerate your creative business</p>
                   </div>
                 </div>
               </div>
-            </ElectricBorder>
+
+              <div className="mt-8 pt-8 border-t border-border/50">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-foreground/60">Avg. Designer Income</span>
+                  <span className="text-2xl font-bold text-primary">$4.2K/mo</span>
+                </div>
+              </div>
+            </div>
 
             <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-primary/20 rounded-full blur-3xl" />
-            <div className="absolute -top-6 -left-6 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl" />
+            <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/20 rounded-full blur-3xl" />
           </motion.div>
         </div>
       </div>

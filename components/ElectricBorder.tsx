@@ -169,14 +169,14 @@ const ElectricBorder: React.FC<ElectricBorderProps> = ({
           </filter>
         </defs>
       </svg>
+      <div className="relative" style={inheritRadius}>
+        {children}
+      </div>
       <div className="absolute inset-0 pointer-events-none" style={inheritRadius}>
         <div ref={strokeRef} className="absolute inset-0 box-border" style={strokeStyle} />
         <div className="absolute inset-0 box-border" style={glow1Style} />
         <div className="absolute inset-0 box-border" style={glow2Style} />
         <div className="absolute inset-0" style={bgGlowStyle} />
-      </div>
-      <div className="relative" style={inheritRadius}>
-        {children}
       </div>
     </div>
   );

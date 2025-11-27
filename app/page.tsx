@@ -48,13 +48,13 @@ export default function Page() {
         { title: 'Logo Design', desc: 'Memorable brand identities', image: '/generated_images/Brand_Identity_Design_67fa7e1f.png' },
         { title: 'UI/UX Design', desc: 'Beautiful user experiences', image: '/generated_images/Mobile_App_Interface_672164f7.png' }
       ]} />
-      <MagicBento enableStars enableSpotlight enableBorderGlow enableTilt enableMagnetism clickEffect glowColor="132, 0, 255" spotlightRadius={300} />
       <CardSlider title="Trending Collections" items={[
         { title: 'Minimal UI', desc: 'Calm interfaces with focus', image: '/generated_images/Modern_UI_Dashboard_Design_159dd6b9.png' },
         { title: 'Neon Cyber', desc: 'Vibrant futuristic vibes', image: '/generated_images/Creative_Character_Illustration_04c3e6df.png' },
         { title: 'Material 3', desc: 'Modern components & patterns', image: '/generated_images/Website_Mockup_Design_f379e810.png' },
         { title: 'Isometric', desc: '3D-inspired vector scenes', image: '/generated_images/3D_Product_Rendering_3967b01e.png' }
       ]} />
+      <MagicBento enableStars enableSpotlight enableBorderGlow enableTilt enableMagnetism clickEffect glowColor="132, 0, 255" spotlightRadius={300} />
       <JerseyShowcase />
       <PricingPlans />
       <JoinAsFreelancerCTA />

@@ -50,8 +50,6 @@ export default function PricingPlans() {
 
   return (
     <section id="pricing" className="py-24 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
-      
       <div className="max-w-7xl mx-auto px-6 md:px-8 relative">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -108,8 +106,8 @@ export default function PricingPlans() {
             const cardContent = (
               <div className={`relative rounded-3xl p-8 h-full flex flex-col ${
                 plan.highlight 
-                  ? 'bg-gradient-to-br from-card via-card to-primary/5' 
-                  : 'bg-card/60 backdrop-blur-sm border border-border'
+                  ? 'bg-card border border-border' 
+                  : 'bg-card border border-border'
               }`}>
                 {plan.highlight && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
@@ -171,7 +169,7 @@ export default function PricingPlans() {
                 <Button 
                   className={`w-full rounded-full py-6 font-semibold text-base transition-all ${
                     plan.highlight 
-                      ? 'bg-gradient-to-r from-primary to-purple-600 hover:shadow-2xl hover:shadow-primary/30 hover:scale-105' 
+                      ? 'bg-primary hover:shadow-2xl hover:shadow-primary/30 hover:scale-105' 
                       : 'bg-primary/10 text-foreground hover:bg-primary/20'
                   }`}
                 >
@@ -187,12 +185,21 @@ export default function PricingPlans() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: index * 0.2 }}
-                className="relative"
+                className="relative overflow-visible"
               >
                 {plan.highlight ? (
-                  <ElectricBorder color="#7df9ff" speed={1} chaos={0.5} thickness={2} style={{ borderRadius: 24 }}>
-                    {cardContent}
-                  </ElectricBorder>
+                  <div className="relative">
+                    <ElectricBorder 
+                      color="#7df9ff" 
+                      speed={1} 
+                      chaos={0.5} 
+                      thickness={2} 
+                      className="overflow-visible"
+                      style={{ borderRadius: 24 }}
+                    >
+                      {cardContent}
+                    </ElectricBorder>
+                  </div>
                 ) : (
                   cardContent
                 )}
