@@ -31,8 +31,6 @@ export default function HeroSection() {
             const response = await apiClient.catalogAPI.getHeroSectionDesigns();
             if (response.data?.designs && Array.isArray(response.data.designs)) {
               designsData = response.data.designs;
-            } else if (response.designs && Array.isArray(response.designs)) {
-              designsData = response.designs;
             }
           } catch (apiError) {
             // Silently fall through to direct fetch
