@@ -81,6 +81,8 @@ The application expects the following API endpoints:
 - Added grid background pattern effect
 - Added rotating circular "Explore Designs" button
 - Added `spin-slow` animation for rotating text
+- Implemented stacked card carousel with 3 designs that auto-rotate every 4 seconds
+- Cards are smaller and positioned in a queue-like stack with perspective effect
 
 ### Navbar Redesign (ForestLock Style)
 - Made navbar transparent with glass effect (`bg-black/20 backdrop-blur-md`)
