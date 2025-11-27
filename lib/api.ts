@@ -2335,6 +2335,15 @@ export const apiClient = {
     return apiRequest('/api/catalog/tags/');
   },
 
+  createTag: async (name: string): Promise<ApiResponse<{
+    tag: any;
+  }>> => {
+    return apiRequest('/api/catalog/tags/', {
+      method: 'POST',
+      body: JSON.stringify({ name: name.trim() }),
+    });
+  },
+
   // Upload Design
   uploadDesign: async (formData: FormData) => {
     const token = typeof window !== 'undefined' 
