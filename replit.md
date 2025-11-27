@@ -73,6 +73,13 @@ The application expects the following API endpoints:
 
 ## Recent Changes (Nov 27, 2025)
 
+### Navbar Redesign (ForestLock Style)
+- Made navbar transparent with glass effect (`bg-black/20 backdrop-blur-md`)
+- Simplified navigation to: Logo, Resources dropdown (About, Contact, FAQ), Blog, Customer Dashboard, Designer Console
+- Added tube light glow effect at the bottom of the navbar (multi-layer gradient glow)
+- Removed: Pricing, Sign In, Designer Onboarding from navbar
+- Updated mobile menu with same simplified navigation structure
+
 ### Particle Effect Upgrade
 - Replaced CSS-based particle effect with WebGL-based OGL particle effect on the landing page
 - Uses `components/Particles.tsx` with WebGL rendering for smoother, more performant animations
