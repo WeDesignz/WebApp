@@ -87,7 +87,7 @@ export default function JoinAsFreelancerCTA() {
             transition={{ duration: 0.6 }}
             className="relative"
           >
-            <ElectricBorder color="#7df9ff" speed={1} chaos={0.2} thickness={2} style={{ borderRadius: 24 }}>
+            <ElectricBorder color="#7df9ff" speed={1} chaos={0.5} thickness={2} style={{ borderRadius: 24 }}>
               <div className="relative rounded-3xl bg-gradient-to-br from-card/80 to-primary/5 backdrop-blur-xl p-8 md:p-10">
                 <div className="space-y-6">
                   <div className="flex items-start gap-4">
