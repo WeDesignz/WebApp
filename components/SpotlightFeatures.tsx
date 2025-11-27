@@ -37,7 +37,7 @@ export default function SpotlightFeatures() {
     <section className="py-20">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
         <div className="text-center mb-10">
-          <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Platform Features</h2>
+          <h2 className="font-display text-3xl md:text-5xl font-bold tracking-tight">Platform Features</h2>
           <p className="text-foreground/70 mt-3">Everything you need to create exceptional designs and build your career.</p>
         </div>
         <div ref={containerRef} className="sf-container relative rounded-3xl p-4 md:p-6">

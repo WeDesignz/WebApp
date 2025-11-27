@@ -112,7 +112,7 @@ export default function DomeGallery({
   fitBasis = 'auto',
   minRadius = 600,
   maxRadius = Infinity,
-  padFactor = 0.25,
+  padFactor = 0.15,
   overlayBlurColor = 'hsl(var(--background))',
   maxVerticalRotationDeg = DEFAULTS.maxVerticalRotationDeg,
   dragSensitivity = DEFAULTS.dragSensitivity,
@@ -541,7 +541,9 @@ export default function DomeGallery({
 @media (max-aspect-ratio: 1/1) {
   .viewer-frame {
     height: auto !important;
-    width: 100% !important;
+    width: min(65vw, 65vh) !important;
+    max-width: 600px !important;
+    max-height: 600px !important;
   }
 }
 
@@ -694,9 +696,13 @@ export default function DomeGallery({
             />
             <div
               ref={frameRef}
-              className="viewer-frame h-full aspect-square flex"
+              className="viewer-frame aspect-square flex"
               style={{
-                borderRadius: `var(--enlarge-radius, ${openedImageBorderRadius})`
+                borderRadius: `var(--enlarge-radius, ${openedImageBorderRadius})`,
+                width: 'min(60vw, 60vh)',
+                height: 'min(60vw, 60vh)',
+                maxWidth: '600px',
+                maxHeight: '600px'
               }}
             />
           </div>

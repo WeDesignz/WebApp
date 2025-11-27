@@ -3,6 +3,20 @@ import type { Metadata } from "next";
 import { ReactNode } from "react";
 import Providers from "./providers";
 import Script from "next/script";
+import { Inter, Poppins } from "next/font/google";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-poppins",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "WeDesign",
@@ -24,7 +38,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${poppins.variable}`}>
       <head>
         <meta name="p:domain_verify" content="7efb64ebb140ef75eb3643e0a9714d6b" />
         {/* Theme-aware favicon switching */}

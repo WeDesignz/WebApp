@@ -231,7 +231,7 @@ export default function CardSlider({ title, items }: { title: string; items: Ite
     <section className="py-16">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl md:text-3xl font-bold tracking-tight">{title}</h3>
+          <h3 className="font-display text-2xl md:text-3xl font-bold tracking-tight">{title}</h3>
           <div className="text-xs text-muted-foreground">Hover to pause • Drag to explore</div>
         </div>
         <div
@@ -290,14 +290,14 @@ export default function CardSlider({ title, items }: { title: string; items: Ite
                       draggable={false} 
                     />
                   )}
-                  {/* Enhanced gradient overlay for better text readability */}
-                  <div className="absolute inset-0 bg-gradient-to-tr from-black/80 via-black/40 to-transparent group-hover:from-black/70 group-hover:via-black/30 transition-all duration-300" />
+                  {/* Enhanced gradient overlay for better text readability - only on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-tr from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   
-                  {/* Content */}
-                  <div className="relative h-full flex flex-col justify-end p-5 z-10">
-                    <div className="text-lg font-semibold text-white group-hover:text-white transition-colors duration-300">{it.title}</div>
+                  {/* Content - only visible on hover */}
+                  <div className="relative h-full flex flex-col justify-end p-5 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="text-lg font-semibold text-white">{it.title}</div>
                     {it.desc && (
-                      <div className="text-sm text-white/90 mt-1 max-w-[90%] group-hover:text-white transition-colors duration-300">
+                      <div className="text-sm text-white/90 mt-1 max-w-[90%]">
                         {it.desc}
                       </div>
                     )}

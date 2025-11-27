@@ -3,6 +3,7 @@
 import { ArrowRight, Award, Palette, Rocket, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import SpotlightCard from "./SpotlightCard";
 
 export default function JoinAsFreelancerCTA() {
   const benefits = [
@@ -26,7 +27,7 @@ export default function JoinAsFreelancerCTA() {
               For Creative Professionals
             </div>
 
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] mb-6">
+            <h2 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] mb-6">
               Showcase Your Work.
               <br />
               Get Discovered.
@@ -82,7 +83,10 @@ export default function JoinAsFreelancerCTA() {
             transition={{ duration: 0.6 }}
             className="relative"
           >
-            <div className="relative rounded-3xl border border-border bg-gradient-to-br from-card/80 to-primary/5 backdrop-blur-xl p-8 md:p-10">
+            <SpotlightCard 
+              className="bg-card/80 backdrop-blur-xl p-8 md:p-10"
+              spotlightColor="rgba(124, 58, 237, 0.2)"
+            >
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center flex-shrink-0">
@@ -121,10 +125,7 @@ export default function JoinAsFreelancerCTA() {
                   <span className="text-2xl font-bold text-primary">$4.2K/mo</span>
                 </div>
               </div>
-            </div>
-
-            <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-primary/20 rounded-full blur-3xl" />
-            <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/20 rounded-full blur-3xl" />
+            </SpotlightCard>
           </motion.div>
         </div>
       </div>

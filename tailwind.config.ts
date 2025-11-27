@@ -103,10 +103,10 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["Inter", "var(--font-sans)"],
+        sans: ["var(--font-inter)", "var(--font-sans)"],
         serif: ["var(--font-serif)"],
         mono: ["var(--font-mono)"],
-        display: ["Space Grotesk", "var(--font-sans)"],
+        display: ["var(--font-poppins)", "var(--font-sans)"],
       },
       keyframes: {
         "accordion-down": {

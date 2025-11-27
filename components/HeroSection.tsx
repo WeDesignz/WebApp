@@ -2,33 +2,98 @@
 
 import { Zap, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import CardSwap, { Card } from './CardSwap';
+import { apiClient } from '@/lib/api';
 
-const featuredDesigns = [
-  {
-    id: 1,
-    title: "Stellar Brand",
-    creator: "@wedesignz",
-    price: "$299",
-    image: "/generated_images/Brand_Identity_Design_67fa7e1f.png"
-  },
-  {
-    id: 2,
-    title: "Neon Dreams",
-    creator: "@artmaster",
-    price: "$450",
-    image: "/generated_images/Typography_Poster_Design_be3980bc.png"
-  },
-  {
-    id: 3,
-    title: "Mobile Pro",
-    creator: "@uxdesigner",
-    price: "$199",
-    image: "/generated_images/Mobile_App_Interface_672164f7.png"
-  }
-];
+interface HeroDesign {
+  id: number;
+  title: string;
+  creator: string;
+  price: string;
+  image: string | null;
+}
 
 export default function HeroSection() {
+  const [featuredDesigns, setFeaturedDesigns] = useState<HeroDesign[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true; // Prevent state updates if component unmounts
+    
+    const fetchHeroDesigns = async () => {
+      try {
+        // Try using apiClient.catalogAPI if available, otherwise use direct fetch
+        let designsData: HeroDesign[] = [];
+        
+        if (apiClient.catalogAPI?.getHeroSectionDesigns) {
+          try {
+            const response = await apiClient.catalogAPI.getHeroSectionDesigns();
+            if (response.data?.designs && Array.isArray(response.data.designs)) {
+              designsData = response.data.designs;
+            } else if (response.designs && Array.isArray(response.designs)) {
+              designsData = response.designs;
+            }
+          } catch (apiError) {
+            // Silently fall through to direct fetch
+          }
+        }
+        
+        // If no data from API client, try direct fetch
+        if (designsData.length === 0) {
+          const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+          const url = `${apiBaseUrl}/api/catalog/hero-section/`;
+          
+          const fetchResponse = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (!fetchResponse.ok) {
+            throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+          }
+          
+          const data = await fetchResponse.json();
+          console.log('Hero designs API response data:', data);
+          
+          // Handle both response formats
+          if (data.designs && Array.isArray(data.designs)) {
+            designsData = data.designs;
+            console.log('Found designs:', designsData.length, designsData);
+            // Log image URLs for debugging
+            designsData.forEach((design: HeroDesign, index: number) => {
+              console.log(`Design ${index + 1}: ID=${design.id}, Title=${design.title}, Image=${design.image || 'NULL'}`);
+            });
+          } else if (data.data?.designs && Array.isArray(data.data.designs)) {
+            designsData = data.data.designs;
+            console.log('Found designs in data.designs:', designsData.length);
+          }
+        }
+        
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setFeaturedDesigns(designsData);
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Error fetching hero designs:', error);
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setFeaturedDesigns([]);
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchHeroDesigns();
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <section className="relative min-h-screen flex items-center pt-24 pb-16 px-6 md:px-8 lg:px-12">
@@ -57,13 +122,13 @@ export default function HeroSection() {
             className="space-y-8"
           >
             <div className="space-y-4">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-light tracking-tight text-white leading-[1.1]">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-medium tracking-[-0.03em] text-white leading-[1.1]">
                 Discover,
                 <br />
                 collect, and sell
                 <br />
                 extraordinary{' '}
-                <span className="font-normal bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
+                <span className="font-semibold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
                   Designs
                 </span>
               </h1>
@@ -109,60 +174,75 @@ export default function HeroSection() {
             className="relative flex justify-center items-center mt-24 md:mt-28"
             style={{ height: '600px', position: 'relative' }}
           >
-            <CardSwap
-              width={360}
-              height={480}
-              cardDistance={50}
-              verticalDistance={60}
-              delay={4000}
-              pauseOnHover={false}
-              easing="elastic"
-            >
-              {featuredDesigns.map((design) => (
-                <Card
-                  key={design.id}
-                  customClass="overflow-hidden bg-gradient-to-b from-white/5 to-black/40 border border-white/10 backdrop-blur-sm shadow-2xl"
-                >
-                  {/* Circular WeDesign Logo Badge */}
-                  <div className="absolute top-4 right-4 z-20">
-                    <div className="flex items-center justify-center w-12 h-12 rounded-full border border-white/30 bg-black backdrop-blur-sm shadow-lg">
-                      <img 
-                        src="/Logos/ONLY LOGO.svg" 
-                        alt="WeDesign Logo"
-                        className="w-8 h-8 object-contain brightness-0 invert"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Featured Image */}
-                  <div className="h-[65%] relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/70 z-10" />
-                    <img 
-                      src={design.image} 
-                      alt={design.title}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-
-                  {/* Card Info Footer */}
-                  <div className="h-[35%] p-5 bg-black/50 backdrop-blur-sm flex flex-col justify-center">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 p-2">
+            {isLoading ? (
+              <div className="text-white/50 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white/30 mx-auto mb-2"></div>
+                <p>Loading designs...</p>
+              </div>
+            ) : featuredDesigns.length > 0 ? (
+              <CardSwap
+                width={360}
+                height={480}
+                cardDistance={50}
+                verticalDistance={60}
+                delay={4000}
+                pauseOnHover={false}
+                easing="elastic"
+              >
+                {featuredDesigns.map((design) => (
+                  <Card
+                    key={design.id}
+                    customClass="overflow-hidden bg-gradient-to-b from-white/5 to-black/40 border border-white/10 backdrop-blur-sm shadow-2xl"
+                  >
+                    {/* Circular WeDesign Logo Badge */}
+                    <div className="absolute top-4 right-4 z-20">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full border border-white/30 bg-black backdrop-blur-sm shadow-lg">
                         <img 
                           src="/Logos/ONLY LOGO.svg" 
                           alt="WeDesign Logo"
-                          className="w-full h-full object-contain"
+                          className="w-8 h-8 object-contain brightness-0 invert"
                         />
                       </div>
-                      <div>
-                        <h3 className="text-white font-semibold text-base">{design.title}</h3>
-                        <p className="text-white/50 text-xs mt-0.5">{design.creator}</p>
+                    </div>
+
+                    {/* Featured Image */}
+                    <div className="h-[65%] relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/70 z-10" />
+                      {design.image ? (
+                        <img 
+                          src={design.image} 
+                          alt={design.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            // Use a data URI placeholder to prevent 404 loops
+                            target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%231a1a1a" width="400" height="400"/%3E%3Ctext fill="%23ffffff" font-family="Arial" font-size="18" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage not available%3C/text%3E%3C/svg%3E';
+                            target.onerror = null; // Prevent infinite loop
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+                          <p className="text-white/50 text-sm">No image</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Card Info Footer */}
+                    <div className="h-[35%] p-5 bg-black/50 backdrop-blur-sm flex flex-col justify-center">
+                        <div>
+                          <h3 className="text-white font-semibold text-base">{design.title || 'Design'}</h3>
+                          <p className="text-white/50 text-xs mt-0.5">{design.creator || '@wedesignz'}</p>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
-            </CardSwap>
+                  </Card>
+                ))}
+              </CardSwap>
+            ) : (
+              <div className="text-white/50 text-center">
+                <p className="mb-2">No designs available</p>
+                <p className="text-sm text-white/30">Please configure hero section designs in admin panel</p>
+              </div>
+            )}
           </motion.div>
         </div>
       </div>

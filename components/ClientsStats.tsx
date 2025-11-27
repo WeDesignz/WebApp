@@ -3,18 +3,68 @@
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 
-const logos = ["Figma", "Adobe", "Dribbble", "Behance", "Sketch", "InVision", "Canva", "Framer"];
+const defaultLogos = ["Figma", "Adobe", "Dribbble", "Behance", "Sketch", "InVision", "Canva", "Framer"];
 
 export default function ClientsStats() {
   const [counts, setCounts] = useState({ clients: 0, designers: 0, assets: 0 });
+  const [targetCounts, setTargetCounts] = useState({ clients: 0, designers: 0, assets: 0 });
+  const [clientNames, setClientNames] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [paused, setPaused] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const sliderRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef(0);
   const scrollLeftRef = useRef(0);
 
+  // Fetch landing page data from API
   useEffect(() => {
-    const targets = { clients: 1200, designers: 350, assets: 5400 };
+    const fetchLandingPageData = async () => {
+      try {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+        const response = await fetch(`${apiBaseUrl}/api/coreadmin/landing-page-data/`);
+        const data = await response.json();
+        
+        // Set target values for animation
+        const fetchedCounts = {
+          clients: data.stats?.totalClients || 0,
+          designers: data.stats?.totalDesigners || 0,
+          assets: data.stats?.totalDesignAssets || 0,
+        };
+        
+        // Use fallback values if API returns 0 or no data
+        const finalTargets = {
+          clients: fetchedCounts.clients || 1200,
+          designers: fetchedCounts.designers || 350,
+          assets: fetchedCounts.assets || 5400,
+        };
+        
+        setTargetCounts(finalTargets);
+        
+        if (data.clientNames && Array.isArray(data.clientNames) && data.clientNames.length > 0) {
+          setClientNames(data.clientNames);
+        } else {
+          // Fallback to default logos if no client names
+          setClientNames(defaultLogos);
+        }
+      } catch (error) {
+        console.error('Error fetching landing page data:', error);
+        // Fallback to default values
+        setTargetCounts({ clients: 1200, designers: 350, assets: 5400 });
+        setClientNames(defaultLogos);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchLandingPageData();
+  }, []);
+
+  useEffect(() => {
+    if (isLoading || (targetCounts.clients === 0 && targetCounts.designers === 0 && targetCounts.assets === 0)) {
+      return; // Don't animate until data is loaded or if targets are 0
+    }
+    
+    const targets = targetCounts;
     const duration = 2400; // Perfectly balanced duration
     
     // Professional easing curve for counting animations
@@ -77,18 +127,17 @@ export default function ClientsStats() {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, []);
+  }, [isLoading, targetCounts.clients, targetCounts.designers, targetCounts.assets]);
 
   useEffect(() => {
     const el = sliderRef.current;
-    if (!el) return;
+    if (!el || clientNames.length === 0) return;
     let raf: number;
     
-    // Calculate the width of one set of logos (8 logos = 1 set)
+    // Calculate the width of one set of logos
     const calculateSingleSetWidth = () => {
       // Each logo has min-width 180px + gap of 32px (gap-8 = 2rem = 32px)
-      // 8 logos per set
-      const logoCount = logos.length; // 8
+      const logoCount = clientNames.length;
       const logoWidth = 180; // min-w-[180px]
       const gap = 32; // gap-8 = 2rem
       return logoCount * logoWidth + (logoCount - 1) * gap;
@@ -118,7 +167,7 @@ export default function ClientsStats() {
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [paused, isDragging]);
+  }, [paused, isDragging, clientNames]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!sliderRef.current) return;
@@ -135,7 +184,7 @@ export default function ClientsStats() {
     let newScrollLeft = scrollLeftRef.current - walk;
     
     // Calculate single set width for seamless looping during drag
-    const logoCount = logos.length;
+    const logoCount = clientNames.length;
     const logoWidth = 180;
     const gap = 32;
     const singleSetWidth = logoCount * logoWidth + (logoCount - 1) * gap;
@@ -233,12 +282,12 @@ export default function ClientsStats() {
             style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
           >
             {/* Duplicate enough times for seamless infinite loop */}
-            {[...logos, ...logos, ...logos, ...logos].map((l, i) => (
+            {clientNames.length > 0 && [...clientNames, ...clientNames, ...clientNames, ...clientNames].map((name, i) => (
               <div
-                key={i}
+                key={`${name}-${i}`}
                 className="min-w-[180px] text-center text-base font-semibold rounded-xl border border-border py-6 px-8 bg-card/60 backdrop-blur hover-elevate transition-all flex-shrink-0"
               >
-                {l}
+                {name}
               </div>
             ))}
           </div>

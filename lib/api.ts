@@ -602,6 +602,52 @@ export const catalogAPI = {
   }>> {
     return apiRequest('/api/catalog/popular-categories/');
   },
+
+  /**
+   * Get hero section designs
+   */
+  async getHeroSectionDesigns(): Promise<ApiResponse<{
+    designs: Array<{
+      id: number;
+      title: string;
+      creator: string;
+      price: string;
+      image: string;
+    }>;
+    count: number;
+  }>> {
+    return apiRequest('/api/catalog/hero-section/');
+  },
+
+  /**
+   * Get dome gallery images
+   */
+  async getDomeGalleryImages(): Promise<ApiResponse<{
+    images: Array<{
+      src: string;
+      alt: string;
+    }>;
+    count: number;
+  }>> {
+    return apiRequest('/api/catalog/dome-gallery/');
+  },
+
+  /**
+   * Get featured designs
+   */
+  async getFeaturedDesigns(): Promise<ApiResponse<{
+    designs: Array<{
+      id: number;
+      title: string;
+      creator: string;
+      price: string;
+      image: string | null;
+      category?: string;
+    }>;
+    count: number;
+  }>> {
+    return apiRequest('/api/catalog/featured-designs/');
+  },
 };
 
 /**
@@ -740,7 +786,7 @@ export const apiClient = {
 
 
   // Catalog methods
-  ...catalogAPI,
+  catalogAPI,
 
   // Cart methods
   getCart: async (): Promise<ApiResponse<{

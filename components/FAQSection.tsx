@@ -12,7 +12,7 @@ export default function FAQSection() {
     <section id="faqs" className="py-24">
       <div className="max-w-5xl mx-auto px-6 md:px-8">
         <div className="mb-10 text-center">
-          <h2 className="text-3xl md:text-5xl font-bold tracking-tight">FAQs</h2>
+          <h2 className="font-display text-3xl md:text-5xl font-bold tracking-tight">FAQs</h2>
           <p className="text-foreground/70 mt-3">Common questions about selling designs and services.</p>
         </div>
         <div className="space-y-4">

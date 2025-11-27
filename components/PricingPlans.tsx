@@ -58,7 +58,7 @@ export default function PricingPlans() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h2 className="text-4xl md:text-6xl font-bold tracking-tight bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
+          <h2 className="font-display text-4xl md:text-6xl font-bold tracking-tight bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
             Choose Your Plan
           </h2>
           <p className="text-foreground/70 text-lg mt-4">Transparent pricing for every team size. No hidden fees.</p>
