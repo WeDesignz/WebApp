@@ -2344,6 +2344,18 @@ export const apiClient = {
     });
   },
 
+  createCategory: async (name: string, description?: string): Promise<ApiResponse<{
+    category: any;
+  }>> => {
+    return apiRequest('/api/catalog/categories/', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        name: name.trim(), 
+        ...(description && { description: description.trim() })
+      }),
+    });
+  },
+
   // Upload Design
   uploadDesign: async (formData: FormData) => {
     const token = typeof window !== 'undefined' 
