@@ -2356,6 +2356,18 @@ export const apiClient = {
     });
   },
 
+  createSubcategory: async (categoryId: number, name: string, description?: string): Promise<ApiResponse<{
+    subcategory: any;
+  }>> => {
+    return apiRequest(`/api/catalog/categories/${categoryId}/subcategories/`, {
+      method: 'POST',
+      body: JSON.stringify({ 
+        name: name.trim(),
+        ...(description && { description: description.trim() })
+      }),
+    });
+  },
+
   // Upload Design
   uploadDesign: async (formData: FormData) => {
     const token = typeof window !== 'undefined' 
