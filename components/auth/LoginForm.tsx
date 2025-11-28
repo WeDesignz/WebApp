@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 
 export default function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -41,9 +42,17 @@ export default function LoginForm() {
     try {
       await login(formData.emailOrUsername, formData.password, rememberMe);
       toast.success('Login successful! Welcome back.');
+      
+      // Get redirect destination from query params
+      const redirectTo = searchParams.get('redirect');
+      
       // Small delay to ensure toast is visible before redirect
       setTimeout(() => {
-        router.push('/');
+        if (redirectTo) {
+          router.push(decodeURIComponent(redirectTo));
+        } else {
+          router.push('/');
+        }
       }, 500);
     } catch (err: any) {
       console.error('Login error:', err);
@@ -140,7 +149,10 @@ export default function LoginForm() {
 
           <div className="mt-6 text-center text-sm">
             <span className="text-muted-foreground">Don't have an account? </span>
-            <Link href="/auth/register" className="text-primary hover:underline font-medium">
+            <Link 
+              href={`/auth/register${searchParams.get('redirect') ? `?redirect=${searchParams.get('redirect')}` : ''}`}
+              className="text-primary hover:underline font-medium"
+            >
               Sign up
             </Link>
           </div>

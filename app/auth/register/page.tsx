@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import AuthHeader from '@/components/auth/AuthHeader';
 import RegisterForm from '@/components/auth/RegisterForm';
 
@@ -10,7 +11,9 @@ export default function RegisterPage() {
   return (
     <>
       <AuthHeader />
-      <RegisterForm />
+      <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+        <RegisterForm />
+      </Suspense>
     </>
   );
 }

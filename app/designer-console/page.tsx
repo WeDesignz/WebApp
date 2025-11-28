@@ -4,11 +4,13 @@ import { useState } from "react";
 import DesignerTopBar from "@/components/designer-console/DesignerTopBar";
 import DesignerSidebar from "@/components/designer-console/DesignerSidebar";
 import DashboardContent from "@/components/designer-console/DashboardContent";
+import DesignerConsoleGuard from "@/components/auth/DesignerConsoleGuard";
 
 export default function DesignerConsolePage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
+    <DesignerConsoleGuard>
       <div className="min-h-screen bg-background">
         <DesignerTopBar />
         
@@ -23,5 +25,6 @@ export default function DesignerConsolePage() {
           </main>
         </div>
       </div>
+    </DesignerConsoleGuard>
   );
 }

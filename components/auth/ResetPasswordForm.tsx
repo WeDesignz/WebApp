@@ -69,17 +69,11 @@ export default function ResetPasswordForm() {
               <div className="bg-muted/50 border border-border rounded-lg p-4 text-sm text-left">
                 <p className="font-medium mb-2">Next Steps:</p>
                 <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                  <li>Check your email inbox for the OTP code</li>
-                  <li>Go to the set password page</li>
-                  <li>Enter your email, OTP, and new password</li>
+                  <li>Check your email inbox for the password reset link</li>
+                  <li>Click on the link in the email</li>
+                  <li>Follow the instructions to reset your password</li>
                 </ol>
               </div>
-
-              <Link href={`/auth/set-password?email=${encodeURIComponent(email)}`}>
-                <Button className="w-full">
-                  Continue to Set Password
-                </Button>
-              </Link>
 
               <div className="text-sm text-muted-foreground">
                 Didn't receive the email?{' '}

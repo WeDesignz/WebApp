@@ -292,12 +292,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (savedRefreshToken) {
       try {
         await apiClient.logout(savedRefreshToken);
-      } catch (error) {
-        console.error('Logout error:', error);
-        // Continue with local logout anyway
+      } catch (error: any) {
+        // Silently handle logout errors - token might be invalid/expired which is fine
+        // We still want to clear local auth data regardless of API response
+        // Only log in development for debugging
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('Logout API call failed (this is usually fine):', error?.message || error);
+        }
       }
     }
     
+    // Always clear local auth data, even if API call failed
     clearAuthData();
   };
 

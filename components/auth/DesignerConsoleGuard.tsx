@@ -25,8 +25,9 @@ export default function DesignerConsoleGuard({ children }: DesignerConsoleGuardP
 
       // Step 1: Check if user is authenticated
       if (!isAuthenticated) {
-        // Redirect to register/signup if not authenticated
-        router.push('/auth/register');
+        // Redirect to login with redirect parameter to come back here after login
+        const currentPath = '/designer-console';
+        router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
         return;
       }
 

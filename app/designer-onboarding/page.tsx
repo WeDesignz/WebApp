@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import DesignerOnboardingWizard from '@/components/designer-onboarding/DesignerOnboardingWizard';
 
 export const metadata = {
@@ -6,5 +7,9 @@ export const metadata = {
 };
 
 export default function DesignerOnboardingPage() {
-  return <DesignerOnboardingWizard />;
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <DesignerOnboardingWizard />
+    </Suspense>
+  );
 }

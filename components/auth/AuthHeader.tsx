@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, LogIn, UserPlus, KeyRound, Home, Lock } from 'lucide-react';
+import { ChevronDown, LogIn, UserPlus, KeyRound, Home } from 'lucide-react';
 
 export default function AuthHeader() {
   const pathname = usePathname();
@@ -19,14 +19,9 @@ export default function AuthHeader() {
     { href: '/auth/login', label: 'Sign In', icon: LogIn },
     { href: '/auth/register', label: 'Create Account', icon: UserPlus },
     { href: '/auth/reset-password', label: 'Reset Password', icon: KeyRound },
-    { href: '/auth/set-password', label: 'Set Password', icon: Lock },
   ];
 
-  const currentPage = authPages.find(page => 
-    page.href === '/auth/set-password' 
-      ? pathname?.startsWith('/auth/set-password')
-      : pathname === page.href
-  );
+  const currentPage = authPages.find(page => pathname === page.href);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
@@ -34,8 +29,13 @@ export default function AuthHeader() {
         <Link href="/" className="flex items-center gap-2">
           <img 
             src="/Logos/ONLY LOGO.svg" 
-            alt="WeDesign" 
+            alt="WeDesign Logo" 
             className="h-8 w-auto brightness-0 invert"
+          />
+          <img 
+            src="/Logos/ONLY TEXT.svg" 
+            alt="WeDesign" 
+            className="h-6 w-auto brightness-0 invert"
           />
         </Link>
 

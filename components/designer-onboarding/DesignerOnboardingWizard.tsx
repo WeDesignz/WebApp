@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import Step1BasicProfile from './Step1BasicProfile';
 import Step2BusinessDetails from './Step2BusinessDetails';
@@ -51,6 +51,7 @@ interface Step3Data {
 
 export default function DesignerOnboardingWizard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = useState(1);
   const [step1Data, setStep1Data] = useState<Step1Data>({
     firstName: '',
@@ -134,9 +135,12 @@ export default function DesignerOnboardingWizard() {
 
   const handleStep4Complete = (bulkFile: File) => {
     // Toast is already shown in Step4BulkUpload component
+    // Get redirect destination from query params, default to designer-console
+    const redirectTo = searchParams.get('redirect') || '/designer-console';
+    
     // Just redirect after a short delay to ensure toast is visible
     setTimeout(() => {
-      router.push('/designer-console');
+      router.push(decodeURIComponent(redirectTo));
     }, 1500);
   };
 

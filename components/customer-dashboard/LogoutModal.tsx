@@ -26,11 +26,16 @@ export default function LogoutModal({ isOpen, onClose }: LogoutModalProps) {
   const handleLogout = async () => {
     try {
       await logout();
+      // Always redirect to login, even if API call failed
+      // Local auth data is cleared regardless
       toast.success("Logged out successfully");
       router.push("/auth/login");
       onClose();
     } catch (error) {
-      toast.error("Failed to logout");
+      // Even if logout throws an error, we should still redirect
+      // The logout function always clears local data
+      router.push("/auth/login");
+      onClose();
     }
   };
 

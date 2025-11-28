@@ -19,7 +19,14 @@ export default function ProtectedRoute({
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push(redirectTo);
+      // Get current path to preserve as redirect destination
+      const currentPath = window.location.pathname;
+      // Only add redirect if we're not already on the login or register page
+      if (currentPath !== '/auth/login' && currentPath !== '/auth/register') {
+        router.push(`${redirectTo}?redirect=${encodeURIComponent(currentPath)}`);
+      } else {
+        router.push(redirectTo);
+      }
     }
   }, [isAuthenticated, isLoading, router, redirectTo]);
 

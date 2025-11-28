@@ -303,8 +303,12 @@ async function apiRequest<T>(
          endpoint.includes('/get-designer-onboarding-step2') ||
          endpoint.includes('/get-designer-onboarding-step3'));
       
-      // Log error for debugging (skip expected 404s)
-      if (!isExpected404) {
+      // Don't log errors for logout endpoint - 400/401 errors are expected when token is invalid/expired
+      const isLogoutEndpoint = endpoint.includes('/auth/logout') || endpoint.includes('/logout/');
+      const isLogoutError = isLogoutEndpoint && (response.status === 400 || response.status === 401);
+      
+      // Log error for debugging (skip expected 404s and logout errors)
+      if (!isExpected404 && !isLogoutError) {
         logError(errorDetails, `API Request: ${endpoint}`);
       }
       

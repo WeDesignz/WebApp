@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 
 export default function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { register, sendEmailOTP, sendMobileOTP, verifyEmailOTP, verifyMobileOTP } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -104,9 +105,20 @@ export default function RegisterForm() {
       });
       
       toast.success('Account created successfully! Welcome to WeDesign.');
-      // Redirect to home page after showing success message
+      
+      // Get redirect destination from query params
+      const redirectTo = searchParams.get('redirect');
+      
+      // If redirecting to designer-console, send to onboarding first
+      // Otherwise, redirect to the intended destination or home
       setTimeout(() => {
-        router.push('/');
+        if (redirectTo === '/designer-console') {
+          router.push(`/designer-onboarding?redirect=${encodeURIComponent('/designer-console')}`);
+        } else if (redirectTo) {
+          router.push(decodeURIComponent(redirectTo));
+        } else {
+          router.push('/');
+        }
       }, 1500);
     } catch (err: any) {
       console.error('Registration error:', err);
@@ -298,7 +310,10 @@ export default function RegisterForm() {
 
             <div className="mt-6 text-center text-sm">
               <span className="text-muted-foreground">Already have an account? </span>
-              <Link href="/auth/login" className="text-primary hover:underline font-medium">
+              <Link 
+                href={`/auth/login${searchParams.get('redirect') ? `?redirect=${searchParams.get('redirect')}` : ''}`}
+                className="text-primary hover:underline font-medium"
+              >
                 Sign in
               </Link>
             </div>
