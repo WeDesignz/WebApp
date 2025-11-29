@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [resourcesOpen, setResourcesOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
-  const resourcesItems = [
+  const moreMenuItems = [
     { label: 'About', href: '#about' },
     { label: 'Contact', href: '#contact' },
+    { label: 'Blog', href: '#blog' },
     { label: 'FAQ', href: '#faqs' },
   ];
 
@@ -34,50 +35,7 @@ export default function Navbar() {
 
           {/* Desktop Navigation - Center */}
           <div className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
-            {/* Resources Dropdown */}
-            <div className="relative group/resources">
-              <button
-                onClick={() => setResourcesOpen(!resourcesOpen)}
-                onBlur={() => setTimeout(() => setResourcesOpen(false), 200)}
-                className="flex items-center gap-1.5 text-sm font-medium text-white/80 hover:text-white transition-colors"
-                style={{ perspective: '500px' }}
-              >
-                <span 
-                  className="inline-block group-hover/resources:animate-spin-y"
-                  style={{ transformStyle: 'preserve-3d' }}
-                >
-                  Resources
-                </span>
-                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${resourcesOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {resourcesOpen && (
-                <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 w-48 rounded-xl bg-black/80 backdrop-blur-xl shadow-2xl border border-white/10 p-2 z-50">
-                  {resourcesItems.map((item) => (
-                    <a 
-                      key={item.label} 
-                      href={item.href} 
-                      className="block px-4 py-2.5 text-sm text-white/80 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
-                    >
-                      {item.label}
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Blog */}
-            <a 
-              href="#blog" 
-              className="text-sm font-medium text-white/80 hover:text-white transition-colors group/blog"
-              style={{ perspective: '500px' }}
-            >
-              <span 
-                className="inline-block group-hover/blog:animate-spin-y"
-                style={{ transformStyle: 'preserve-3d' }}
-              >
-                Blog
-              </span>
-            </a>
+            {/* Empty - removed Resources and Blog */}
           </div>
 
           {/* Right Side - Dashboard Buttons */}
@@ -89,17 +47,46 @@ export default function Navbar() {
               data-testid="button-customer-dashboard"
               asChild
             >
-              <a href="/customer-dashboard">Customer Dashboard</a>
+              <a href="/customer-dashboard">Explore</a>
             </Button>
 
             {/* Designer Console Button */}
             <Button
-              className="px-5 py-2 rounded-full text-sm font-semibold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all"
+              variant="outline"
+              className="px-5 py-2 rounded-full text-sm font-medium border border-white/20 bg-transparent text-white/80 hover:bg-white/10 hover:text-white hover:border-white/30 transition-all"
               data-testid="button-designer-console"
               asChild
             >
-              <a href="/designer-console">Designer Console</a>
+              <a href="/designer-console">Console</a>
             </Button>
+
+            {/* More Button with Dropdown */}
+            <div className="relative">
+              <Button
+                variant="outline"
+                onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+                onBlur={() => setTimeout(() => setMoreMenuOpen(false), 200)}
+                className="px-5 py-2 rounded-full text-sm font-medium border border-white/20 bg-transparent text-white/80 hover:bg-white/10 hover:text-white hover:border-white/30 transition-all flex items-center gap-1.5"
+                data-testid="button-more"
+              >
+                More
+                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${moreMenuOpen ? 'rotate-180' : ''}`} />
+              </Button>
+              {moreMenuOpen && (
+                <div className="absolute top-full mt-2 right-0 w-48 rounded-xl bg-black/80 backdrop-blur-xl shadow-2xl border border-white/10 p-2 z-50">
+                  {moreMenuItems.map((item) => (
+                    <a 
+                      key={item.label} 
+                      href={item.href} 
+                      className="block px-4 py-2.5 text-sm text-white/80 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
+                      onClick={() => setMoreMenuOpen(false)}
+                    >
+                      {item.label}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Mobile Menu Button */}
@@ -129,10 +116,10 @@ export default function Navbar() {
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="lg:hidden mt-4 rounded-2xl bg-black/80 backdrop-blur-xl shadow-xl p-6 space-y-4">
-            {/* Resources Section */}
+            {/* More Menu Section */}
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Resources</p>
-              {resourcesItems.map((item) => (
+              <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">More</p>
+              {moreMenuItems.map((item) => (
                 <a 
                   key={item.label} 
                   href={item.href} 
@@ -145,12 +132,6 @@ export default function Navbar() {
             
             <div className="h-px bg-white/10" />
             
-            <a href="#blog" className="block py-2 text-sm text-white/80 hover:text-white transition-colors">
-              Blog
-            </a>
-            
-            <div className="h-px bg-white/10" />
-            
             <div className="space-y-3 pt-2">
               <Button
                 variant="outline"
@@ -158,14 +139,15 @@ export default function Navbar() {
                 data-testid="button-customer-dashboard-mobile"
                 asChild
               >
-                <a href="/customer-dashboard">Customer Dashboard</a>
+                <a href="/customer-dashboard">Explore</a>
               </Button>
               <Button
-                className="w-full rounded-full font-semibold shadow-lg shadow-primary/25"
+                variant="outline"
+                className="w-full rounded-full font-medium border border-white/20 bg-transparent text-white/80 hover:bg-white/10 hover:text-white"
                 data-testid="button-designer-console-mobile"
                 asChild
               >
-                <a href="/designer-console">Designer Console</a>
+                <a href="/designer-console">Console</a>
               </Button>
             </div>
           </div>
