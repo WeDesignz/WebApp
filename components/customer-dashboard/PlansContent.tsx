@@ -64,6 +64,13 @@ interface Subscription {
   mock_pdf_downloads_used?: number;
   remaining_free_downloads?: number;
   remaining_mock_pdf_downloads?: number;
+  // Monthly period fields for annual plans
+  current_period_downloads_used?: number | null;
+  current_period_downloads_allowed?: number | null;
+  current_period_remaining?: number | null;
+  current_period_start?: string | null;
+  current_period_end?: string | null;
+  next_period_reset_date?: string | null;
 }
 
 // Icon mapping for plan names
@@ -396,154 +403,308 @@ export default function PlansContent() {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <Card className="bg-gradient-to-br from-primary/5 to-purple-500/5 border-primary/20 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-primary/10 rounded-lg">
-                    <CreditCard className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold">Current Subscription</h2>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="default" className="bg-green-500">
-                        {currentSubscription.status.toUpperCase()}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {getPlanDisplayName(currentPlan.plan_name)} Plan - {currentPlan.plan_duration}
-                      </span>
+            <Card className="bg-gradient-to-br from-primary/10 via-purple-500/5 to-primary/5 border-primary/30 shadow-lg overflow-hidden">
+              {/* Header Section */}
+              <div className="bg-gradient-to-r from-primary/10 to-purple-500/10 p-6 border-b border-primary/20">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-4 bg-gradient-to-br from-primary/20 to-purple-500/20 rounded-xl shadow-md">
+                      <CreditCard className="w-7 h-7 text-primary" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                        Current Subscription
+                      </h2>
+                      <div className="flex items-center gap-3 mt-2">
+                        <Badge 
+                          variant="default" 
+                          className="bg-green-500 hover:bg-green-600 text-white font-semibold px-3 py-1"
+                        >
+                          <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse" />
+                          {currentSubscription.status.toUpperCase()}
+                        </Badge>
+                        <span className="text-sm font-medium text-foreground">
+                          {getPlanDisplayName(currentPlan.plan_name)} Plan
+                        </span>
+                        <Badge variant="outline" className="border-primary/30">
+                          {currentPlan.plan_duration === 'annually' ? 'Annual' : 'Monthly'}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleCancelSubscription}
+                    disabled={cancelSubscriptionMutation.isPending}
+                    className="border-red-500/30 text-red-600 hover:bg-red-50 hover:border-red-500 dark:hover:bg-red-950/20"
+                  >
+                    {cancelSubscriptionMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Cancelling...
+                      </>
+                    ) : (
+                      "Cancel Subscription"
+                    )}
+                  </Button>
                 </div>
-                <Button 
-                  variant="outline" 
-                  onClick={handleCancelSubscription}
-                  disabled={cancelSubscriptionMutation.isPending}
-                >
-                  {cancelSubscriptionMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Cancelling...
-                    </>
-                  ) : (
-                    "Cancel Subscription"
-                  )}
-                </Button>
               </div>
 
+              <div className="p-6">
+
               {/* Plan Features & Benefits */}
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                {/* Discount */}
-                {currentPlan.discount !== undefined && currentPlan.discount > 0 && (
-                  <div className="bg-background/50 backdrop-blur-sm rounded-lg p-4 border">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Percent className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-medium">Discount</span>
-                    </div>
-                    <p className="text-2xl font-bold">{currentPlan.discount}%</p>
-                    <p className="text-xs text-muted-foreground mt-1">On all purchases</p>
-                  </div>
-                )}
-
-                {/* Custom Design Hours */}
-                {currentPlan.custom_design_hour !== undefined && (
-                  <div className="bg-background/50 backdrop-blur-sm rounded-lg p-4 border">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Clock className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-medium">Custom Design</span>
-                    </div>
-                    <p className="text-2xl font-bold">
-                      {currentPlan.custom_design_hour} hour{currentPlan.custom_design_hour !== 1 ? 's' : ''}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">Delivery time</p>
-                  </div>
-                )}
-
-                {/* Free Downloads */}
+              <div className="space-y-4 mb-6">
+                {/* Free Downloads - Full Width */}
                 {currentPlan.no_of_free_downloads !== undefined && currentPlan.no_of_free_downloads > 0 && (
-                  <div className="bg-background/50 backdrop-blur-sm rounded-lg p-4 border">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Download className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-medium">Free Downloads</span>
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    className="bg-gradient-to-br from-purple-500/10 to-pink-500/5 rounded-lg p-4 border border-purple-500/20 hover:border-purple-500/40 transition-all shadow-sm hover:shadow-md"
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-2 bg-purple-500/20 rounded-lg flex-shrink-0">
+                        <Download className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <span className="text-sm font-semibold text-foreground">Free Downloads</span>
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-2xl font-bold">
-                        {currentSubscription.remaining_free_downloads ?? currentPlan.no_of_free_downloads} / {currentPlan.no_of_free_downloads}
-                      </p>
-                      <Progress
-                        value={((currentSubscription.remaining_free_downloads ?? currentPlan.no_of_free_downloads) / currentPlan.no_of_free_downloads) * 100}
-                        className="h-2"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        {currentSubscription.free_downloads_used ?? 0} used
-                      </p>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {/* Monthly Tracking (for annual plans only) */}
+                      {currentPlan.plan_duration === 'annually' && 
+                       currentSubscription.current_period_downloads_allowed !== null && 
+                       currentSubscription.current_period_downloads_allowed !== undefined && (
+                        <div className="flex flex-col">
+                          <div className="flex justify-between items-baseline mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse flex-shrink-0" />
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">This Month</span>
+                            </div>
+                            <span className={`text-2xl font-bold leading-tight ${
+                              (currentSubscription.current_period_remaining ?? 0) === 0 
+                                ? 'text-destructive' 
+                                : (currentSubscription.current_period_remaining ?? 0) <= 2 
+                                  ? 'text-orange-500' 
+                                  : 'text-purple-600 dark:text-purple-400'
+                            }`}>
+                              {currentSubscription.current_period_downloads_used ?? 0}
+                              <span className="text-base text-muted-foreground font-normal">/{currentSubscription.current_period_downloads_allowed}</span>
+                            </span>
+                          </div>
+                          <Progress
+                            value={((currentSubscription.current_period_downloads_used ?? 0) / (currentSubscription.current_period_downloads_allowed ?? 1)) * 100}
+                            className={`h-2.5 ${
+                              ((currentSubscription.current_period_downloads_used ?? 0) / (currentSubscription.current_period_downloads_allowed ?? 1)) >= 1
+                                ? '[&>div]:bg-destructive'
+                                : ((currentSubscription.current_period_downloads_used ?? 0) / (currentSubscription.current_period_downloads_allowed ?? 1)) >= 0.8
+                                  ? '[&>div]:bg-orange-500'
+                                  : '[&>div]:bg-gradient-to-r [&>div]:from-purple-500 [&>div]:to-pink-500'
+                            }`}
+                          />
+                          <div className="flex justify-between items-center mt-2">
+                            <p className={`text-xs font-medium ${
+                              (currentSubscription.current_period_remaining ?? 0) === 0 
+                                ? 'text-destructive' 
+                                : (currentSubscription.current_period_remaining ?? 0) <= 2 
+                                  ? 'text-orange-500' 
+                                  : 'text-muted-foreground'
+                            }`}>
+                              <span className="font-bold">{currentSubscription.current_period_remaining ?? 0}</span> remaining this month
+                            </p>
+                            {currentSubscription.next_period_reset_date && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Clock className="w-3 h-3" />
+                                <span>Resets {new Date(currentSubscription.next_period_reset_date).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric"
+                                })}</span>
+                              </div>
+                            )}
+                          </div>
+                          {(currentSubscription.current_period_remaining ?? 0) === 0 && (
+                            <div className="p-2 bg-destructive/10 border border-destructive/20 rounded-md mt-2">
+                              <p className="text-xs text-destructive font-semibold flex items-center gap-1.5">
+                                <AlertCircle className="w-3.5 h-3.5" />
+                                <span>Limit reached. Resets {currentSubscription.next_period_reset_date 
+                                  ? new Date(currentSubscription.next_period_reset_date).toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric"
+                                    })
+                                  : 'soon'}</span>
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Total Downloads (for all plans) */}
+                      <div className="flex flex-col border-l border-purple-500/20 pl-4">
+                        <div className="flex justify-between items-baseline mb-2">
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Remaining</span>
+                          <span className="text-2xl font-bold text-purple-600 dark:text-purple-400 leading-tight">
+                            {currentSubscription.remaining_free_downloads ?? currentPlan.no_of_free_downloads}
+                            <span className="text-base text-muted-foreground font-normal">/{currentPlan.no_of_free_downloads}</span>
+                          </span>
+                        </div>
+                        <Progress
+                          value={((currentSubscription.remaining_free_downloads ?? currentPlan.no_of_free_downloads) / currentPlan.no_of_free_downloads) * 100}
+                          className="h-2.5 bg-purple-500/10 [&>div]:bg-gradient-to-r [&>div]:from-purple-500 [&>div]:to-pink-500"
+                        />
+                        <div className="flex justify-between items-center mt-2">
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-semibold">{currentSubscription.free_downloads_used ?? 0}</span> used
+                          </p>
+                          <p className="text-xs font-medium text-purple-600 dark:text-purple-400">
+                            {Math.round(((currentSubscription.remaining_free_downloads ?? currentPlan.no_of_free_downloads) / currentPlan.no_of_free_downloads) * 100)}% remaining
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
-                {/* Mock PDF Downloads */}
-                {currentPlan.mock_pdf_count !== undefined && currentPlan.mock_pdf_count > 0 && (
-                  <div className="bg-background/50 backdrop-blur-sm rounded-lg p-4 border">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-medium">Mock PDFs</span>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-2xl font-bold">
-                        {currentSubscription.remaining_mock_pdf_downloads ?? currentPlan.mock_pdf_count} / {currentPlan.mock_pdf_count}
-                      </p>
-                      <Progress
-                        value={((currentSubscription.remaining_mock_pdf_downloads ?? currentPlan.mock_pdf_count) / currentPlan.mock_pdf_count) * 100}
-                        className="h-2"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        {currentSubscription.mock_pdf_downloads_used ?? 0} used
-                      </p>
-                    </div>
-                  </div>
-                )}
+                {/* Other Features - Compact Grid */}
+                <div className="grid md:grid-cols-3 gap-3">
+                  {/* Discount */}
+                  {currentPlan.discount !== undefined && currentPlan.discount > 0 && (
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      className="bg-gradient-to-br from-green-500/10 to-emerald-500/5 rounded-lg p-3 border border-green-500/20 hover:border-green-500/40 transition-all shadow-sm hover:shadow-md"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 bg-green-500/20 rounded-lg flex-shrink-0">
+                          <Percent className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-muted-foreground mb-0.5">Discount</p>
+                          <p className="text-xl font-bold text-green-600 dark:text-green-400 leading-tight">
+                            {currentPlan.discount}%
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">On all purchases</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Custom Design Hours */}
+                  {currentPlan.custom_design_hour !== undefined && (
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      className="bg-gradient-to-br from-blue-500/10 to-cyan-500/5 rounded-lg p-3 border border-blue-500/20 hover:border-blue-500/40 transition-all shadow-sm hover:shadow-md"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 bg-blue-500/20 rounded-lg flex-shrink-0">
+                          <Clock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-muted-foreground mb-0.5">Custom Design</p>
+                          <p className="text-xl font-bold text-blue-600 dark:text-blue-400 leading-tight">
+                            {currentPlan.custom_design_hour}h
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Delivery time</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Mock PDF Downloads */}
+                  {currentPlan.mock_pdf_count !== undefined && currentPlan.mock_pdf_count > 0 && (
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      className="bg-gradient-to-br from-indigo-500/10 to-blue-500/5 rounded-lg p-3 border border-indigo-500/20 hover:border-indigo-500/40 transition-all shadow-sm hover:shadow-md"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 bg-indigo-500/20 rounded-lg flex-shrink-0">
+                          <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-muted-foreground mb-0.5">Mock PDFs</p>
+                          <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400 leading-tight">
+                            {currentSubscription.remaining_mock_pdf_downloads ?? currentPlan.mock_pdf_count}
+                            <span className="text-sm text-muted-foreground font-normal">/{currentPlan.mock_pdf_count}</span>
+                          </p>
+                          <div className="mt-1.5 space-y-1">
+                            <Progress
+                              value={((currentSubscription.remaining_mock_pdf_downloads ?? currentPlan.mock_pdf_count) / currentPlan.mock_pdf_count) * 100}
+                              className="h-1.5 bg-indigo-500/10 [&>div]:bg-gradient-to-r [&>div]:from-indigo-500 [&>div]:to-blue-500"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                              <span className="font-semibold">{currentSubscription.mock_pdf_downloads_used ?? 0}</span> used
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
               </div>
 
               {/* Additional Info Grid */}
-              <div className="grid md:grid-cols-3 gap-6 pt-4 border-t border-border">
-                <div className="bg-background/50 backdrop-blur-sm rounded-lg p-4 border">
+              <div className="grid md:grid-cols-3 gap-3 pt-4 border-t border-primary/20">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 rounded-lg p-3 border border-amber-500/20 hover:border-amber-500/40 transition-all shadow-sm hover:shadow-md"
+                >
                   <div className="flex items-center gap-2 mb-2">
-                    <Calendar className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">Next Billing Date</span>
+                    <div className="p-1.5 bg-amber-500/20 rounded-lg flex-shrink-0">
+                      <Calendar className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <span className="text-xs font-semibold text-foreground">Next Billing</span>
                   </div>
-                  <p className="text-2xl font-bold">
+                  <p className="text-lg font-bold text-amber-600 dark:text-amber-400 leading-tight">
                     {new Date(getNextBillingDate(currentSubscription)).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
                       year: "numeric",
                     })}
                   </p>
-                </div>
+                </motion.div>
 
-                <div className="bg-background/50 backdrop-blur-sm rounded-lg p-4 border">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-gradient-to-br from-teal-500/10 to-cyan-500/5 rounded-lg p-3 border border-teal-500/20 hover:border-teal-500/40 transition-all shadow-sm hover:shadow-md"
+                >
                   <div className="flex items-center gap-2 mb-2">
-                    <CreditCard className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">Auto Renew</span>
+                    <div className="p-1.5 bg-teal-500/20 rounded-lg flex-shrink-0">
+                      <CreditCard className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                    </div>
+                    <span className="text-xs font-semibold text-foreground">Auto Renew</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={currentSubscription.auto_renew ? "default" : "secondary"}>
-                      {currentSubscription.auto_renew ? "Enabled" : "Disabled"}
-                    </Badge>
-                  </div>
-                </div>
+                  <Badge 
+                    variant={currentSubscription.auto_renew ? "default" : "secondary"}
+                    className={`text-xs px-2 py-0.5 ${
+                      currentSubscription.auto_renew 
+                        ? 'bg-green-500 hover:bg-green-600 text-white' 
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {currentSubscription.auto_renew ? (
+                      <span className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                        Enabled
+                      </span>
+                    ) : (
+                      "Disabled"
+                    )}
+                  </Badge>
+                </motion.div>
 
-                <div className="bg-background/50 backdrop-blur-sm rounded-lg p-4 border">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-gradient-to-br from-violet-500/10 to-purple-500/5 rounded-lg p-3 border border-violet-500/20 hover:border-violet-500/40 transition-all shadow-sm hover:shadow-md"
+                >
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">Subscription Started</span>
+                    <div className="p-1.5 bg-violet-500/20 rounded-lg flex-shrink-0">
+                      <TrendingUp className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+                    </div>
+                    <span className="text-xs font-semibold text-foreground">Started</span>
                   </div>
-                  <p className="text-sm font-semibold">
+                  <p className="text-lg font-bold text-violet-600 dark:text-violet-400 leading-tight">
                     {new Date(currentSubscription.created_at).toLocaleDateString("en-US", {
-                      month: "long",
+                      month: "short",
                       day: "numeric",
                       year: "numeric",
                     })}
                   </p>
-                </div>
+                </motion.div>
+              </div>
               </div>
             </Card>
           </motion.div>
