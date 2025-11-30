@@ -6,17 +6,22 @@ import DesignerTopBar from "@/components/designer-console/DesignerTopBar";
 import DesignerSidebar from "@/components/designer-console/DesignerSidebar";
 import EarningsWalletContent from "@/components/designer-console/EarningsWalletContent";
 import { useStudioAccess } from "@/contexts/StudioAccessContext";
+import { useDesignerVerification } from "@/contexts/DesignerVerificationContext";
 
 export default function EarningsWalletPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { hasFullAccess, isLoading } = useStudioAccess();
+  const { hasFullAccess, isLoading: isLoadingAccess } = useStudioAccess();
+  const { isVerified, isLoading: isLoadingVerification } = useDesignerVerification();
   const router = useRouter();
 
+  const isLoading = isLoadingAccess || isLoadingVerification;
+
   useEffect(() => {
-    if (!isLoading && !hasFullAccess) {
+    // Allow verified users to access earnings page even without full access
+    if (!isLoading && !isVerified && !hasFullAccess) {
       router.push('/designer-console');
     }
-  }, [hasFullAccess, isLoading, router]);
+  }, [hasFullAccess, isVerified, isLoading, router]);
 
   if (isLoading) {
     return (
@@ -28,7 +33,8 @@ export default function EarningsWalletPage() {
     );
   }
 
-  if (!hasFullAccess) {
+  // Allow verified users or users with full access
+  if (!isVerified && !hasFullAccess) {
     return null;
   }
 

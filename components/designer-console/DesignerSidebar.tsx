@@ -63,24 +63,46 @@ export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebar
   // Filter menu items based on access level
   // Studio members (without DesignerProfile) only see: Dashboard, My Designs, Upload Design
   // Studio owners and individual designers see all items based on their access level
-  const menuItems = allMenuItems.filter(item => {
-    // If user is a studio member (without full access), only show Dashboard, My Designs, Upload Design
-    if (isStudioMember && !hasFullAccess) {
-      const allowedForMembers = [
-        "/designer-console",
-        "/designer-console/designs",
-        "/designer-console/upload"
-      ];
-      return allowedForMembers.includes(item.href);
+  type MenuItemWithLockReason = typeof allMenuItems[0] & { lockReason?: 'fullAccess' | 'verification' };
+  
+  const menuItems: MenuItemWithLockReason[] = allMenuItems
+    .map(item => {
+      // If user is a studio member (without full access), only show Dashboard, My Designs, Upload Design
+      if (isStudioMember && !hasFullAccess) {
+        const allowedForMembers = [
+          "/designer-console",
+          "/designer-console/designs",
+          "/designer-console/upload"
+        ];
+        if (!allowedForMembers.includes(item.href)) {
+          return null; // Filter out
+        }
+      }
+      
+      // For studio owners and individual designers:
+      // If requires studio owner and user is not owner, hide
+      if (item.requiresStudioOwner && !isStudioOwner) {
+        return null; // Filter out
+      }
+      
+    // If requires full access and user doesn't have it:
+    // - For Earnings & Wallet: allow verified users to access (show unlocked)
+    // - For other items: show as locked if verified, otherwise hide
+    if (item.requiresFullAccess && !hasFullAccess) {
+      // Earnings & Wallet is accessible to verified users
+      if (item.href === "/designer-console/earnings" && isVerified) {
+        return { ...item, locked: false };
+      }
+      // Other items: show as locked if user is verified, otherwise hide
+      if (isVerified) {
+        return { ...item, locked: true, lockReason: 'fullAccess' as const };
+      }
+      return null; // Filter out if not verified
     }
-    
-    // For studio owners and individual designers:
-    // If requires full access and user doesn't have it, hide
-    if (item.requiresFullAccess && !hasFullAccess) return false;
-    // If requires studio owner and user is not owner, hide
-    if (item.requiresStudioOwner && !isStudioOwner) return false;
-    return true;
-  });
+      
+      return item;
+    })
+    .filter((item): item is MenuItemWithLockReason => item !== null);
 
   return (
     <aside
@@ -120,15 +142,20 @@ export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebar
               const Icon = item.icon;
               const isActive = pathname === item.href;
               const isLocked = item.locked;
+              const lockReason = item.lockReason;
               
               if (isLocked) {
+                const lockMessage = lockReason === 'fullAccess' 
+                  ? `${item.label} (Locked - Full Access Required)`
+                  : `${item.label} (Locked - Pending Verification)`;
+                
                 return (
                   <li key={item.href}>
                     <div
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors cursor-not-allowed opacity-50 ${
                         collapsed ? 'justify-center' : ''
                       }`}
-                      title={collapsed ? `${item.label} (Locked - Pending Verification)` : undefined}
+                      title={collapsed ? lockMessage : undefined}
                     >
                       <Icon className="w-5 h-5 flex-shrink-0" />
                       {!collapsed && (

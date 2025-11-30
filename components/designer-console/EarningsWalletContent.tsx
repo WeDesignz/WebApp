@@ -48,13 +48,17 @@ interface WithdrawalRequest {
 }
 
 // Helper functions
-const formatCurrency = (num: number): string => {
+const formatCurrency = (num: number | string): string => {
+  // Convert string to number if needed
+  const numValue = typeof num === 'string' ? parseFloat(num) : num;
+  if (isNaN(numValue)) return '₹0.00';
+  
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(num);
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numValue);
 };
 
 const formatNumber = (num: number): string => {
@@ -119,6 +123,10 @@ export default function EarningsWalletContent() {
     queryFn: async () => {
       const response = await apiClient.getWalletBalance();
       if (response.error) throw new Error(response.error);
+      console.log('Wallet balance response:', response);
+      console.log('Balance data:', response.data);
+      console.log('Balance value:', response.data?.balance);
+      console.log('Wallet balance:', response.data?.wallet?.balance);
       return response.data;
     },
     staleTime: 30 * 1000,
@@ -136,11 +144,19 @@ export default function EarningsWalletContent() {
   });
 
   // Fetch transactions
-  const { data: transactionsData, isLoading: isLoadingTransactions } = useQuery({
+  const { data: transactionsData, isLoading: isLoadingTransactions, error: transactionsError } = useQuery({
     queryKey: ['walletTransactions'],
     queryFn: async () => {
       const response = await apiClient.getWalletTransactions();
-      if (response.error) throw new Error(response.error);
+      if (response.error) {
+        console.error('Error fetching wallet transactions:', response.error);
+        throw new Error(response.error);
+      }
+      // Log the response structure for debugging
+      console.log('Wallet transactions response:', response);
+      console.log('Wallet transactions data:', response.data);
+      console.log('Transactions array:', response.data?.transactions);
+      console.log('Transaction count:', response.data?.transactions?.length || 0);
       return response.data;
     },
     staleTime: 30 * 1000,
@@ -157,8 +173,74 @@ export default function EarningsWalletContent() {
     staleTime: 30 * 1000,
   });
 
-  const balance = balanceData?.balance || 0;
-  const transactions: Transaction[] = transactionsData?.transactions || [];
+  // Parse balance correctly - handle both string and number, ensure proper decimal conversion
+  // Check both balanceData.balance and balanceData.wallet.balance
+  const balance = useMemo(() => {
+    if (!balanceData) {
+      console.log('No balanceData available');
+      return 0;
+    }
+    
+    // Try balance field first, then wallet.balance
+    let balanceValue = balanceData.balance;
+    if (balanceValue === undefined && balanceData.wallet?.balance !== undefined) {
+      balanceValue = balanceData.wallet.balance;
+    }
+    
+    console.log('Raw balance value:', balanceValue, 'Type:', typeof balanceValue);
+    
+    if (balanceValue === undefined || balanceValue === null) {
+      console.warn('Balance value is undefined or null');
+      return 0;
+    }
+    
+    if (typeof balanceValue === 'string') {
+      const parsed = parseFloat(balanceValue);
+      console.log('Parsed balance from string:', parsed);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    
+    const numValue = typeof balanceValue === 'number' ? balanceValue : 0;
+    console.log('Final balance value:', numValue);
+    return numValue;
+  }, [balanceData]);
+  // Handle different possible response structures
+  const transactions: Transaction[] = useMemo(() => {
+    if (!transactionsData) {
+      console.log('No transactionsData available');
+      return [];
+    }
+    
+    console.log('Processing transactionsData:', transactionsData);
+    
+    // Check if transactions are directly in the data
+    if (Array.isArray(transactionsData)) {
+      console.log('Transactions found as array, count:', transactionsData.length);
+      return transactionsData;
+    }
+    
+    // Check if transactions are in a transactions field
+    if (transactionsData.transactions && Array.isArray(transactionsData.transactions)) {
+      console.log('Transactions found in .transactions field, count:', transactionsData.transactions.length);
+      return transactionsData.transactions;
+    }
+    
+    // Check if transactions are in a data field
+    if (transactionsData.data && Array.isArray(transactionsData.data)) {
+      console.log('Transactions found in .data field, count:', transactionsData.data.length);
+      return transactionsData.data;
+    }
+    
+    // Check for results field (common in paginated responses)
+    if (transactionsData.results && Array.isArray(transactionsData.results)) {
+      console.log('Transactions found in .results field, count:', transactionsData.results.length);
+      return transactionsData.results;
+    }
+    
+    console.warn('Unexpected transactions data structure:', transactionsData);
+    console.warn('Available keys:', Object.keys(transactionsData || {}));
+    return [];
+  }, [transactionsData]);
   const withdrawalRequests: WithdrawalRequest[] = (withdrawalRequestsData?.withdrawal_requests || []).map((req: any) => ({
     ...req,
     amount: typeof req.amount === 'string' ? parseFloat(req.amount) : req.amount,
@@ -452,10 +534,30 @@ export default function EarningsWalletContent() {
                   <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin text-muted-foreground" />
                   <p className="text-muted-foreground">Loading transactions...</p>
                 </div>
+              ) : transactionsError ? (
+                <div className="p-12 text-center">
+                  <AlertCircle className="w-12 h-12 mx-auto mb-4 text-destructive" />
+                  <p className="text-destructive font-medium mb-2">Failed to load transactions</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {transactionsError instanceof Error ? transactionsError.message : 'An error occurred'}
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ['walletTransactions'] })}
+                  >
+                    Retry
+                  </Button>
+                </div>
               ) : filteredTransactions.length === 0 ? (
                 <div className="p-12 text-center">
                   <Wallet className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                  <p className="text-muted-foreground">No transactions found</p>
+                  <p className="text-muted-foreground font-medium mb-1">No transactions found</p>
+                  <p className="text-sm text-muted-foreground">
+                    {transactions.length === 0 
+                      ? "You haven't made any transactions yet. Transactions will appear here once you start earning or making withdrawals."
+                      : "No transactions match your current filters. Try adjusting the filters above."}
+                  </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
