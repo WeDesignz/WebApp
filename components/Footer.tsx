@@ -77,13 +77,19 @@ export default function Footer() {
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                     <Mail className="w-4 h-4 text-primary" />
                   </div>
-                  <span>support@wedesignz.com</span>
+                  <span>wedesignz006@gmail.com</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-foreground/70">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Phone className="w-4 h-4 text-primary" />
+                  </div>
+                  <span>8000452183</span>
+                </div>
+                <div className="flex items-start gap-3 text-sm text-foreground/70">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                     <MapPin className="w-4 h-4 text-primary" />
                   </div>
-                  <span>San Francisco, CA</span>
+                  <span>Sheetal Fab, B-117, Akar Tower, B-block, Old RTO road, Yogi Tower, Bhilwara - 311001</span>
                 </div>
               </div>
 

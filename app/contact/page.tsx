@@ -32,10 +32,10 @@ export default function ContactPage() {
                   <h3 className="font-semibold mb-2">Email</h3>
                   <p className="text-muted-foreground mb-2">Send us an email anytime</p>
                   <a 
-                    href="mailto:support@wedesignz.com" 
+                    href="mailto:wedesignz006@gmail.com" 
                     className="text-primary hover:underline"
                   >
-                    support@wedesignz.com
+                    wedesignz006@gmail.com
                   </a>
                 </div>
               </div>
@@ -50,10 +50,10 @@ export default function ContactPage() {
                   <h3 className="font-semibold mb-2">Phone</h3>
                   <p className="text-muted-foreground mb-2">Call us during business hours</p>
                   <a 
-                    href="tel:+91XXXXXXXXXX" 
+                    href="tel:+918000452183" 
                     className="text-primary hover:underline"
                   >
-                    +91-XXXXXXXXXX
+                    8000452183
                   </a>
                 </div>
               </div>
@@ -67,11 +67,13 @@ export default function ContactPage() {
                 <div>
                   <h3 className="font-semibold mb-2">Address</h3>
                   <p className="text-muted-foreground">
-                    [Your Company Address]
+                    Sheetal Fab
                     <br />
-                    City, State - PIN Code
+                    B-117, Akar Tower, B-block,
                     <br />
-                    India
+                    Old RTO road, Yogi Tower,
+                    <br />
+                    Bhilwara - 311001
                   </p>
                 </div>
               </div>
@@ -149,9 +151,9 @@ export default function ContactPage() {
         <div className="mt-12 p-6 border border-border rounded-lg bg-muted/30">
           <h2 className="text-2xl font-semibold mb-4">WeDesignz</h2>
           <div className="space-y-2 text-foreground/80">
-            <p><strong>Address:</strong> [Your Company Address]</p>
-            <p><strong>Email:</strong> support@wedesignz.com</p>
-            <p><strong>Phone:</strong> +91-XXXXXXXXXX</p>
+            <p><strong>Address:</strong> Sheetal Fab, B-117, Akar Tower, B-block, Old RTO road, Yogi Tower, Bhilwara - 311001</p>
+            <p><strong>Email:</strong> wedesignz006@gmail.com</p>
+            <p><strong>Phone:</strong> 8000452183</p>
             <p><strong>Working Hours:</strong> Monday - Saturday, 10 AM - 6 PM IST</p>
           </div>
         </div>
