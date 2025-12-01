@@ -29,8 +29,11 @@ interface FeaturedDesign {
 
 export default function Page() {
   const [featuredDesigns, setFeaturedDesigns] = useState<Array<{
+    id: number;
     title: string;
-    desc?: string;
+    creator?: string;
+    price?: string;
+    category?: string;
     image?: string;
   }>>([]);
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
@@ -40,10 +43,13 @@ export default function Page() {
       try {
         const response = await apiClient.catalogAPI.getFeaturedDesigns();
         if (response.data?.designs && Array.isArray(response.data.designs)) {
-          // Transform API response to CardSlider format
+          // Transform API response to CardSlider format with all available data
           const transformedDesigns = response.data.designs.map((design: FeaturedDesign) => ({
+            id: design.id,
             title: design.title,
-            desc: design.category || `By ${design.creator}`,
+            creator: design.creator,
+            price: design.price,
+            category: design.category,
             image: design.image || undefined,
           }));
           setFeaturedDesigns(transformedDesigns);
@@ -84,9 +90,11 @@ export default function Page() {
       <SpotlightFeatures />
       
       <GallerySection />
-      {!isLoadingFeatured && featuredDesigns.length > 0 && (
-        <CardSlider title="Featured Designs" items={featuredDesigns} />
-      )}
+      <CardSlider 
+        title="Featured Designs" 
+        items={featuredDesigns} 
+        isLoading={isLoadingFeatured}
+      />
       {/* <MagicBento enableStars enableSpotlight enableBorderGlow enableTilt enableMagnetism clickEffect glowColor="132, 0, 255" spotlightRadius={300} /> */}
       <JerseyShowcase />
       <PricingPlans />

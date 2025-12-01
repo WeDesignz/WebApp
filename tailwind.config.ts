@@ -125,12 +125,17 @@ export default {
           "0%": { transform: "rotate(0deg)" },
           "100%": { transform: "rotate(360deg)" },
         },
+        "shine": {
+          "0%": { transform: "translateX(-100%) translateY(-100%) rotate(45deg)" },
+          "100%": { transform: "translateX(200%) translateY(200%) rotate(45deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "spin-y": "spin-y 0.5s ease-in-out",
         "spin-slow": "spin-slow 20s linear infinite",
+        "shine": "shine 1.5s ease-in-out",
       },
     },
   },

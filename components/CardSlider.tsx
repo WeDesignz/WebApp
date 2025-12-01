@@ -2,8 +2,23 @@
 
 import { useEffect, useRef, useState } from "react";
 
-interface Item { title: string; desc?: string; image?: string; ctaText?: string }
-export default function CardSlider({ title, items }: { title: string; items: Item[] }) {
+interface Item { 
+  id?: number;
+  title: string; 
+  creator?: string;
+  price?: string;
+  category?: string;
+  image?: string; 
+  ctaText?: string;
+}
+
+interface CardSliderProps {
+  title: string;
+  items: Item[];
+  isLoading?: boolean;
+}
+
+export default function CardSlider({ title, items, isLoading = false }: CardSliderProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -227,95 +242,176 @@ export default function CardSlider({ title, items }: { title: string; items: Ite
   // Duplicate items multiple times for seamless infinite loop
   const duplicatedItems = [...items, ...items, ...items, ...items];
 
-  return (
-    <section className="py-16">
-      <div className="max-w-7xl mx-auto px-6 md:px-8">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="font-display text-2xl md:text-3xl font-bold tracking-tight">{title}</h3>
-          <div className="text-xs text-muted-foreground">Hover to pause • Drag to explore</div>
+  // Loading skeleton component
+  const LoadingSkeleton = () => (
+    <div className="min-w-[300px] md:min-w-[360px]">
+      <div className="relative h-[320px] md:h-[380px] rounded-2xl overflow-hidden border border-border bg-card animate-pulse">
+        <div className="w-full h-full bg-gradient-to-br from-muted/20 via-muted/10 to-muted/20" />
+        <div className="absolute bottom-0 left-0 right-0 p-5 space-y-3">
+          <div className="h-5 bg-muted/30 rounded w-3/4" />
+          <div className="h-4 bg-muted/20 rounded w-1/2" />
         </div>
-        <div
-          ref={ref}
-          onMouseDown={handleMouseDown}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onTouchStart={handleTouchStart}
-          className="flex gap-5 overflow-x-auto scrollbar-none select-none cursor-grab active:cursor-grabbing pb-2"
-          style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
-        >
-          {duplicatedItems.map((it, idx) => (
-            <div 
-              key={`${it.title}-${idx}`} 
-              className="min-w-[300px] md:min-w-[360px] group"
-            >
-              <a 
-                href="/customer-dashboard"
-                className="block h-full cursor-grab active:cursor-grabbing select-none"
-                draggable={false}
-                onMouseDown={(e) => {
-                  // Trigger drag when mousedown on card - propagate to container
-                  e.stopPropagation(); // Stop bubbling to prevent double handling
-                  handleMouseDown(e);
-                }}
-                onTouchStart={(e) => {
-                  // Trigger drag when touchstart on card - propagate to container
-                  e.stopPropagation(); // Stop bubbling to prevent double handling
-                  handleTouchStart(e);
-                }}
-                onDragStart={(e) => {
-                  // Prevent default drag behavior
-                  e.preventDefault();
-                  e.stopPropagation();
-                  return false;
-                }}
-                onClick={(e) => {
-                  // Prevent navigation if user was dragging
-                  if (!clickAllowedRef.current || hasDraggedRef.current || dragDistanceRef.current > 5) {
+      </div>
+    </div>
+  );
+
+  // Empty state
+  if (!isLoading && items.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="py-16 md:py-20 relative">
+      <div className="max-w-7xl mx-auto px-6 md:px-8">
+        <div className="flex items-center justify-between mb-8 md:mb-10">
+          <h3 className="font-display text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+            {title}
+          </h3>
+          {!isLoading && items.length > 0 && (
+            <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-pulse" />
+              <span>Hover to pause • Drag to explore</span>
+            </div>
+          )}
+        </div>
+        
+        {isLoading ? (
+          <div className="flex gap-5 overflow-x-auto scrollbar-none pb-2">
+            {[...Array(4)].map((_, idx) => (
+              <LoadingSkeleton key={idx} />
+            ))}
+          </div>
+        ) : (
+          <div
+            ref={ref}
+            onMouseDown={handleMouseDown}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onTouchStart={handleTouchStart}
+            className="flex gap-5 overflow-x-auto scrollbar-none select-none cursor-grab active:cursor-grabbing pb-2"
+            style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
+          >
+            {duplicatedItems.map((it, idx) => (
+              <div 
+                key={`${it.id || it.title}-${idx}`} 
+                className="min-w-[300px] md:min-w-[360px] group"
+              >
+                <a 
+                  href="/customer-dashboard"
+                  className="block h-full cursor-grab active:cursor-grabbing select-none"
+                  draggable={false}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    handleMouseDown(e);
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    handleTouchStart(e);
+                  }}
+                  onDragStart={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    return;
-                  }
-                  // Allow navigation if it was a click, not a drag
-                  e.preventDefault();
-                  e.stopPropagation();
-                  window.location.href = `/customer-dashboard?search=${encodeURIComponent(it.title)}`;
-                }}
-              >
-                <div className="relative h-[220px] md:h-[260px] rounded-2xl overflow-hidden border border-border bg-card transition-all duration-300 ease-out hover:scale-[1.02] hover:shadow-xl hover:shadow-black/20 hover:border-white/20">
-                  {it.image && (
-                    <img 
-                      src={it.image} 
-                      alt={it.title} 
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
-                      draggable={false} 
-                    />
-                  )}
-                  {/* Enhanced gradient overlay for better text readability - only on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-tr from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  
-                  {/* Content - only visible on hover */}
-                  <div className="relative h-full flex flex-col justify-end p-5 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="text-lg font-semibold text-white">{it.title}</div>
-                    {it.desc && (
-                      <div className="text-sm text-white/90 mt-1 max-w-[90%]">
-                        {it.desc}
-                      </div>
-                    )}
-                    <div className="text-xs text-white mt-3 flex items-center gap-2 group-hover:gap-3 transition-all duration-300 font-medium">
-                      <span>{it.ctaText ?? 'Explore'}</span>
-                      <span className="inline-block transition-transform duration-300 group-hover:translate-x-1">→</span>
+                    return false;
+                  }}
+                  onClick={(e) => {
+                    if (!clickAllowedRef.current || hasDraggedRef.current || dragDistanceRef.current > 5) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      return;
+                    }
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const searchQuery = it.id 
+                      ? `design=${it.id}` 
+                      : `search=${encodeURIComponent(it.title)}`;
+                    window.location.href = `/customer-dashboard?${searchQuery}`;
+                  }}
+                >
+                  <div className="relative h-[320px] md:h-[380px] rounded-2xl overflow-hidden border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-500 ease-out hover:scale-[1.03] hover:shadow-2xl hover:shadow-black/30 hover:border-border group-hover:bg-card">
+                    {/* Image Container */}
+                    <div className="absolute inset-0 overflow-hidden">
+                      {it.image ? (
+                        <>
+                          <img 
+                            src={it.image} 
+                            alt={it.title} 
+                            className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:brightness-110" 
+                            draggable={false}
+                            onError={(e) => {
+                              // Fallback to placeholder on error
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const placeholder = target.nextElementSibling as HTMLElement;
+                              if (placeholder) placeholder.style.display = 'flex';
+                            }}
+                          />
+                          {/* Fallback placeholder */}
+                          <div className="hidden w-full h-full items-center justify-center bg-gradient-to-br from-muted/30 via-muted/20 to-muted/30">
+                            <div className="text-4xl opacity-20">🎨</div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted/30 via-muted/20 to-muted/30">
+                          <div className="text-4xl opacity-20">🎨</div>
+                        </div>
+                      )}
+                      
+                      {/* Gradient overlay - subtle by default, stronger on hover */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-500" />
+                      <div className="absolute inset-0 bg-gradient-to-tr from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     </div>
+                    
+                    {/* Content - Always visible with enhanced styling */}
+                    <div className="relative h-full flex flex-col justify-between p-5 md:p-6 z-10">
+                      {/* Top section - Category badge */}
+                      {it.category && (
+                        <div className="self-start z-20">
+                          <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-black/70 backdrop-blur-md border border-white/40 text-white shadow-lg group-hover:bg-black/80 group-hover:border-white/60 transition-all duration-300">
+                            {it.category}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Bottom section - Title, Creator, Price, CTA */}
+                      <div className="space-y-3">
+                        <div>
+                          <h4 className="text-lg md:text-xl font-bold text-white leading-tight line-clamp-2 group-hover:text-white transition-colors duration-300">
+                            {it.title}
+                          </h4>
+                          {it.creator && (
+                            <p className="text-sm text-white/80 mt-1.5 font-medium">
+                              {it.creator}
+                            </p>
+                          )}
+                        </div>
+                        
+                        {/* Price and CTA */}
+                        <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                          {it.price && (
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-2xl font-bold text-white">{it.price}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 text-sm font-semibold text-white/90 group-hover:text-white group-hover:gap-3 transition-all duration-300">
+                            <span>{it.ctaText ?? 'View Design'}</span>
+                            <span className="inline-block transition-transform duration-300 group-hover:translate-x-1">→</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Hover glow effect */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+                      <div className="absolute inset-0 bg-gradient-to-t from-white/10 via-transparent to-transparent" />
+                      <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-white/5 to-transparent blur-xl" />
+                    </div>
+                    
                   </div>
-                  
-                  {/* Subtle glow effect on hover */}
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                    <div className="absolute inset-0 bg-gradient-to-t from-white/5 via-transparent to-transparent" />
-                  </div>
-                </div>
-              </a>
-            </div>
-          ))}
-        </div>
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
