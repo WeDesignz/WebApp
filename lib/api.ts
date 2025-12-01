@@ -23,7 +23,7 @@ import {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
 // Helper function to get API base URL with validation
-function getApiBaseUrl(): string {
+export function getApiBaseUrl(): string {
   const url = process.env.NEXT_PUBLIC_API_BASE_URL;
   // During build time (SSR/prerendering), return empty string to avoid errors
   // At runtime in browser, validate and throw error if not set
