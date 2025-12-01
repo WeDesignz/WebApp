@@ -647,7 +647,7 @@ export default function DownloadMockPDFContent() {
   
   // Calculate price for paid downloads
   const calculatePrice = () => {
-    if (!pdfConfig || isEligible) return 0; // Free downloads are $0
+    if (!pdfConfig || isEligible) return 0; // Free downloads are ₹0
     
     if (selectionMode === "selected") {
       // Use PAID_PDF_PRICE_PER_DESIGN_SELECTED for "Select N Design" mode

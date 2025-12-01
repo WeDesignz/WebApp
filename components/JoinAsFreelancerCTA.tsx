@@ -122,7 +122,7 @@ export default function JoinAsFreelancerCTA() {
               <div className="mt-8 pt-8 border-t border-border/50">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-foreground/60">Avg. Designer Income</span>
-                  <span className="text-2xl font-bold text-primary">$4.2K/mo</span>
+                  <span className="text-2xl font-bold text-primary">₹3.5L/mo</span>
                 </div>
               </div>
             </SpotlightCard>
