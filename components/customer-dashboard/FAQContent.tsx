@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   HelpCircle,
@@ -13,64 +14,14 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { apiRequest } from "@/lib/api";
 
 interface FAQ {
-  id: string;
+  id: number;
   question: string;
   answer: string;
-  category: string;
+  tags?: Array<{ id: number; name: string }>;
 }
-
-const faqs: FAQ[] = [
-  {
-    id: "1",
-    question: "How do I download my purchased designs?",
-    answer: "You can download your purchased designs from the 'My Downloads' section. Simply click on the design you want and select 'Download'. All files will be available in your account for future downloads.",
-    category: "Downloads",
-  },
-  {
-    id: "2",
-    question: "What file formats are available?",
-    answer: "We provide designs in multiple formats including PSD, AI, SVG, PNG, PDF, FIGMA, and SKETCH. The available formats depend on the specific design and are listed on each product page.",
-    category: "Downloads",
-  },
-  {
-    id: "3",
-    question: "How do I track my custom order?",
-    answer: "You can track your custom orders in the 'My Orders' section. Each order shows its current status, estimated delivery time, and allows you to chat directly with the designer working on your project.",
-    category: "Orders",
-  },
-  {
-    id: "4",
-    question: "What is the delivery time for custom orders?",
-    answer: "Our standard delivery time for custom orders is 1 hour. However, complex projects may take longer. You'll receive real-time updates on your order status and can communicate with the designer throughout the process.",
-    category: "Orders",
-  },
-  {
-    id: "5",
-    question: "How do subscription plans work?",
-    answer: "Subscription plans give you access to a certain number of designs per month. Unused downloads don't roll over, but you can upgrade or downgrade your plan at any time. Check your usage in the 'Plans' section.",
-    category: "Plans",
-  },
-  {
-    id: "6",
-    question: "Can I cancel my subscription?",
-    answer: "Yes, you can cancel your subscription at any time from the 'Plans' section. Your subscription will remain active until the end of your current billing period, and you'll continue to have access to all features until then.",
-    category: "Plans",
-  },
-  {
-    id: "7",
-    question: "How do I contact a designer?",
-    answer: "You can contact designers through the 'My Orders' section if you have an active order with them. For general inquiries, you can use the chat feature in this support section or email our support team.",
-    category: "General",
-  },
-  {
-    id: "8",
-    question: "What payment methods do you accept?",
-    answer: "We accept all major credit cards, debit cards, and digital payment methods through Razorpay. All transactions are secure and encrypted. You can manage your payment methods in the 'Plans' section.",
-    category: "Payment",
-  },
-];
 
 const helpCategories = [
   {
@@ -108,14 +59,40 @@ const helpCategories = [
 ];
 
 export default function FAQContent() {
-  const [openFAQ, setOpenFAQ] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [openFAQ, setOpenFAQ] = useState<number | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string>("all");
 
-  const filteredFAQs = selectedCategory === "all" 
-    ? faqs 
-    : faqs.filter(faq => faq.category === selectedCategory);
+  // Fetch FAQs for customer dashboard
+  const { data: faqsData, isLoading, isError } = useQuery({
+    queryKey: ['faqs', 'customer_dashboard'],
+    queryFn: async () => {
+      const response = await apiRequest<FAQ[]>(
+        '/api/feedback/faqs/?location=customer_dashboard'
+      );
+      if (response.error) {
+        console.error('Error fetching FAQs:', response.error);
+        throw new Error(response.error);
+      }
+      return response.data || [];
+    },
+  });
 
-  const categories = ["all", ...Array.from(new Set(faqs.map(faq => faq.category)))];
+  const faqs = faqsData || [];
+
+  // Get all unique tags
+  const allTags = Array.from(
+    new Set(
+      faqs.flatMap((faq) => faq.tags?.map((tag) => tag.name) || [])
+    )
+  );
+
+  // Filter FAQs by selected tag
+  const filteredFAQs =
+    selectedTag === "all"
+      ? faqs
+      : faqs.filter((faq) =>
+          faq.tags?.some((tag) => tag.name === selectedTag)
+        );
 
   return (
     <div className="p-4 md:p-6 pb-24 md:pb-6">
@@ -155,79 +132,112 @@ export default function FAQContent() {
           </div>
         </div>
 
-        {/* Category Filter */}
-        <div className="flex gap-2 flex-wrap">
-          {categories.map((category) => (
+        {/* Loading State */}
+        {isLoading && (
+          <Card className="p-12 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading FAQs...</p>
+          </Card>
+        )}
+
+        {/* Error State */}
+        {isError && (
+          <Card className="p-12 text-center">
+            <HelpCircle className="w-16 h-16 mx-auto mb-4 text-destructive/50" />
+            <h3 className="text-xl font-semibold mb-2">Error loading FAQs</h3>
+            <p className="text-muted-foreground">
+              Please try refreshing the page.
+            </p>
+          </Card>
+        )}
+
+        {/* Tag Filter */}
+        {!isLoading && !isError && allTags.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
             <Button
-              key={category}
-              variant={selectedCategory === category ? "default" : "outline"}
+              variant={selectedTag === "all" ? "default" : "outline"}
               size="sm"
-              onClick={() => setSelectedCategory(category)}
+              onClick={() => setSelectedTag("all")}
             >
-              {category.charAt(0).toUpperCase() + category.slice(1)}
+              All
             </Button>
-          ))}
-        </div>
+            {allTags.map((tag) => (
+              <Button
+                key={tag}
+                variant={selectedTag === tag ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedTag(tag)}
+              >
+                {tag}
+              </Button>
+            ))}
+          </div>
+        )}
 
         {/* FAQ List */}
-        <div>
-          <h2 className="text-2xl font-bold mb-4">Frequently Asked Questions</h2>
-          <div className="space-y-3">
-          <AnimatePresence>
-            {filteredFAQs.map((faq, index) => {
-              const isOpen = openFAQ === faq.id;
-              return (
-                <motion.div
-                  key={faq.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Card className="overflow-hidden">
-                    <button
-                      onClick={() => setOpenFAQ(isOpen ? null : faq.id)}
-                      className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
+        {!isLoading && !isError && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Frequently Asked Questions</h2>
+            <div className="space-y-3">
+              <AnimatePresence>
+                {filteredFAQs.map((faq, index) => {
+                  const isOpen = openFAQ === faq.id;
+                  return (
+                    <motion.div
+                      key={faq.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ delay: index * 0.05 }}
                     >
-                      <div className="flex items-center gap-3 flex-1 text-left">
-                        <HelpCircle className="w-5 h-5 text-primary flex-shrink-0" />
-                        <span className="font-medium">{faq.question}</span>
-                      </div>
-                      {isOpen ? (
-                        <ChevronUp className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                      )}
-                    </button>
-                    <AnimatePresence>
-                      {isOpen && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
+                      <Card className="overflow-hidden">
+                        <button
+                          onClick={() => setOpenFAQ(isOpen ? null : faq.id)}
+                          className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
                         >
-                          <div className="px-4 pb-4 pl-12 text-muted-foreground">
-                            {faq.answer}
+                          <div className="flex items-center gap-3 flex-1 text-left">
+                            <HelpCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                            <span className="font-medium">{faq.question}</span>
                           </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+                          {isOpen ? (
+                            <ChevronUp className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                          ) : (
+                            <ChevronDown className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                          )}
+                        </button>
+                        <AnimatePresence>
+                          {isOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-4 pb-4 pl-12 text-muted-foreground">
+                                {faq.answer}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
           </div>
-        </div>
+        )}
 
-        {filteredFAQs.length === 0 && (
+        {/* Empty State */}
+        {!isLoading && !isError && filteredFAQs.length === 0 && (
           <Card className="p-12 text-center">
             <HelpCircle className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
             <h3 className="text-xl font-semibold mb-2">No FAQs found</h3>
             <p className="text-muted-foreground">
-              Try selecting a different category.
+              {selectedTag !== "all"
+                ? "Try selecting a different tag."
+                : "No FAQs are available at the moment."}
             </p>
           </Card>
         )}

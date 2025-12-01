@@ -12,7 +12,8 @@ import {
   MessageSquare, 
   Settings,
   Building2,
-  Lock
+  Lock,
+  HelpCircle
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -57,6 +58,7 @@ export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebar
     { icon: Download, label: "Downloads (PDFs)", href: "/designer-console/downloads", locked: !isVerified, requiresFullAccess: true },
     { icon: Bell, label: "Notifications", href: "/designer-console/notifications", locked: false, requiresFullAccess: false },
     { icon: MessageSquare, label: "Messages/Support", href: "/designer-console/messages", locked: false, requiresFullAccess: false },
+    { icon: HelpCircle, label: "FAQ", href: "/designer-console/faq", locked: false, requiresFullAccess: false },
     { icon: Settings, label: "Settings", href: "/designer-console/settings", locked: false, requiresFullAccess: false },
   ];
 

@@ -282,61 +282,61 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
             ))}
           </div>
         ) : (
-          <div
-            ref={ref}
-            onMouseDown={handleMouseDown}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onTouchStart={handleTouchStart}
-            className="flex gap-5 overflow-x-auto scrollbar-none select-none cursor-grab active:cursor-grabbing pb-2"
-            style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
-          >
-            {duplicatedItems.map((it, idx) => (
-              <div 
+        <div
+          ref={ref}
+          onMouseDown={handleMouseDown}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onTouchStart={handleTouchStart}
+          className="flex gap-5 overflow-x-auto scrollbar-none select-none cursor-grab active:cursor-grabbing pb-2"
+          style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
+        >
+          {duplicatedItems.map((it, idx) => (
+            <div 
                 key={`${it.id || it.title}-${idx}`} 
-                className="min-w-[300px] md:min-w-[360px] group"
-              >
-                <a 
-                  href="/customer-dashboard"
-                  className="block h-full cursor-grab active:cursor-grabbing select-none"
-                  draggable={false}
-                  onMouseDown={(e) => {
+              className="min-w-[300px] md:min-w-[360px] group"
+            >
+              <a 
+                href="/customer-dashboard"
+                className="block h-full cursor-grab active:cursor-grabbing select-none"
+                draggable={false}
+                onMouseDown={(e) => {
                     e.stopPropagation();
-                    handleMouseDown(e);
-                  }}
-                  onTouchStart={(e) => {
+                  handleMouseDown(e);
+                }}
+                onTouchStart={(e) => {
                     e.stopPropagation();
-                    handleTouchStart(e);
-                  }}
-                  onDragStart={(e) => {
+                  handleTouchStart(e);
+                }}
+                onDragStart={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  return false;
+                }}
+                onClick={(e) => {
+                  if (!clickAllowedRef.current || hasDraggedRef.current || dragDistanceRef.current > 5) {
                     e.preventDefault();
                     e.stopPropagation();
-                    return false;
-                  }}
-                  onClick={(e) => {
-                    if (!clickAllowedRef.current || hasDraggedRef.current || dragDistanceRef.current > 5) {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      return;
-                    }
-                    e.preventDefault();
-                    e.stopPropagation();
+                    return;
+                  }
+                  e.preventDefault();
+                  e.stopPropagation();
                     const searchQuery = it.id 
                       ? `design=${it.id}` 
                       : `search=${encodeURIComponent(it.title)}`;
                     window.location.href = `/customer-dashboard?${searchQuery}`;
-                  }}
-                >
+                }}
+              >
                   <div className="relative h-[320px] md:h-[380px] rounded-2xl overflow-hidden border border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-500 ease-out hover:scale-[1.03] hover:shadow-2xl hover:shadow-black/30 hover:border-border group-hover:bg-card">
                     {/* Image Container */}
                     <div className="absolute inset-0 overflow-hidden">
                       {it.image ? (
                         <>
-                          <img 
-                            src={it.image} 
-                            alt={it.title} 
+                    <img 
+                      src={it.image} 
+                      alt={it.title} 
                             className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:brightness-110" 
-                            draggable={false}
+                      draggable={false} 
                             onError={(e) => {
                               // Fallback to placeholder on error
                               const target = e.target as HTMLImageElement;
@@ -360,7 +360,7 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-500" />
                       <div className="absolute inset-0 bg-gradient-to-tr from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     </div>
-                    
+                  
                     {/* Content - Always visible with enhanced styling */}
                     <div className="relative h-full flex flex-col justify-between p-5 md:p-6 z-10">
                       {/* Top section - Category badge */}
@@ -404,13 +404,13 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
                       <div className="absolute inset-0 bg-gradient-to-t from-white/10 via-transparent to-transparent" />
                       <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-white/5 to-transparent blur-xl" />
-                    </div>
-                    
                   </div>
-                </a>
-              </div>
-            ))}
-          </div>
+                  
+                </div>
+              </a>
+            </div>
+          ))}
+        </div>
         )}
       </div>
     </section>

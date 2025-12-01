@@ -166,7 +166,7 @@ async function handleUnauthorized(endpoint?: string): Promise<boolean> {
 /**
  * Base API request function with enhanced error handling
  */
-async function apiRequest<T>(
+export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
