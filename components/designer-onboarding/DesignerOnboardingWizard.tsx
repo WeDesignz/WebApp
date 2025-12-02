@@ -173,16 +173,16 @@ export default function DesignerOnboardingWizard() {
             <img 
               src="/Logos/ONLY LOGO.svg" 
               alt="WeDesignz Logo" 
-              className="h-12 w-12 w-auto"
+              className="h-12 w-12 w-auto brightness-0 invert"
             />
             <img 
               src="/Logos/ONLY TEXT.svg" 
               alt="WeDesignz" 
-              className="h-8 w-auto"
+              className="h-8 w-auto brightness-0 invert"
             />
           </div>
-          <h1 className="text-3xl font-bold mb-2">Welcome to the Designer Program</h1>
-          <p className="text-muted-foreground">Let&apos;s get you set up to start earning</p>
+          <h1 className="text-3xl font-bold mb-2 text-white">Welcome to the Designer Program</h1>
+          <p className="text-white">Let&apos;s get you set up to start earning</p>
           
           <div className="flex items-center justify-center gap-4 mt-6">
             {progressSteps.map((step, index) => (
