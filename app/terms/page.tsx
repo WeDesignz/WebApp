@@ -126,9 +126,9 @@ export default function TermsPage() {
               If you have any questions about these Terms & Conditions, please contact us:
             </p>
             <div className="space-y-1 text-foreground/80">
-              <p><strong>Email:</strong> support@wedesignz.com</p>
-              <p><strong>Phone:</strong> +91-XXXXXXXXXX</p>
-              <p><strong>Address:</strong> [Your Company Address]</p>
+              <p><strong>Email:</strong> wedesignz006@gmail.com</p>
+              <p><strong>Phone:</strong> +91-8000452183</p>
+              <p><strong>Address:</strong> Sheetal Fab, B-117, Akar Tower, B-block, Old RTO road, Yogi Tower, Bhilwara - 311001</p>
             </div>
           </section>
         </div>

@@ -170,10 +170,16 @@ export default function DesignerOnboardingWizard() {
       <div className="relative z-10 w-full max-w-6xl">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-xl">W</span>
-            </div>
-            <span className="font-display font-bold text-2xl">WeDesignz Designer</span>
+            <img 
+              src="/Logos/ONLY LOGO.svg" 
+              alt="WeDesignz Logo" 
+              className="h-12 w-12 w-auto"
+            />
+            <img 
+              src="/Logos/ONLY TEXT.svg" 
+              alt="WeDesignz" 
+              className="h-8 w-auto"
+            />
           </div>
           <h1 className="text-3xl font-bold mb-2">Welcome to the Designer Program</h1>
           <p className="text-muted-foreground">Let&apos;s get you set up to start earning</p>
