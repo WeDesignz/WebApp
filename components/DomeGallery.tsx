@@ -449,28 +449,13 @@ export default function DomeGallery({
 
         // Only rotate the gallery if it's NOT a vertical scroll
         if (!isVerticalScrollRef.current) {
-          // Filter out small vertical movements when primary intent is horizontal
-          // This prevents flickering from natural hand movement during horizontal swipes
-          const absDx = Math.abs(dxTotal);
-          const absDy = Math.abs(dyTotal);
+          // Since maxVerticalRotationDeg is 0, we should ignore vertical movement entirely
+          // Only use horizontal movement (dxTotal) for rotation
+          // This prevents flickering from vertical movement affecting the gallery
           
-          // If horizontal movement is significantly more than vertical, reduce vertical sensitivity
-          // This creates a "dead zone" for small vertical movements during horizontal swipes
-          let filteredDy = dyTotal;
-          if (absDx > absDy * 2) {
-            // Horizontal is 2x more than vertical - heavily dampen vertical movement
-            filteredDy = dyTotal * 0.3;
-          } else if (absDx > absDy * 1.5) {
-            // Horizontal is 1.5x more than vertical - moderately dampen vertical movement
-            filteredDy = dyTotal * 0.5;
-          }
-
-          // Always rotate the gallery - respond immediately to any movement
-          const nextX = clamp(
-            startRotRef.current.x - filteredDy / dragSensitivity,
-            -maxVerticalRotationDeg,
-            maxVerticalRotationDeg
-          );
+          // Always rotate the gallery horizontally - ignore vertical movement completely
+          // Keep X rotation at 0 (or current value) since vertical rotation is disabled
+          const nextX = startRotRef.current.x; // Maintain current vertical rotation (0)
           const nextY = startRotRef.current.y + dxTotal / dragSensitivity;
 
           // Update rotation immediately - don't wait for threshold
