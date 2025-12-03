@@ -37,7 +37,7 @@ type ItemDef = {
 const DEFAULT_IMAGES: ImageItem[] = [];
 
 const DEFAULTS = {
-  maxVerticalRotationDeg: 5,
+  maxVerticalRotationDeg: 0,
   dragSensitivity: 20,
   enlargeTransitionMs: 300,
   segments: 35
