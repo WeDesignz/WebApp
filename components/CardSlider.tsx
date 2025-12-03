@@ -20,7 +20,6 @@ interface CardSliderProps {
 
 export default function CardSlider({ title, items, isLoading = false }: CardSliderProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [paused, setPaused] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const startXRef = useRef(0);
   const scrollLeftRef = useRef(0);
@@ -28,122 +27,6 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
   const dragDistanceRef = useRef(0);
   const hasDraggedRef = useRef(false);
   const clickAllowedRef = useRef(true);
-
-  // Initialize scroll position for seamless looping
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || items.length === 0) return;
-    
-    // Wait for DOM to be ready, then set initial scroll position
-    const initScroll = () => {
-      if (!el) return;
-      const itemCount = items.length;
-      const firstChild = el.firstElementChild as HTMLElement;
-      if (firstChild) {
-        const cardWidth = firstChild.offsetWidth;
-        const gap = 20;
-        const singleSetWidth = itemCount * cardWidth + (itemCount - 1) * gap;
-        
-        // Start at the second set for seamless infinite loop
-        if (el.scrollLeft === 0 && singleSetWidth > 0) {
-          el.style.scrollBehavior = 'auto';
-          el.scrollLeft = singleSetWidth;
-          // Restore smooth scrolling after initialization
-          requestAnimationFrame(() => {
-            if (el) el.style.scrollBehavior = 'smooth';
-          });
-        }
-      }
-    };
-    
-    // Initialize after a short delay to ensure DOM is ready
-    const timeoutId = setTimeout(initScroll, 100);
-    return () => clearTimeout(timeoutId);
-  }, [items.length]);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    let raf: number;
-    let lastTime = performance.now();
-    
-    // Calculate the width of one set of items for seamless looping
-    // Use actual DOM measurements for accuracy
-    const calculateSingleSetWidth = () => {
-      const itemCount = items.length;
-      // Get the actual width of the first card element
-      const firstChild = el.firstElementChild as HTMLElement;
-      if (firstChild) {
-        const cardWidth = firstChild.offsetWidth;
-        // Get computed gap (gap-5 = 1.25rem = 20px typically)
-        const gap = 20; // gap-5 = 1.25rem
-        return itemCount * cardWidth + (itemCount - 1) * gap;
-      }
-      // Fallback calculation
-      const cardWidth = typeof window !== 'undefined' && window.innerWidth >= 768 ? 360 : 300;
-      const gap = 20;
-      return itemCount * cardWidth + (itemCount - 1) * gap;
-    };
-    
-    // Initialize and update the ref for width calculation
-    singleSetWidthRef.current = calculateSingleSetWidth();
-    
-    // Initialize scroll position to start at the second set for seamless looping
-    // This allows us to scroll forward and loop back seamlessly
-    if (singleSetWidthRef.current > 0 && el.scrollLeft === 0) {
-      el.scrollLeft = singleSetWidthRef.current;
-    }
-    
-    const handleResize = () => {
-      const newWidth = calculateSingleSetWidth();
-      // Maintain relative scroll position on resize
-      const ratio = el.scrollLeft / singleSetWidthRef.current;
-      singleSetWidthRef.current = newWidth;
-      el.scrollLeft = singleSetWidthRef.current * ratio;
-    };
-    window.addEventListener('resize', handleResize);
-    
-    // Use CSS scroll-behavior for smoother scrolling, especially on mobile
-    // Only set if not dragging to avoid conflicts
-    if (!isDragging) {
-      el.style.scrollBehavior = 'smooth';
-    }
-    
-    const step = (currentTime: number) => {
-      if (!paused && !isDragging && el && items.length > 0) {
-        // Use delta time for frame-rate independent scrolling
-        const deltaTime = currentTime - lastTime;
-        lastTime = currentTime;
-        
-        // Calculate scroll speed based on frame time (60fps = ~16.67ms per frame)
-        // Consistent speed on both mobile and desktop for smooth autoscroll
-        const baseSpeed = typeof window !== 'undefined' && window.innerWidth < 768 ? 0.5 : 0.8;
-        const scrollSpeed = baseSpeed * (deltaTime / 16.67); // Normalize to 60fps
-        
-        el.scrollLeft += scrollSpeed;
-        
-        // Seamlessly loop when we've scrolled past two complete sets
-        // Since we start at the second set, we loop back when reaching the third set
-        if (el.scrollLeft >= singleSetWidthRef.current * 2) {
-          // Temporarily disable smooth scroll for instant reset
-          const wasSmooth = el.style.scrollBehavior;
-          el.style.scrollBehavior = 'auto';
-          // Instantly reset to the second set (one set width) without visual jump
-          el.scrollLeft = el.scrollLeft - singleSetWidthRef.current;
-          // Restore smooth scrolling after a frame
-          requestAnimationFrame(() => {
-            if (el) el.style.scrollBehavior = wasSmooth || 'smooth';
-          });
-        }
-      }
-      raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [paused, isDragging, items.length]);
 
   // Use global event listeners for dragging
   useEffect(() => {
@@ -316,13 +199,8 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
     }, 200);
   };
 
-  const handleMouseEnter = () => {
-    setPaused(true);
-  };
-
   const handleMouseLeave = () => {
     setIsDragging(false);
-    setPaused(false);
   };
 
   // Duplicate items multiple times for seamless infinite loop
@@ -356,7 +234,7 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
           {!isLoading && items.length > 0 && (
             <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
               <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-pulse" />
-              <span>Hover to pause • Drag to explore</span>
+              <span>Drag to explore</span>
             </div>
           )}
         </div>
@@ -371,7 +249,6 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
         <div
           ref={ref}
           onMouseDown={handleMouseDown}
-          onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onTouchStart={handleTouchStart}
           className="flex gap-5 overflow-x-auto scrollbar-none select-none cursor-grab active:cursor-grabbing pb-2"
