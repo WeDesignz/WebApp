@@ -403,6 +403,12 @@ export default function DomeGallery({
         startPosRef.current = { x: evt.clientX, y: evt.clientY };
         const potential = (evt.target as Element).closest?.('.item__image') as HTMLElement | null;
         tapTargetRef.current = potential || null;
+        
+        // Prevent default immediately for touch to enable smooth dragging
+        if (pointerTypeRef.current === 'touch') {
+          evt.preventDefault();
+          lockScroll();
+        }
       },
       onDrag: ({ event, last, velocity: velArr = [0, 0], direction: dirArr = [0, 0], movement }) => {
         if (focusedElRef.current || !draggingRef.current || !startPosRef.current) return;
@@ -411,23 +417,23 @@ export default function DomeGallery({
         const dxTotal = evt.clientX - startPosRef.current.x;
         const dyTotal = evt.clientY - startPosRef.current.y;
 
+        // Always prevent default for touch to ensure smooth dragging
+        if (pointerTypeRef.current === 'touch') {
+          evt.preventDefault();
+        }
+
         if (!movedRef.current) {
           const dist2 = dxTotal * dxTotal + dyTotal * dyTotal;
-          if (dist2 > 12) {
+          // Lower threshold for faster response (8px instead of 12px)
+          if (dist2 > 8) {
             movedRef.current = true;
             // Always treat as gallery interaction - disable vertical scrolling
             isVerticalScrollRef.current = false;
             
-            // Always prevent default and lock scroll for gallery interactions
+            // Lock scroll when movement is detected
             if (pointerTypeRef.current === 'touch') {
-              evt.preventDefault();
               lockScroll();
             }
-          }
-        } else {
-          // Always prevent default for gallery interactions
-          if (pointerTypeRef.current === 'touch') {
-            evt.preventDefault();
           }
         }
 
@@ -447,7 +453,7 @@ export default function DomeGallery({
           filteredDy = dyTotal * 0.5;
         }
 
-        // Always rotate the gallery
+        // Always rotate the gallery - respond immediately to any movement
         const nextX = clamp(
           startRotRef.current.x - filteredDy / dragSensitivity,
           -maxVerticalRotationDeg,
@@ -455,12 +461,10 @@ export default function DomeGallery({
         );
         const nextY = startRotRef.current.y + dxTotal / dragSensitivity;
 
-        const cur = rotationRef.current;
-        if (cur.x !== nextX || cur.y !== nextY) {
-          rotationRef.current = { x: nextX, y: nextY };
-          // Use throttled transform for smoother performance
-          applyTransformThrottled(nextX, nextY);
-        }
+        // Update rotation immediately - don't wait for threshold
+        rotationRef.current = { x: nextX, y: nextY };
+        // Use throttled transform for smoother performance
+        applyTransformThrottled(nextX, nextY);
 
         if (last) {
           draggingRef.current = false;
@@ -662,7 +666,7 @@ export default function DomeGallery({
           ref={mainRef}
           className="absolute inset-0 grid place-items-center overflow-hidden select-none bg-transparent"
           style={{
-            touchAction: 'pan-x pinch-zoom', // Only allow horizontal panning, disable vertical
+            touchAction: 'none', // Disable all default touch actions to allow custom dragging
             WebkitUserSelect: 'none'
           }}
         >
