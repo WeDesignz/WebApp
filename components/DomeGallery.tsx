@@ -44,11 +44,11 @@ const DEFAULTS = {
 };
 
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
+const normalizeAngle = (d: number) => ((d % 360) + 360) % 360;
 const wrapAngleSigned = (deg: number) => {
   const a = (((deg + 180) % 360) + 360) % 360;
   return a - 180;
 };
-const normalizeAngle = (d: number) => ((d % 360) + 360) % 360;
 const getDataNumber = (el: HTMLElement, name: string, fallback: number) => {
   const attr = el.dataset[name] ?? el.getAttribute(`data-${name}`);
   const n = attr == null ? NaN : parseFloat(attr);
@@ -68,6 +68,11 @@ function buildItems(pool: ImageItem[], seg: number): ItemDef[] {
   const totalSlots = coords.length;
   if (pool.length === 0) {
     return coords.map(c => ({ ...c, src: '', alt: '' }));
+  }
+  if (pool.length > totalSlots) {
+    console.warn(
+      `[DomeGallery] Provided image count (${pool.length}) exceeds available tiles (${totalSlots}). Some images will not be shown.`
+    );
   }
 
   const normalizedImages = pool.map(image => {
@@ -112,7 +117,7 @@ export default function DomeGallery({
   fitBasis = 'auto',
   minRadius = 600,
   maxRadius = Infinity,
-  padFactor = 0.15,
+  padFactor = 0.25,
   overlayBlurColor = 'hsl(var(--background))',
   maxVerticalRotationDeg = DEFAULTS.maxVerticalRotationDeg,
   dragSensitivity = DEFAULTS.dragSensitivity,
@@ -121,8 +126,8 @@ export default function DomeGallery({
   dragDampening = 2,
   openedImageWidth = '400px',
   openedImageHeight = '400px',
-  imageBorderRadius = '24px',
-  openedImageBorderRadius = '24px',
+  imageBorderRadius = '30px',
+  openedImageBorderRadius = '30px',
   grayscale = true
 }: DomeGalleryProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -146,8 +151,6 @@ export default function DomeGallery({
   const cancelTapRef = useRef(false);
   const movedRef = useRef(false);
   const inertiaRAF = useRef<number | null>(null);
-  const transformRAF = useRef<number | null>(null); // For throttling transforms
-  const pendingTransform = useRef<{ x: number; y: number } | null>(null); // Pending transform updates
   const pointerTypeRef = useRef<'mouse' | 'pen' | 'touch'>('mouse');
   const tapTargetRef = useRef<HTMLElement | null>(null);
   const openingRef = useRef(false);
@@ -170,27 +173,28 @@ export default function DomeGallery({
 
   const items = useMemo(() => buildItems(images, segments), [images, segments]);
 
+  const transformRAF = useRef<number | null>(null);
+  const pendingTransform = useRef<{ x: number; y: number } | null>(null);
+
   const applyTransform = useCallback((xDeg: number, yDeg: number) => {
     const el = sphereRef.current;
     if (el) {
-      // Use transform3d for hardware acceleration
+      // Use translate3d for hardware acceleration
       el.style.transform = `translate3d(0, 0, calc(var(--radius) * -1)) rotateX(${xDeg}deg) rotateY(${yDeg}deg)`;
     }
   }, []);
 
-  // Throttled transform application for smoother performance
   const applyTransformThrottled = useCallback((xDeg: number, yDeg: number) => {
     pendingTransform.current = { x: xDeg, y: yDeg };
-    
-    if (transformRAF.current) return; // Already scheduled
-    
-    transformRAF.current = requestAnimationFrame(() => {
-      if (pendingTransform.current) {
-        applyTransform(pendingTransform.current.x, pendingTransform.current.y);
-        pendingTransform.current = null;
-      }
-      transformRAF.current = null;
-    });
+    if (transformRAF.current === null) {
+      transformRAF.current = requestAnimationFrame(() => {
+        if (pendingTransform.current) {
+          applyTransform(pendingTransform.current.x, pendingTransform.current.y);
+          pendingTransform.current = null;
+        }
+        transformRAF.current = null;
+      });
+    }
   }, [applyTransform]);
 
   const lockedRadiusRef = useRef<number | null>(null);
@@ -236,6 +240,32 @@ export default function DomeGallery({
       root.style.setProperty('--enlarge-radius', openedImageBorderRadius);
       root.style.setProperty('--image-filter', grayscale ? 'grayscale(1)' : 'none');
       applyTransform(rotationRef.current.x, rotationRef.current.y);
+
+      const enlargedOverlay = viewerRef.current?.querySelector('.enlarge') as HTMLElement;
+      if (enlargedOverlay && frameRef.current && mainRef.current) {
+        const frameR = frameRef.current.getBoundingClientRect();
+        const mainR = mainRef.current.getBoundingClientRect();
+
+        const hasCustomSize = openedImageWidth && openedImageHeight;
+        if (hasCustomSize) {
+          const tempDiv = document.createElement('div');
+          tempDiv.style.cssText = `position: absolute; width: ${openedImageWidth}; height: ${openedImageHeight}; visibility: hidden;`;
+          document.body.appendChild(tempDiv);
+          const tempRect = tempDiv.getBoundingClientRect();
+          document.body.removeChild(tempDiv);
+
+          const centeredLeft = frameR.left - mainR.left + (frameR.width - tempRect.width) / 2;
+          const centeredTop = frameR.top - mainR.top + (frameR.height - tempRect.height) / 2;
+
+          enlargedOverlay.style.left = `${centeredLeft}px`;
+          enlargedOverlay.style.top = `${centeredTop}px`;
+        } else {
+          enlargedOverlay.style.left = `${frameR.left - mainR.left}px`;
+          enlargedOverlay.style.top = `${frameR.top - mainR.top}px`;
+          enlargedOverlay.style.width = `${frameR.width}px`;
+          enlargedOverlay.style.height = `${frameR.height}px`;
+        }
+      }
     });
     ro.observe(root);
     return () => ro.disconnect();
@@ -255,14 +285,6 @@ export default function DomeGallery({
 
   useEffect(() => {
     applyTransform(rotationRef.current.x, rotationRef.current.y);
-    return () => {
-      // Cleanup pending transforms
-      if (transformRAF.current) {
-        cancelAnimationFrame(transformRAF.current);
-        transformRAF.current = null;
-      }
-      pendingTransform.current = null;
-    };
   }, [applyTransform]);
 
   const stopInertia = useCallback(() => {
@@ -270,7 +292,7 @@ export default function DomeGallery({
       cancelAnimationFrame(inertiaRAF.current);
       inertiaRAF.current = null;
     }
-    // Also cancel any pending transforms to prevent conflicts
+    // Clear any pending throttled transforms
     if (transformRAF.current) {
       cancelAnimationFrame(transformRAF.current);
       transformRAF.current = null;
@@ -302,16 +324,290 @@ export default function DomeGallery({
         const nextX = clamp(rotationRef.current.x - vY / 200, -maxVerticalRotationDeg, maxVerticalRotationDeg);
         const nextY = wrapAngleSigned(rotationRef.current.y + vX / 200);
         rotationRef.current = { x: nextX, y: nextY };
-        applyTransformThrottled(nextX, nextY);
+        applyTransform(nextX, nextY);
         inertiaRAF.current = requestAnimationFrame(step);
       };
       stopInertia();
       inertiaRAF.current = requestAnimationFrame(step);
     },
-    [dragDampening, maxVerticalRotationDeg, stopInertia, applyTransformThrottled]
+    [dragDampening, maxVerticalRotationDeg, stopInertia]
   );
 
-  const openItemFromElement = useCallback((el: HTMLElement) => {
+  useGesture(
+    {
+      onDragStart: ({ event }) => {
+        if (focusedElRef.current) return;
+        stopInertia();
+
+        const evt = event as PointerEvent;
+        pointerTypeRef.current = (evt.pointerType as any) || 'mouse';
+        draggingRef.current = true;
+        cancelTapRef.current = false;
+        movedRef.current = false;
+        isVerticalScrollRef.current = false;
+        startRotRef.current = { ...rotationRef.current };
+        startPosRef.current = { x: evt.clientX, y: evt.clientY };
+        const potential = (evt.target as Element).closest?.('.item__image') as HTMLElement | null;
+        tapTargetRef.current = potential || null;
+      },
+      onDrag: ({ event, last, velocity: velArr = [0, 0], direction: dirArr = [0, 0], movement }) => {
+        if (focusedElRef.current || !draggingRef.current || !startPosRef.current) return;
+
+        const evt = event as PointerEvent;
+        const dxTotal = evt.clientX - startPosRef.current.x;
+        const dyTotal = evt.clientY - startPosRef.current.y;
+
+        const absDx = Math.abs(dxTotal);
+        const absDy = Math.abs(dyTotal);
+        
+        // Simplified: Only treat as vertical scroll if clearly vertical (much more lenient)
+        // This allows horizontal drags to work smoothly even with some vertical movement
+        const isVertical = pointerTypeRef.current === 'touch' && (absDy > absDx * 4 && absDy > 60);
+
+        if (!movedRef.current) {
+          const dist2 = dxTotal * dxTotal + dyTotal * dyTotal;
+          if (dist2 > 4) { // Lower threshold for faster response
+            movedRef.current = true;
+            isVerticalScrollRef.current = isVertical;
+            
+            if (pointerTypeRef.current === 'touch') {
+              if (!isVertical) {
+                evt.preventDefault();
+                lockScroll();
+              }
+            }
+          }
+        } else {
+          if (pointerTypeRef.current === 'touch') {
+            // Only re-evaluate if movement is significant
+            if (absDy > 30 || absDx > 30) {
+              const isVerticalNow = absDy > absDx * 4 && absDy > 60;
+              if (isVerticalNow !== isVerticalScrollRef.current) {
+                isVerticalScrollRef.current = isVerticalNow;
+                if (!isVerticalNow) {
+                  if (!scrollLockedRef.current) lockScroll();
+                } else {
+                  unlockScroll();
+                }
+              }
+            }
+            
+            if (!isVerticalScrollRef.current) {
+              evt.preventDefault();
+            }
+          }
+        }
+
+        // Rotate gallery if it's NOT a vertical scroll
+        if (!isVerticalScrollRef.current) {
+          // For mobile, use responsive sensitivity
+          const effectiveSensitivity = pointerTypeRef.current === 'touch' 
+            ? dragSensitivity * 0.6  // Slightly less aggressive than 0.5
+            : dragSensitivity;
+          
+          const nextX = clamp(
+            startRotRef.current.x - dyTotal / effectiveSensitivity,
+            -maxVerticalRotationDeg,
+            maxVerticalRotationDeg
+          );
+          const nextY = startRotRef.current.y + dxTotal / effectiveSensitivity;
+
+          rotationRef.current = { x: nextX, y: nextY };
+          // Apply transform DIRECTLY during drag for smooth following - no throttling!
+          applyTransform(nextX, nextY);
+        }
+
+        if (last) {
+          draggingRef.current = false;
+          let isTap = false;
+
+          if (startPosRef.current) {
+            const dx = evt.clientX - startPosRef.current.x;
+            const dy = evt.clientY - startPosRef.current.y;
+            const dist2 = dx * dx + dy * dy;
+            const TAP_THRESH_PX = pointerTypeRef.current === 'touch' ? 10 : 6;
+            if (dist2 <= TAP_THRESH_PX * TAP_THRESH_PX) {
+              isTap = true;
+            }
+          }
+
+          // Only apply inertia for desktop/mouse, not for mobile touch
+          // On mobile, gallery should stop immediately when drag ends
+          if (!isVerticalScrollRef.current && pointerTypeRef.current !== 'touch') {
+            let [vMagX, vMagY] = velArr;
+            const [dirX, dirY] = dirArr;
+            let vx = vMagX * dirX;
+            let vy = vMagY * dirY;
+
+            if (!isTap && Math.abs(vx) < 0.001 && Math.abs(vy) < 0.001 && Array.isArray(movement)) {
+              const [mx, my] = movement;
+              vx = (mx / dragSensitivity) * 0.02;
+              vy = (my / dragSensitivity) * 0.02;
+            }
+
+            if (!isTap && (Math.abs(vx) > 0.005 || Math.abs(vy) > 0.005)) {
+              startInertia(vx, vy);
+            }
+          }
+          // For touch/mobile, no inertia - gallery stops immediately
+          
+          startPosRef.current = null;
+          cancelTapRef.current = !isTap;
+
+          if (isTap && tapTargetRef.current && !focusedElRef.current) {
+            openItemFromElement(tapTargetRef.current);
+          }
+          tapTargetRef.current = null;
+
+          if (cancelTapRef.current) setTimeout(() => (cancelTapRef.current = false), 120);
+          if (pointerTypeRef.current === 'touch') unlockScroll();
+          if (movedRef.current) lastDragEndAt.current = performance.now();
+          movedRef.current = false;
+          isVerticalScrollRef.current = false;
+        }
+      }
+    },
+    { target: mainRef, eventOptions: { passive: false } }
+  );
+
+  useEffect(() => {
+    const scrim = scrimRef.current;
+    if (!scrim) return;
+
+    const close = () => {
+      if (performance.now() - openStartedAtRef.current < 250) return;
+      const el = focusedElRef.current;
+      if (!el) return;
+      const parent = el.parentElement as HTMLElement;
+      const overlay = viewerRef.current?.querySelector('.enlarge') as HTMLElement | null;
+      if (!overlay) return;
+
+      const refDiv = parent.querySelector('.item__image--reference') as HTMLElement | null;
+
+      const originalPos = originalTilePositionRef.current;
+      if (!originalPos) {
+        overlay.remove();
+        if (refDiv) refDiv.remove();
+        parent.style.setProperty('--rot-y-delta', `0deg`);
+        parent.style.setProperty('--rot-x-delta', `0deg`);
+        el.style.visibility = '';
+        (el.style as any).zIndex = 0;
+        focusedElRef.current = null;
+        rootRef.current?.removeAttribute('data-enlarging');
+        openingRef.current = false;
+        unlockScroll();
+        return;
+      }
+
+      const currentRect = overlay.getBoundingClientRect();
+      const rootRect = rootRef.current!.getBoundingClientRect();
+
+      const originalPosRelativeToRoot = {
+        left: originalPos.left - rootRect.left,
+        top: originalPos.top - rootRect.top,
+        width: originalPos.width,
+        height: originalPos.height
+      };
+
+      const overlayRelativeToRoot = {
+        left: currentRect.left - rootRect.left,
+        top: currentRect.top - rootRect.top,
+        width: currentRect.width,
+        height: currentRect.height
+      };
+
+      const animatingOverlay = document.createElement('div');
+      animatingOverlay.className = 'enlarge-closing';
+      animatingOverlay.style.cssText = `
+        position: absolute;
+        left: ${overlayRelativeToRoot.left}px;
+        top: ${overlayRelativeToRoot.top}px;
+        width: ${overlayRelativeToRoot.width}px;
+        height: ${overlayRelativeToRoot.height}px;
+        z-index: 9999;
+        border-radius: ${openedImageBorderRadius};
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,.35);
+        transition: all ${enlargeTransitionMs}ms ease-out;
+        pointer-events: none;
+        margin: 0;
+        transform: none;
+        filter: ${grayscale ? 'grayscale(1)' : 'none'};
+      `;
+
+      const originalImg = overlay.querySelector('img');
+      if (originalImg) {
+        const img = originalImg.cloneNode() as HTMLImageElement;
+        img.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+        animatingOverlay.appendChild(img);
+      }
+
+      overlay.remove();
+      rootRef.current!.appendChild(animatingOverlay);
+
+      void animatingOverlay.getBoundingClientRect();
+
+      requestAnimationFrame(() => {
+        animatingOverlay.style.left = originalPosRelativeToRoot.left + 'px';
+        animatingOverlay.style.top = originalPosRelativeToRoot.top + 'px';
+        animatingOverlay.style.width = originalPosRelativeToRoot.width + 'px';
+        animatingOverlay.style.height = originalPosRelativeToRoot.height + 'px';
+        animatingOverlay.style.opacity = '0';
+      });
+
+      const cleanup = () => {
+        animatingOverlay.remove();
+        originalTilePositionRef.current = null;
+
+        if (refDiv) refDiv.remove();
+        parent.style.transition = 'none';
+        el.style.transition = 'none';
+
+        parent.style.setProperty('--rot-y-delta', `0deg`);
+        parent.style.setProperty('--rot-x-delta', `0deg`);
+
+        requestAnimationFrame(() => {
+          el.style.visibility = '';
+          el.style.opacity = '0';
+          (el.style as any).zIndex = 0;
+          focusedElRef.current = null;
+          rootRef.current?.removeAttribute('data-enlarging');
+
+          requestAnimationFrame(() => {
+            parent.style.transition = '';
+            el.style.transition = 'opacity 300ms ease-out';
+
+            requestAnimationFrame(() => {
+              el.style.opacity = '1';
+              setTimeout(() => {
+                el.style.transition = '';
+                el.style.opacity = '';
+                openingRef.current = false;
+                unlockScroll();
+              }, 300);
+            });
+          });
+        });
+      };
+
+      animatingOverlay.addEventListener('transitionend', cleanup, {
+        once: true
+      });
+    };
+
+    scrim.addEventListener('click', close);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    window.addEventListener('keydown', onKey);
+
+    return () => {
+      scrim.removeEventListener('click', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [enlargeTransitionMs, openedImageBorderRadius, grayscale, unlockScroll]);
+
+  const openItemFromElement = (el: HTMLElement) => {
     if (openingRef.current) return;
     openingRef.current = true;
     openStartedAtRef.current = performance.now();
@@ -366,7 +662,7 @@ export default function DomeGallery({
     const img = document.createElement('img');
     img.src = rawSrc;
     img.alt = rawAlt;
-    img.style.cssText = `width:100%; height:100%; object-fit:cover; filter:${grayscale ? 'grayscale(0)' : 'none'};`;
+    img.style.cssText = `width:100%; height:100%; object-fit:cover; filter:${grayscale ? 'grayscale(1)' : 'none'};`;
     overlay.appendChild(img);
     viewerRef.current!.appendChild(overlay);
     const tx0 = tileR.left - frameR.left;
@@ -384,195 +680,41 @@ export default function DomeGallery({
       overlay.style.transform = 'translate(0px, 0px) scale(1, 1)';
       rootRef.current?.setAttribute('data-enlarging', 'true');
     }, 16);
-  }, [segments, enlargeTransitionMs, openedImageBorderRadius, grayscale, lockScroll, unlockScroll]);
-
-  useGesture(
-    {
-      onDragStart: ({ event }) => {
-        if (focusedElRef.current) return;
-        // Stop inertia immediately and clear any pending transforms
-        stopInertia();
-        const evt = event as PointerEvent;
-        pointerTypeRef.current = (evt.pointerType as any) || 'mouse';
-        draggingRef.current = true;
-        cancelTapRef.current = false;
-        movedRef.current = false;
-        isVerticalScrollRef.current = false;
-        // Update start rotation to current rotation to prevent jump
-        startRotRef.current = { ...rotationRef.current };
-        startPosRef.current = { x: evt.clientX, y: evt.clientY };
-        const potential = (evt.target as Element).closest?.('.item__image') as HTMLElement | null;
-        tapTargetRef.current = potential || null;
-        
-        // Don't prevent default immediately - wait to see if it's a vertical scroll
-        // This allows vertical page scrolling to work normally without affecting gallery
-      },
-      onDrag: ({ event, last, velocity: velArr = [0, 0], direction: dirArr = [0, 0], movement }) => {
-        if (focusedElRef.current || !draggingRef.current || !startPosRef.current) return;
-
-        const evt = event as PointerEvent;
-        const dxTotal = evt.clientX - startPosRef.current.x;
-        const dyTotal = evt.clientY - startPosRef.current.y;
-
-        if (!movedRef.current) {
-          const dist2 = dxTotal * dxTotal + dyTotal * dyTotal;
-          // Lower threshold for faster response (8px instead of 12px)
-          if (dist2 > 8) {
-            movedRef.current = true;
-            
-            // Detect if this is primarily a vertical scroll
-            // Use a more lenient threshold to catch vertical scrolls better
-            const absDx = Math.abs(dxTotal);
-            const absDy = Math.abs(dyTotal);
-            // If vertical movement is 1.5x more than horizontal OR vertical is >20px with small horizontal, treat as vertical scroll
-            // This is more lenient to catch vertical scrolls even with small horizontal drift
-            const isVertical = (absDy > absDx * 1.5) || (absDy > 20 && absDx < 15);
-            isVerticalScrollRef.current = isVertical;
-            
-            // Only prevent default and lock scroll if it's NOT a vertical scroll
-            if (pointerTypeRef.current === 'touch') {
-              if (!isVertical) {
-                evt.preventDefault();
-                lockScroll();
-              }
-              // Don't prevent default for vertical scrolls - let page scroll normally
-            }
-          }
-        } else {
-          // Re-evaluate gesture type during drag to catch direction changes
-          // This helps when user starts with small movement then clearly scrolls vertically
-          const absDx = Math.abs(dxTotal);
-          const absDy = Math.abs(dyTotal);
-          const isVertical = (absDy > absDx * 1.5) || (absDy > 20 && absDx < 15);
-          
-          // Update vertical scroll detection if it changes
-          if (isVertical !== isVerticalScrollRef.current) {
-            isVerticalScrollRef.current = isVertical;
-            // If it becomes a vertical scroll, unlock scroll and stop preventing default
-            if (isVertical && pointerTypeRef.current === 'touch') {
-              unlockScroll();
-            }
-          }
-          
-          // Once we've determined the gesture type, maintain it
-          if (pointerTypeRef.current === 'touch') {
-            if (!isVerticalScrollRef.current) {
-              // Only prevent default for gallery interactions, not vertical scrolls
-              evt.preventDefault();
-            }
-            // Don't prevent default for vertical scrolls - let page scroll normally
-          }
-        }
-
-        // Only rotate the gallery if it's NOT a vertical scroll
-        if (!isVerticalScrollRef.current) {
-          // Since maxVerticalRotationDeg is 0, we should ignore vertical movement entirely
-          // Only use horizontal movement (dxTotal) for rotation
-          // This prevents flickering from vertical movement affecting the gallery
-          
-          // Always rotate the gallery horizontally - ignore vertical movement completely
-          // Keep X rotation at 0 (or current value) since vertical rotation is disabled
-          const nextX = startRotRef.current.x; // Maintain current vertical rotation (0)
-          const nextY = startRotRef.current.y + dxTotal / dragSensitivity;
-
-          // Update rotation immediately - don't wait for threshold
-          rotationRef.current = { x: nextX, y: nextY };
-          // Use throttled transform for smoother performance
-          applyTransformThrottled(nextX, nextY);
-        }
-        // If it's a vertical scroll, don't update the gallery rotation at all - preserve state
-
-        if (last) {
-          draggingRef.current = false;
-          let isTap = false;
-
-          if (startPosRef.current) {
-            const dx = evt.clientX - startPosRef.current.x;
-            const dy = evt.clientY - startPosRef.current.y;
-            const dist2 = dx * dx + dy * dy;
-            const TAP_THRESH_PX = pointerTypeRef.current === 'touch' ? 10 : 6;
-            if (dist2 <= TAP_THRESH_PX * TAP_THRESH_PX) {
-              isTap = true;
-            }
-          }
-
-          // Only apply inertia if it wasn't a vertical scroll
-          // This prevents gallery state from changing after vertical scrolling
-          if (!isVerticalScrollRef.current) {
-            let [vMagX, vMagY] = velArr;
-            const [dirX, dirY] = dirArr;
-            let vx = vMagX * dirX;
-            let vy = vMagY * dirY;
-
-            if (!isTap && Math.abs(vx) < 0.001 && Math.abs(vy) < 0.001 && Array.isArray(movement)) {
-              const [mx, my] = movement;
-              vx = (mx / dragSensitivity) * 0.02;
-              vy = (my / dragSensitivity) * 0.02;
-            }
-
-            if (!isTap && (Math.abs(vx) > 0.005 || Math.abs(vy) > 0.005)) {
-              startInertia(vx, vy);
-            }
-          }
-          
-          startPosRef.current = null;
-          cancelTapRef.current = !isTap;
-
-          if (isTap && tapTargetRef.current && !focusedElRef.current) {
-            openItemFromElement(tapTargetRef.current);
-          }
-          tapTargetRef.current = null;
-
-          if (cancelTapRef.current) setTimeout(() => (cancelTapRef.current = false), 120);
-          if (pointerTypeRef.current === 'touch') unlockScroll();
-          if (movedRef.current) lastDragEndAt.current = performance.now();
-          movedRef.current = false;
-          isVerticalScrollRef.current = false;
-        }
-      }
-    },
-    { 
-      target: mainRef, 
-      eventOptions: { passive: false } // Need non-passive to conditionally prevent default
+    const wantsResize = openedImageWidth || openedImageHeight;
+    if (wantsResize) {
+      const onFirstEnd = (ev: TransitionEvent) => {
+        if (ev.propertyName !== 'transform') return;
+        overlay.removeEventListener('transitionend', onFirstEnd);
+        const prevTransition = overlay.style.transition;
+        overlay.style.transition = 'none';
+        const tempWidth = openedImageWidth || `${frameR.width}px`;
+        const tempHeight = openedImageHeight || `${frameR.height}px`;
+        overlay.style.width = tempWidth;
+        overlay.style.height = tempHeight;
+        const newRect = overlay.getBoundingClientRect();
+        overlay.style.width = frameR.width + 'px';
+        overlay.style.height = frameR.height + 'px';
+        void overlay.offsetWidth;
+        overlay.style.transition = `left ${enlargeTransitionMs}ms ease, top ${enlargeTransitionMs}ms ease, width ${enlargeTransitionMs}ms ease, height ${enlargeTransitionMs}ms ease`;
+        const centeredLeft = frameR.left - mainR.left + (frameR.width - newRect.width) / 2;
+        const centeredTop = frameR.top - mainR.top + (frameR.height - newRect.height) / 2;
+        requestAnimationFrame(() => {
+          overlay.style.left = `${centeredLeft}px`;
+          overlay.style.top = `${centeredTop}px`;
+          overlay.style.width = tempWidth;
+          overlay.style.height = tempHeight;
+        });
+        const cleanupSecond = () => {
+          overlay.removeEventListener('transitionend', cleanupSecond);
+          overlay.style.transition = prevTransition;
+        };
+        overlay.addEventListener('transitionend', cleanupSecond, {
+          once: true
+        });
+      };
+      overlay.addEventListener('transitionend', onFirstEnd);
     }
-  );
-
-  useEffect(() => {
-    const scrim = scrimRef.current;
-    if (!scrim) return;
-
-    const close = () => {
-      if (performance.now() - openStartedAtRef.current < 250) return;
-      const el = focusedElRef.current;
-      if (!el) return;
-      const parent = el.parentElement as HTMLElement;
-      const overlay = viewerRef.current?.querySelector('.enlarge') as HTMLElement | null;
-      if (!overlay) return;
-
-      overlay.remove();
-      const refDiv = parent.querySelector('.item__image--reference') as HTMLElement | null;
-      if (refDiv) refDiv.remove();
-      parent.style.setProperty('--rot-y-delta', `0deg`);
-      parent.style.setProperty('--rot-x-delta', `0deg`);
-      el.style.visibility = '';
-      (el.style as any).zIndex = 0;
-      focusedElRef.current = null;
-      rootRef.current?.removeAttribute('data-enlarging');
-      openingRef.current = false;
-      unlockScroll();
-    };
-
-    scrim.addEventListener('click', close);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
-    };
-    window.addEventListener('keydown', onKey);
-
-    return () => {
-      scrim.removeEventListener('click', close);
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [enlargeTransitionMs, openedImageBorderRadius, grayscale, unlockScroll]);
+  };
 
   useEffect(() => {
     return () => {
@@ -581,88 +723,88 @@ export default function DomeGallery({
   }, []);
 
   const cssStyles = `
-.sphere-root {
-  --radius: 520px;
-  --viewer-pad: 72px;
-  --circ: calc(var(--radius) * 3.14);
-  --rot-y: calc((360deg / var(--segments-x)) / 2);
-  --rot-x: calc((360deg / var(--segments-y)) / 2);
-  --item-width: calc(var(--circ) / var(--segments-x));
-  --item-height: calc(var(--circ) / var(--segments-y));
-}
-
-.sphere-root * { box-sizing: border-box; }
-.sphere, .sphere-item, .item__image { transform-style: preserve-3d; }
-
-.stage {
-  width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  perspective: calc(var(--radius) * 2);
-  perspective-origin: 50% 50%;
-}
-
-.sphere {
-  transform: translateZ(calc(var(--radius) * -1));
-  will-change: transform;
-  position: absolute;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-}
-
-.sphere-item {
-  width: calc(var(--item-width) * var(--item-size-x));
-  height: calc(var(--item-height) * var(--item-size-y));
-  position: absolute;
-  top: -999px;
-  bottom: -999px;
-  left: -999px;
-  right: -999px;
-  margin: auto;
-  transform-origin: 50% 50%;
-  backface-visibility: hidden;
-  transition: transform 300ms;
-  transform: rotateY(calc(var(--rot-y) * (var(--offset-x) + ((var(--item-size-x) - 1) / 2)) + var(--rot-y-delta, 0deg))) rotateX(calc(var(--rot-x) * (var(--offset-y) - ((var(--item-size-y) - 1) / 2)) + var(--rot-x-delta, 0deg))) translateZ(var(--radius));
-}
-
-.sphere-root[data-enlarging="true"] .scrim {
-  opacity: 1 !important;
-  pointer-events: all !important;
-}
-
-@media (max-aspect-ratio: 1/1) {
-  .viewer-frame {
-    height: auto !important;
-    width: min(65vw, 65vh) !important;
-    max-width: 600px !important;
-    max-height: 600px !important;
-  }
-}
-
-.item__image {
-  position: absolute;
-  inset: 10px;
-  border-radius: var(--tile-radius, 12px);
-  overflow: hidden;
-  cursor: pointer;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  transition: transform 300ms;
-  pointer-events: auto;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-}
-
-.item__image--reference {
-  position: absolute;
-  inset: 10px;
-  pointer-events: none;
-}
-`;
+    .sphere-root {
+      --radius: 520px;
+      --viewer-pad: 72px;
+      --circ: calc(var(--radius) * 3.14);
+      --rot-y: calc((360deg / var(--segments-x)) / 2);
+      --rot-x: calc((360deg / var(--segments-y)) / 2);
+      --item-width: calc(var(--circ) / var(--segments-x));
+      --item-height: calc(var(--circ) / var(--segments-y));
+    }
+    
+    .sphere-root * { box-sizing: border-box; }
+    .sphere, .sphere-item, .item__image { transform-style: preserve-3d; }
+    
+    .stage {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      perspective: calc(var(--radius) * 2);
+      perspective-origin: 50% 50%;
+    }
+    
+    .sphere {
+      transform: translate3d(0, 0, calc(var(--radius) * -1));
+      will-change: transform;
+      position: absolute;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      transform-style: preserve-3d;
+    }
+    
+    .sphere-item {
+      width: calc(var(--item-width) * var(--item-size-x));
+      height: calc(var(--item-height) * var(--item-size-y));
+      position: absolute;
+      top: -999px;
+      bottom: -999px;
+      left: -999px;
+      right: -999px;
+      margin: auto;
+      transform-origin: 50% 50%;
+      backface-visibility: hidden;
+      transition: transform 300ms;
+      transform: rotateY(calc(var(--rot-y) * (var(--offset-x) + ((var(--item-size-x) - 1) / 2)) + var(--rot-y-delta, 0deg))) 
+                 rotateX(calc(var(--rot-x) * (var(--offset-y) - ((var(--item-size-y) - 1) / 2)) + var(--rot-x-delta, 0deg))) 
+                 translateZ(var(--radius));
+    }
+    
+    .sphere-root[data-enlarging="true"] .scrim {
+      opacity: 1 !important;
+      pointer-events: all !important;
+    }
+    
+    @media (max-aspect-ratio: 1/1) {
+      .viewer-frame {
+        height: auto !important;
+        width: 100% !important;
+      }
+    }
+    
+    .item__image {
+      position: absolute;
+      inset: 10px;
+      border-radius: var(--tile-radius, 12px);
+      overflow: hidden;
+      cursor: pointer;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      transition: transform 300ms;
+      pointer-events: auto;
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+    }
+    .item__image--reference {
+      position: absolute;
+      inset: 10px;
+      pointer-events: none;
+    }
+  `;
 
   return (
     <>
@@ -686,7 +828,8 @@ export default function DomeGallery({
           className="absolute inset-0 grid place-items-center overflow-hidden select-none bg-transparent"
           style={{
             touchAction: 'pan-y pan-x', // Allow both vertical and horizontal panning
-            WebkitUserSelect: 'none'
+            WebkitUserSelect: 'none',
+            WebkitOverflowScrolling: 'touch' // Enable momentum scrolling on iOS
           }}
         >
           <div className="stage">
@@ -758,7 +901,7 @@ export default function DomeGallery({
           <div
             className="absolute inset-0 m-auto z-[3] pointer-events-none"
             style={{
-              WebkitMaskImage: `radial-gradient(rgba(235, 235, 235, 0) 70%, var(--overlay-blur-color, ${overlayBlurColor}) 90%)`,
+              WebkitMaskImage: `radial-gradient(rgba(235, 235, 0) 70%, var(--overlay-blur-color, ${overlayBlurColor}) 90%)`,
               maskImage: `radial-gradient(rgba(235, 235, 235, 0) 70%, var(--overlay-blur-color, ${overlayBlurColor}) 90%)`,
               backdropFilter: 'blur(3px)'
             }}
@@ -792,13 +935,9 @@ export default function DomeGallery({
             />
             <div
               ref={frameRef}
-              className="viewer-frame aspect-square flex"
+              className="viewer-frame h-full aspect-square flex"
               style={{
-                borderRadius: `var(--enlarge-radius, ${openedImageBorderRadius})`,
-                width: 'min(60vw, 60vh)',
-                height: 'min(60vw, 60vh)',
-                maxWidth: '600px',
-                maxHeight: '600px'
+                borderRadius: `var(--enlarge-radius, ${openedImageBorderRadius})`
               }}
             />
           </div>
@@ -807,5 +946,3 @@ export default function DomeGallery({
     </>
   );
 }
-
-
