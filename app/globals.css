@@ -167,12 +167,16 @@
 
 @layer base {
   * { @apply border-border; }
+  html {
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+  }
   body { 
     @apply font-sans antialiased bg-background text-foreground;
     font-feature-settings: "kern" 1, "liga" 1;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden; /* Prevent horizontal scrolling */
   }
   
   h1, h2, h3, h4, h5, h6 {

@@ -60,9 +60,14 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
     };
     window.addEventListener('resize', handleResize);
     
+    // Use CSS scroll-behavior for smoother scrolling, especially on mobile
+    el.style.scrollBehavior = 'smooth';
+    
     const step = () => {
       if (!paused && !isDragging && el) {
-        el.scrollLeft += 0.8; // Smooth scrolling speed
+        // Use smaller increments for smoother scrolling on mobile
+        const scrollSpeed = typeof window !== 'undefined' && window.innerWidth < 768 ? 0.5 : 0.8;
+        el.scrollLeft += scrollSpeed;
         
         // Seamlessly loop when we've scrolled past one complete set
         if (el.scrollLeft >= singleSetWidthRef.current) {
@@ -135,7 +140,10 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
 
     const handleGlobalTouchMove = (e: TouchEvent) => {
       if (!ref.current) return;
-      e.preventDefault();
+      // Only prevent default if we're actually dragging (not just touching)
+      if (hasDraggedRef.current && dragDistanceRef.current > 10) {
+        e.preventDefault();
+      }
       const touch = e.touches[0];
       if (!touch) return;
       
@@ -149,8 +157,8 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
         clickAllowedRef.current = false;
       }
       
-      // Calculate scroll change - drag right scrolls left, drag left scrolls right
-      const walk = deltaX * 2;
+      // Use smoother scroll calculation for mobile
+      const walk = deltaX * (typeof window !== 'undefined' && window.innerWidth < 768 ? 1.5 : 2);
       let newScrollLeft = scrollLeftRef.current - walk;
       
       const itemCount = items.length;
@@ -164,7 +172,12 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
         newScrollLeft = newScrollLeft - singleSetWidth * 2;
       }
       
-      ref.current.scrollLeft = newScrollLeft;
+      // Use requestAnimationFrame for smoother updates on mobile
+      requestAnimationFrame(() => {
+        if (ref.current) {
+          ref.current.scrollLeft = newScrollLeft;
+        }
+      });
     };
 
     const handleGlobalTouchEnd = () => {
@@ -289,7 +302,11 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
           onMouseLeave={handleMouseLeave}
           onTouchStart={handleTouchStart}
           className="flex gap-5 overflow-x-auto scrollbar-none select-none cursor-grab active:cursor-grabbing pb-2"
-          style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
+          style={{ 
+            scrollBehavior: isDragging ? 'auto' : 'smooth',
+            WebkitOverflowScrolling: 'touch', // Enable momentum scrolling on iOS
+            overscrollBehaviorX: 'contain' // Prevent horizontal page scroll when reaching edges
+          }}
         >
           {duplicatedItems.map((it, idx) => (
             <div 

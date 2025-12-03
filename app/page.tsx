@@ -69,7 +69,7 @@ export default function Page() {
   }, []);
 
   return (
-    <div className="relative min-h-screen bg-background">
+    <div className="relative min-h-screen bg-background overflow-x-hidden">
       <div className="fixed inset-0 z-0 pointer-events-none">
         <Particles
           particleColors={['#ffffff', '#ffffff']}
@@ -83,7 +83,7 @@ export default function Page() {
           className="opacity-60"
         />
       </div>
-      <div className="relative z-10">
+      <div className="relative z-10 overflow-x-hidden">
       <Navbar />
       <HeroSection />
       <ClientsStats />
