@@ -408,9 +408,14 @@ export default function DomeGallery({
           const dist2 = dxTotal * dxTotal + dyTotal * dyTotal;
           if (dist2 > 16) {
             movedRef.current = true;
-            // Determine if this is primarily a vertical scroll or horizontal drag
-            // If vertical movement is significantly more than horizontal, it's a scroll
-            const isVertical = Math.abs(dyTotal) > Math.abs(dxTotal) * 1.5;
+            // Determine if this is primarily a vertical scroll or gallery interaction
+            // Use a higher threshold (2.5x) to be more lenient - only treat as vertical scroll
+            // if it's VERY clearly vertical. This allows diagonal swipes to work smoothly.
+            const absDx = Math.abs(dxTotal);
+            const absDy = Math.abs(dyTotal);
+            // Only treat as vertical scroll if vertical is 2.5x more than horizontal
+            // AND there's significant vertical movement (at least 30px)
+            const isVertical = absDy > absDx * 2.5 && absDy > 30;
             isVerticalScrollRef.current = isVertical;
             
             // Only prevent default and lock scroll if it's NOT a vertical scroll
@@ -422,13 +427,15 @@ export default function DomeGallery({
             }
           }
         } else {
-          // If we've already determined it's a vertical scroll, don't prevent default
+          // Once we've started, maintain the decision - don't switch mid-gesture
+          // Always prevent default for gallery interactions to ensure smooth rotation
           if (pointerTypeRef.current === 'touch' && !isVerticalScrollRef.current) {
             evt.preventDefault();
           }
         }
 
-        // Only rotate the gallery if it's not a vertical scroll
+        // Rotate the gallery if it's not a pure vertical scroll
+        // Allow diagonal swipes to rotate the gallery smoothly
         if (!isVerticalScrollRef.current) {
           const nextX = clamp(
             startRotRef.current.x - dyTotal / dragSensitivity,
