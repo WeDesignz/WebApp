@@ -24,8 +24,8 @@ interface AuthContextType {
   login: (emailOrUsername: string, password: string, rememberMe?: boolean) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
-  setPassword: (email: string, otp: string, password: string, confirmPassword: string) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  setPassword: (email: string, otp: string, password: string, confirmPassword: string, phoneNumber?: string) => Promise<void>;
+  resetPassword: (email: string, deliveryMethod?: 'email' | 'whatsapp', phoneNumber?: string) => Promise<void>;
   verifyEmailOTP: (email: string, otp: string, mobileNumber?: string) => Promise<boolean>;
   verifyMobileOTP: (mobile: string, otp: string) => Promise<boolean>;
   sendEmailOTP: (email: string) => Promise<void>;
@@ -143,17 +143,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const issuedAt = payload.iat ? new Date(payload.iat * 1000) : null;
             const tokenAgeMinutes = payload.iat ? Math.floor((currentTime - (payload.iat * 1000)) / (60 * 1000)) : null;
             
-            console.log('[WebApp TokenRefresh] 🔑 Access Token Status:', {
-              'Expires At': expirationDate.toLocaleString(),
-              'Time Remaining': `${minutesRemaining}m ${secondsRemaining}s`,
-              'Will Refresh Soon': timeUntilExpiry < 5 * 60 * 1000 ? '✅ Yes (within 5 min)' : '❌ No',
-              'Token Age': tokenAgeMinutes !== null ? `${tokenAgeMinutes} minutes` : 'Unknown',
-              'Issued At': issuedAt ? issuedAt.toLocaleString() : 'Unknown'
-            });
+            // Debug logging disabled to reduce console noise
+            // Token status logging can be re-enabled for debugging if needed
             
             // If token expires in less than 5 minutes, refresh it proactively
             if (timeUntilExpiry > 0 && timeUntilExpiry < 5 * 60 * 1000) {
-              console.log('[WebApp TokenRefresh] ⚠️ Token expiring soon, refreshing...');
               isRefreshingRef.current = true;
               
               try {
@@ -163,7 +157,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   setRefreshToken(refreshResponse.data.refresh);
                   localStorage.setItem('wedesign_access_token', refreshResponse.data.access);
                   localStorage.setItem('wedesign_refresh_token', refreshResponse.data.refresh);
-                  console.log('[WebApp TokenRefresh] ✅ Token refreshed successfully');
+                  // Token refresh successful - no need to log
                 }
               } catch (error) {
                 // Don't log errors - let normal flow handle it
@@ -243,7 +237,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('wedesign_refresh_token', tokens.refresh);
       localStorage.setItem('wedesign_user', JSON.stringify(transformedUser));
     } catch (error: any) {
-      console.error('Login error in AuthContext:', error);
+      // Error is already handled and displayed to user, no need to log to console
       throw error;
     }
   };
@@ -306,21 +300,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     clearAuthData();
   };
 
-  const setPassword = async (email: string, otp: string, password: string, confirmPassword: string) => {
-    const response = await apiClient.confirmPasswordReset({
-      email,
+  const setPassword = async (email: string, otp: string, password: string, confirmPassword: string, phoneNumber?: string) => {
+    const payload: any = {
       otp,
       new_password: password,
       confirm_password: confirmPassword,
-    });
+    };
+    
+    if (phoneNumber) {
+      payload.phone_number = phoneNumber;
+    } else {
+      payload.email = email;
+    }
+    
+    const response = await apiClient.confirmPasswordReset(payload);
 
     if (response.error) {
       throw new Error(response.error);
     }
   };
 
-  const resetPassword = async (email: string) => {
-    const response = await apiClient.requestPasswordReset(email);
+  const resetPassword = async (email: string, deliveryMethod: 'email' | 'whatsapp' = 'email', phoneNumber?: string) => {
+    const response = await apiClient.requestPasswordReset(email, deliveryMethod, phoneNumber);
 
     if (response.error) {
       throw new Error(response.error);

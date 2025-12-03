@@ -307,8 +307,17 @@ export async function apiRequest<T>(
       const isLogoutEndpoint = endpoint.includes('/auth/logout') || endpoint.includes('/logout/');
       const isLogoutError = isLogoutEndpoint && (response.status === 400 || response.status === 401);
       
-      // Log error for debugging (skip expected 404s and logout errors)
-      if (!isExpected404 && !isLogoutError) {
+      // Don't log validation errors for OTP verification - these are expected user errors
+      const isOTPVerificationEndpoint = endpoint.includes('/verify-password-reset-otp/') || 
+                                       endpoint.includes('/verify-otp/');
+      const isOTPValidationError = isOTPVerificationEndpoint && response.status === 400;
+      
+      // Don't log validation errors for login - invalid credentials are expected user errors
+      const isLoginEndpoint = endpoint.includes('/auth/login/') || endpoint.includes('/login/');
+      const isLoginValidationError = isLoginEndpoint && response.status === 400;
+      
+      // Log error for debugging (skip expected 404s, logout errors, OTP validation errors, and login validation errors)
+      if (!isExpected404 && !isLogoutError && !isOTPValidationError && !isLoginValidationError) {
         logError(errorDetails, `API Request: ${endpoint}`);
       }
       
@@ -753,10 +762,23 @@ export const apiClient = {
     });
   },
 
-  requestPasswordReset: async (email: string) => {
+  requestPasswordReset: async (email: string, deliveryMethod: 'email' | 'whatsapp' = 'email', phoneNumber?: string) => {
+    const payload: any = { delivery_method: deliveryMethod };
+    if (deliveryMethod === 'email') {
+      payload.email = email;
+    } else if (phoneNumber) {
+      payload.phone_number = phoneNumber;
+    }
     return apiRequest('/api/auth/request-password-reset/', {
       method: 'POST',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify(payload),
+    });
+  },
+
+  verifyPasswordResetOTP: async (data: any) => {
+    return apiRequest('/api/auth/verify-password-reset-otp/', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
 
