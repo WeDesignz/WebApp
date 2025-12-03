@@ -62,7 +62,10 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
     window.addEventListener('resize', handleResize);
     
     // Use CSS scroll-behavior for smoother scrolling, especially on mobile
-    el.style.scrollBehavior = 'smooth';
+    // Only set if not dragging to avoid conflicts
+    if (!isDragging) {
+      el.style.scrollBehavior = 'smooth';
+    }
     
     const step = (currentTime: number) => {
       if (!paused && !isDragging && el) {
@@ -102,6 +105,8 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
   // Use global event listeners for dragging
   useEffect(() => {
     if (!isDragging) return;
+
+    let touchMoveRAF: number | null = null;
 
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (!ref.current) return;
@@ -146,44 +151,63 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
       }, 200);
     };
 
+    let lastTouchX = 0;
     const handleGlobalTouchMove = (e: TouchEvent) => {
       if (!ref.current) return;
       const touch = e.touches[0];
       if (!touch) return;
       
-      // Calculate delta from initial touch position (using clientX - same coordinate system)
-      const currentX = touch.clientX;
-      const deltaX = currentX - startXRef.current;
+      // Store latest touch position for RAF callback
+      lastTouchX = touch.clientX;
+      
+      // Calculate delta from initial touch position
+      const deltaX = lastTouchX - startXRef.current;
       
       dragDistanceRef.current = Math.abs(deltaX);
-      if (dragDistanceRef.current > 5) {
+      if (dragDistanceRef.current > 10) {
         hasDraggedRef.current = true;
         clickAllowedRef.current = false;
         // Only prevent default once we're actually dragging
         e.preventDefault();
       }
       
-      // Use smoother scroll calculation for mobile
-      const walk = deltaX * (typeof window !== 'undefined' && window.innerWidth < 768 ? 1.5 : 2);
-      let newScrollLeft = scrollLeftRef.current - walk;
-      
-      const itemCount = items.length;
-      const cardWidth = typeof window !== 'undefined' && window.innerWidth >= 768 ? 360 : 300;
-      const gap = 20;
-      const singleSetWidth = itemCount * cardWidth + (itemCount - 1) * gap;
-      
-      if (newScrollLeft < 0) {
-        newScrollLeft = singleSetWidth * 2 + newScrollLeft;
-      } else if (newScrollLeft >= singleSetWidth * 2) {
-        newScrollLeft = newScrollLeft - singleSetWidth * 2;
+      // Use requestAnimationFrame for smooth updates
+      if (touchMoveRAF === null) {
+        touchMoveRAF = requestAnimationFrame(() => {
+          if (!ref.current) {
+            touchMoveRAF = null;
+            return;
+          }
+          
+          // Use the latest stored touch position
+          const currentDeltaX = lastTouchX - startXRef.current;
+          // Smoother scroll calculation for mobile
+          const walk = currentDeltaX * (typeof window !== 'undefined' && window.innerWidth < 768 ? 1.2 : 2);
+          let newScrollLeft = scrollLeftRef.current - walk;
+          
+          const itemCount = items.length;
+          const cardWidth = typeof window !== 'undefined' && window.innerWidth >= 768 ? 360 : 300;
+          const gap = 20;
+          const singleSetWidth = itemCount * cardWidth + (itemCount - 1) * gap;
+          
+          if (newScrollLeft < 0) {
+            newScrollLeft = singleSetWidth * 2 + newScrollLeft;
+          } else if (newScrollLeft >= singleSetWidth * 2) {
+            newScrollLeft = newScrollLeft - singleSetWidth * 2;
+          }
+          
+          ref.current.scrollLeft = newScrollLeft;
+          touchMoveRAF = null;
+        });
       }
-      
-      // Direct assignment is smoother than RAF for touch events
-      ref.current.scrollLeft = newScrollLeft;
     };
 
     const handleGlobalTouchEnd = () => {
       setIsDragging(false);
+      if (touchMoveRAF !== null) {
+        cancelAnimationFrame(touchMoveRAF);
+        touchMoveRAF = null;
+      }
       setTimeout(() => {
         hasDraggedRef.current = false;
         dragDistanceRef.current = 0;
@@ -197,6 +221,10 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
     document.addEventListener('touchend', handleGlobalTouchEnd);
 
     return () => {
+      if (touchMoveRAF !== null) {
+        cancelAnimationFrame(touchMoveRAF);
+        touchMoveRAF = null;
+      }
       document.removeEventListener('mousemove', handleGlobalMouseMove);
       document.removeEventListener('mouseup', handleGlobalMouseUp);
       document.removeEventListener('touchmove', handleGlobalTouchMove);
@@ -306,9 +334,8 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
           className="flex gap-5 overflow-x-auto scrollbar-none select-none cursor-grab active:cursor-grabbing pb-2"
           style={{ 
             scrollBehavior: isDragging ? 'auto' : 'smooth',
-            WebkitOverflowScrolling: 'touch', // Enable momentum scrolling on iOS
-            overscrollBehaviorX: 'contain', // Prevent horizontal page scroll when reaching edges
-            willChange: 'scroll-position' // Optimize for scrolling
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehaviorX: 'contain'
           }}
         >
           {duplicatedItems.map((it, idx) => (
