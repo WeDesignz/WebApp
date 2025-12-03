@@ -33,6 +33,7 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
     const el = ref.current;
     if (!el) return;
     let raf: number;
+    let lastTime = performance.now();
     
     // Calculate the width of one set of items for seamless looping
     // Use actual DOM measurements for accuracy
@@ -63,10 +64,17 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
     // Use CSS scroll-behavior for smoother scrolling, especially on mobile
     el.style.scrollBehavior = 'smooth';
     
-    const step = () => {
+    const step = (currentTime: number) => {
       if (!paused && !isDragging && el) {
-        // Use smaller increments for smoother scrolling on mobile
-        const scrollSpeed = typeof window !== 'undefined' && window.innerWidth < 768 ? 0.5 : 0.8;
+        // Use delta time for frame-rate independent scrolling
+        const deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
+        
+        // Calculate scroll speed based on frame time (60fps = ~16.67ms per frame)
+        // Slower on mobile for better performance
+        const baseSpeed = typeof window !== 'undefined' && window.innerWidth < 768 ? 0.3 : 0.6;
+        const scrollSpeed = baseSpeed * (deltaTime / 16.67); // Normalize to 60fps
+        
         el.scrollLeft += scrollSpeed;
         
         // Seamlessly loop when we've scrolled past one complete set
@@ -140,10 +148,6 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
 
     const handleGlobalTouchMove = (e: TouchEvent) => {
       if (!ref.current) return;
-      // Only prevent default if we're actually dragging (not just touching)
-      if (hasDraggedRef.current && dragDistanceRef.current > 10) {
-        e.preventDefault();
-      }
       const touch = e.touches[0];
       if (!touch) return;
       
@@ -155,6 +159,8 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
       if (dragDistanceRef.current > 5) {
         hasDraggedRef.current = true;
         clickAllowedRef.current = false;
+        // Only prevent default once we're actually dragging
+        e.preventDefault();
       }
       
       // Use smoother scroll calculation for mobile
@@ -172,12 +178,8 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
         newScrollLeft = newScrollLeft - singleSetWidth * 2;
       }
       
-      // Use requestAnimationFrame for smoother updates on mobile
-      requestAnimationFrame(() => {
-        if (ref.current) {
-          ref.current.scrollLeft = newScrollLeft;
-        }
-      });
+      // Direct assignment is smoother than RAF for touch events
+      ref.current.scrollLeft = newScrollLeft;
     };
 
     const handleGlobalTouchEnd = () => {
@@ -305,7 +307,8 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
           style={{ 
             scrollBehavior: isDragging ? 'auto' : 'smooth',
             WebkitOverflowScrolling: 'touch', // Enable momentum scrolling on iOS
-            overscrollBehaviorX: 'contain' // Prevent horizontal page scroll when reaching edges
+            overscrollBehaviorX: 'contain', // Prevent horizontal page scroll when reaching edges
+            willChange: 'scroll-position' // Optimize for scrolling
           }}
         >
           {duplicatedItems.map((it, idx) => (

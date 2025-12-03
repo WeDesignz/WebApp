@@ -146,6 +146,8 @@ export default function DomeGallery({
   const cancelTapRef = useRef(false);
   const movedRef = useRef(false);
   const inertiaRAF = useRef<number | null>(null);
+  const transformRAF = useRef<number | null>(null); // For throttling transforms
+  const pendingTransform = useRef<{ x: number; y: number } | null>(null); // Pending transform updates
   const pointerTypeRef = useRef<'mouse' | 'pen' | 'touch'>('mouse');
   const tapTargetRef = useRef<HTMLElement | null>(null);
   const openingRef = useRef(false);
@@ -168,12 +170,28 @@ export default function DomeGallery({
 
   const items = useMemo(() => buildItems(images, segments), [images, segments]);
 
-  const applyTransform = (xDeg: number, yDeg: number) => {
+  const applyTransform = useCallback((xDeg: number, yDeg: number) => {
     const el = sphereRef.current;
     if (el) {
-      el.style.transform = `translateZ(calc(var(--radius) * -1)) rotateX(${xDeg}deg) rotateY(${yDeg}deg)`;
+      // Use transform3d for hardware acceleration
+      el.style.transform = `translate3d(0, 0, calc(var(--radius) * -1)) rotateX(${xDeg}deg) rotateY(${yDeg}deg)`;
     }
-  };
+  }, []);
+
+  // Throttled transform application for smoother performance
+  const applyTransformThrottled = useCallback((xDeg: number, yDeg: number) => {
+    pendingTransform.current = { x: xDeg, y: yDeg };
+    
+    if (transformRAF.current) return; // Already scheduled
+    
+    transformRAF.current = requestAnimationFrame(() => {
+      if (pendingTransform.current) {
+        applyTransform(pendingTransform.current.x, pendingTransform.current.y);
+        pendingTransform.current = null;
+      }
+      transformRAF.current = null;
+    });
+  }, [applyTransform]);
 
   const lockedRadiusRef = useRef<number | null>(null);
 
@@ -237,7 +255,15 @@ export default function DomeGallery({
 
   useEffect(() => {
     applyTransform(rotationRef.current.x, rotationRef.current.y);
-  }, []);
+    return () => {
+      // Cleanup pending transforms
+      if (transformRAF.current) {
+        cancelAnimationFrame(transformRAF.current);
+        transformRAF.current = null;
+      }
+      pendingTransform.current = null;
+    };
+  }, [applyTransform]);
 
   const stopInertia = useCallback(() => {
     if (inertiaRAF.current) {
@@ -270,13 +296,13 @@ export default function DomeGallery({
         const nextX = clamp(rotationRef.current.x - vY / 200, -maxVerticalRotationDeg, maxVerticalRotationDeg);
         const nextY = wrapAngleSigned(rotationRef.current.y + vX / 200);
         rotationRef.current = { x: nextX, y: nextY };
-        applyTransform(nextX, nextY);
+        applyTransformThrottled(nextX, nextY);
         inertiaRAF.current = requestAnimationFrame(step);
       };
       stopInertia();
       inertiaRAF.current = requestAnimationFrame(step);
     },
-    [dragDampening, maxVerticalRotationDeg, stopInertia]
+    [dragDampening, maxVerticalRotationDeg, stopInertia, applyTransformThrottled]
   );
 
   const openItemFromElement = useCallback((el: HTMLElement) => {
@@ -414,7 +440,8 @@ export default function DomeGallery({
           const cur = rotationRef.current;
           if (cur.x !== nextX || cur.y !== nextY) {
             rotationRef.current = { x: nextX, y: nextY };
-            applyTransform(nextX, nextY);
+            // Use throttled transform for smoother performance
+            applyTransformThrottled(nextX, nextY);
           }
         }
 
@@ -542,6 +569,8 @@ export default function DomeGallery({
   transform: translateZ(calc(var(--radius) * -1));
   will-change: transform;
   position: absolute;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .sphere-item {
