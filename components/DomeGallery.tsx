@@ -421,10 +421,12 @@ export default function DomeGallery({
             movedRef.current = true;
             
             // Detect if this is primarily a vertical scroll
+            // Use a more lenient threshold to catch vertical scrolls better
             const absDx = Math.abs(dxTotal);
             const absDy = Math.abs(dyTotal);
-            // If vertical movement is 2.5x more than horizontal, treat as vertical scroll
-            const isVertical = absDy > absDx * 2.5 && absDy > 30;
+            // If vertical movement is 1.5x more than horizontal OR vertical is >20px with small horizontal, treat as vertical scroll
+            // This is more lenient to catch vertical scrolls even with small horizontal drift
+            const isVertical = (absDy > absDx * 1.5) || (absDy > 20 && absDx < 15);
             isVerticalScrollRef.current = isVertical;
             
             // Only prevent default and lock scroll if it's NOT a vertical scroll
@@ -437,6 +439,21 @@ export default function DomeGallery({
             }
           }
         } else {
+          // Re-evaluate gesture type during drag to catch direction changes
+          // This helps when user starts with small movement then clearly scrolls vertically
+          const absDx = Math.abs(dxTotal);
+          const absDy = Math.abs(dyTotal);
+          const isVertical = (absDy > absDx * 1.5) || (absDy > 20 && absDx < 15);
+          
+          // Update vertical scroll detection if it changes
+          if (isVertical !== isVerticalScrollRef.current) {
+            isVerticalScrollRef.current = isVertical;
+            // If it becomes a vertical scroll, unlock scroll and stop preventing default
+            if (isVertical && pointerTypeRef.current === 'touch') {
+              unlockScroll();
+            }
+          }
+          
           // Once we've determined the gesture type, maintain it
           if (pointerTypeRef.current === 'touch') {
             if (!isVerticalScrollRef.current) {
@@ -479,20 +496,23 @@ export default function DomeGallery({
             }
           }
 
-          // Always apply inertia for gallery rotation
-          let [vMagX, vMagY] = velArr;
-          const [dirX, dirY] = dirArr;
-          let vx = vMagX * dirX;
-          let vy = vMagY * dirY;
+          // Only apply inertia if it wasn't a vertical scroll
+          // This prevents gallery state from changing after vertical scrolling
+          if (!isVerticalScrollRef.current) {
+            let [vMagX, vMagY] = velArr;
+            const [dirX, dirY] = dirArr;
+            let vx = vMagX * dirX;
+            let vy = vMagY * dirY;
 
-          if (!isTap && Math.abs(vx) < 0.001 && Math.abs(vy) < 0.001 && Array.isArray(movement)) {
-            const [mx, my] = movement;
-            vx = (mx / dragSensitivity) * 0.02;
-            vy = (my / dragSensitivity) * 0.02;
-          }
+            if (!isTap && Math.abs(vx) < 0.001 && Math.abs(vy) < 0.001 && Array.isArray(movement)) {
+              const [mx, my] = movement;
+              vx = (mx / dragSensitivity) * 0.02;
+              vy = (my / dragSensitivity) * 0.02;
+            }
 
-          if (!isTap && (Math.abs(vx) > 0.005 || Math.abs(vy) > 0.005)) {
-            startInertia(vx, vy);
+            if (!isTap && (Math.abs(vx) > 0.005 || Math.abs(vy) > 0.005)) {
+              startInertia(vx, vy);
+            }
           }
           
           startPosRef.current = null;
