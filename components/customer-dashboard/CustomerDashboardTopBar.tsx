@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Menu, User, LogOut, ShoppingCart, Heart, UserPlus } from "lucide-react";
+import { Search, Menu, User, LogOut, ShoppingCart, Heart, UserPlus, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartWishlist } from "@/contexts/CartWishlistContext";
 import { DashboardView } from "./CustomerDashboard";
 import { useAuth } from "@/contexts/AuthContext";
 import NotificationDropdown from "./NotificationDropdown";
+import { useRouter } from "next/navigation";
 
 interface TopBarProps {
   searchQuery: string;
@@ -27,11 +28,21 @@ export default function CustomerDashboardTopBar({
   onViewChange,
   onOpenLogout,
 }: TopBarProps) {
+  const router = useRouter();
+  const { isAuthenticated, user } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { getCartCount, getWishlistCount } = useCartWishlist();
-  const { user } = useAuth();
+
+  const handleAuthRequiredAction = (action: () => void) => {
+    if (!isAuthenticated) {
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
+      return;
+    }
+    action();
+  };
 
   // Debounce search input (300ms) - update parent after debounce
   useEffect(() => {
@@ -92,16 +103,16 @@ export default function CustomerDashboardTopBar({
             </Button>
           </div>
 
-          {/* Notifications */}
-          <NotificationDropdown />
+          {/* Notifications - only show if authenticated */}
+          {isAuthenticated && <NotificationDropdown />}
 
           <button 
-            onClick={() => onViewChange("wishlist")}
+            onClick={() => handleAuthRequiredAction(() => onViewChange("wishlist"))}
             className="relative p-2 hover:bg-muted rounded-full transition-colors hidden sm:flex flex-shrink-0"
             title="Wishlist"
           >
             <Heart className="w-6 h-6" />
-            {getWishlistCount() > 0 && (
+            {isAuthenticated && getWishlistCount() > 0 && (
               <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center font-semibold">
                 {getWishlistCount()}
               </span>
@@ -109,65 +120,78 @@ export default function CustomerDashboardTopBar({
           </button>
 
           <button 
-            onClick={onOpenCart}
+            onClick={() => handleAuthRequiredAction(onOpenCart)}
             className="relative p-2 hover:bg-muted rounded-full transition-colors hidden sm:flex flex-shrink-0"
             title="Cart"
           >
             <ShoppingCart className="w-6 h-6" />
-            {getCartCount() > 0 && (
+            {isAuthenticated && getCartCount() > 0 && (
               <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center font-semibold">
                 {getCartCount()}
               </span>
             )}
           </button>
 
-          <div className="relative flex-shrink-0" ref={dropdownRef}>
-            <button
-              onClick={() => setProfileOpen(!profileOpen)}
-              className="w-10 h-10 rounded-full bg-primary flex items-center justify-center hover:opacity-80 transition-opacity"
-            >
-              <User className="w-5 h-5 text-primary-foreground" />
-            </button>
+          {isAuthenticated ? (
+            <div className="relative flex-shrink-0" ref={dropdownRef}>
+              <button
+                onClick={() => setProfileOpen(!profileOpen)}
+                className="w-10 h-10 rounded-full bg-primary flex items-center justify-center hover:opacity-80 transition-opacity"
+              >
+                <User className="w-5 h-5 text-primary-foreground" />
+              </button>
 
-            {profileOpen && (
-              <div className="absolute right-0 top-full mt-2 w-56 bg-popover border border-border rounded-xl shadow-xl overflow-hidden z-50">
-                <div className="p-4 border-b border-border">
-                  <p className="font-semibold">
-                    {user?.firstName && user?.lastName
-                      ? `${user.firstName} ${user.lastName}`
-                      : user?.username || user?.email?.split('@')[0] || 'User'}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {user?.email || 'No email'}
-                  </p>
+              {profileOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-popover border border-border rounded-xl shadow-xl overflow-hidden z-50">
+                  <div className="p-4 border-b border-border">
+                    <p className="font-semibold">
+                      {user?.firstName && user?.lastName
+                        ? `${user.firstName} ${user.lastName}`
+                        : user?.username || user?.email?.split('@')[0] || 'User'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {user?.email || 'No email'}
+                    </p>
+                  </div>
+                  <div className="p-2">
+                    <button
+                      onClick={() => {
+                        onViewChange("profile");
+                        setProfileOpen(false);
+                      }}
+                      className="flex items-center gap-3 px-4 py-2 hover:bg-muted rounded-lg transition-colors w-full text-left"
+                    >
+                      <User className="w-4 h-4" />
+                      <span className="text-sm">Profile</span>
+                    </button>
+                  </div>
+                  <div className="p-2 border-t border-border">
+                    <button
+                      onClick={() => {
+                        onOpenLogout();
+                        setProfileOpen(false);
+                      }}
+                      className="flex items-center gap-3 px-4 py-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors w-full"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span className="text-sm">Logout</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="p-2">
-                  <button
-                    onClick={() => {
-                      onViewChange("profile");
-                      setProfileOpen(false);
-                    }}
-                    className="flex items-center gap-3 px-4 py-2 hover:bg-muted rounded-lg transition-colors w-full text-left"
-                  >
-                    <User className="w-4 h-4" />
-                    <span className="text-sm">Profile</span>
-                  </button>
-                </div>
-                <div className="p-2 border-t border-border">
-                  <button
-                    onClick={() => {
-                      onOpenLogout();
-                      setProfileOpen(false);
-                    }}
-                    className="flex items-center gap-3 px-4 py-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors w-full"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span className="text-sm">Logout</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          ) : (
+            <Button
+              onClick={() => {
+                const currentPath = window.location.pathname + window.location.search;
+                router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
+              }}
+              className="flex items-center gap-2"
+            >
+              <LogIn className="w-4 h-4" />
+              <span className="hidden sm:inline">Login</span>
+            </Button>
+          )}
         </div>
       </div>
     </header>

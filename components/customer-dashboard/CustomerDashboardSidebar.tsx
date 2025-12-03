@@ -19,7 +19,8 @@ import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import CustomOrderModal from "@/components/customer-dashboard/CustomOrderModal";
-import { DashboardView } from "./CustomerDashboard";
+import { DashboardView, PUBLIC_VIEWS } from "./CustomerDashboard";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -40,12 +41,21 @@ const menuItems: { icon: any; label: string; view: DashboardView }[] = [
 ];
 
 export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMenuOpen, onMobileMenuClose, activeView, onViewChange }: SidebarProps) {
+  const { isAuthenticated } = useAuth();
   const { theme, setTheme } = useTheme();
   const [hovering, setHovering] = useState(false);
   const [customOrderOpen, setCustomOrderOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   const isExpanded = !collapsed || hovering;
+
+  // Filter menu items based on authentication
+  const visibleMenuItems = menuItems.filter(item => {
+    // If authenticated, show all items
+    if (isAuthenticated) return true;
+    // If not authenticated, only show public items
+    return PUBLIC_VIEWS.includes(item.view);
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -246,7 +256,7 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
               </div>
 
               <nav className="flex-1 p-3 space-y-2">
-                {menuItems.map((item) => {
+                {visibleMenuItems.map((item) => {
                   const isActive = activeView === item.view;
                   return (
                     <button
@@ -267,7 +277,8 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
                   );
                 })}
 
-                <Card className="mt-4 p-4 bg-gradient-to-br from-primary/10 to-purple-500/10 border-primary/20">
+                {isAuthenticated && (
+                  <Card className="mt-4 p-4 bg-gradient-to-br from-primary/10 to-purple-500/10 border-primary/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="w-5 h-5 text-primary" />
                     <h4 className="font-semibold text-sm">Custom Design</h4>
@@ -286,23 +297,26 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
                     Order Now
                   </Button>
                 </Card>
+                )}
               </nav>
 
               <div className="p-3 border-t border-border space-y-2">
-                <button
-                  onClick={() => {
-                    onViewChange("notifications");
-                    onMobileMenuClose();
-                  }}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full text-left ${
-                    activeView === "notifications"
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted"
-                  }`}
-                >
-                  <Bell className="w-5 h-5 flex-shrink-0" />
-                  <span className="text-sm">Notifications</span>
-                </button>
+                {isAuthenticated && (
+                  <button
+                    onClick={() => {
+                      onViewChange("notifications");
+                      onMobileMenuClose();
+                    }}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors w-full text-left ${
+                      activeView === "notifications"
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    }`}
+                  >
+                    <Bell className="w-5 h-5 flex-shrink-0" />
+                    <span className="text-sm">Notifications</span>
+                  </button>
+                )}
                 
                 <button
                   onClick={() => {
@@ -353,7 +367,7 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
       </AnimatePresence>
 
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border p-2 z-40 flex justify-around">
-        {menuItems.slice(0, 5).map((item) => {
+        {visibleMenuItems.slice(0, 5).map((item) => {
           const isActive = activeView === item.view;
           return (
             <button

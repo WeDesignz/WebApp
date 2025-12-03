@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { catalogAPI, apiClient } from "@/lib/api";
 import { transformProduct, type TransformedProduct } from "@/lib/utils/transformers";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ interface ProductModalProps {
 }
 
 export default function ProductModal({ isOpen, onClose, hasActivePlan, product: initialProduct, isDownloaded = false }: ProductModalProps) {
+  const { isAuthenticated } = useAuth();
   const { addToCart, addToWishlist, isInWishlist } = useCartWishlist();
   const { toast } = useToast();
   const router = useRouter();
@@ -195,6 +197,14 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
 
   // Download individual file
   const handleDownloadFile = async (fileUrl: string, fileName: string) => {
+    // Check authentication before downloading
+    if (!isAuthenticated) {
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
+      onClose(); // Close modal
+      return;
+    }
+
     try {
       // Get the full URL if it's a relative path
       let fullUrl = fileUrl;
@@ -259,6 +269,14 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
   }, [selectedImageType]);
 
   const handleAddToCart = async (subProduct?: any) => {
+    // Check authentication before adding to cart
+    if (!isAuthenticated) {
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
+      onClose(); // Close modal
+      return;
+    }
+
     const cartItem = {
       id: subProduct ? `${product.id}-${subProduct.id}` : `${product.id}`,
       productId: String(product.id),
@@ -287,6 +305,14 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
   };
 
   const handleDownloadFree = async () => {
+    // Check authentication before downloading
+    if (!isAuthenticated) {
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
+      onClose(); // Close modal
+      return;
+    }
+
     if (isDownloading) return;
     
     setIsDownloading(true);
@@ -320,6 +346,14 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
 
   // Download handler for downloaded products (uses ZIP download)
   const handleDownloadDownloaded = async () => {
+    // Check authentication before downloading
+    if (!isAuthenticated) {
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
+      onClose(); // Close modal
+      return;
+    }
+
     if (isDownloading) return;
     
     setIsDownloading(true);
@@ -376,6 +410,14 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
   };
 
   const handleAddToWishlist = async () => {
+    // Check authentication before adding to wishlist
+    if (!isAuthenticated) {
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
+      onClose(); // Close modal
+      return;
+    }
+
     const wishlistItem = {
       id: String(product.id),
       productId: String(product.id),

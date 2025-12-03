@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import CustomerDashboardSidebar from "./CustomerDashboardSidebar";
 import CustomerDashboardTopBar from "./CustomerDashboardTopBar";
 import CustomerDashboardContent from "./CustomerDashboardContent";
@@ -17,10 +18,15 @@ import CartContent from "./CartContent";
 import PlansContent from "./PlansContent";
 import LogoutModal from "./LogoutModal";
 import DownloadMockPDFContent from "./DownloadMockPDFContent";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type DashboardView = "dashboard" | "downloads" | "orders" | "freelancers" | "support" | "notifications" | "faq" | "profile" | "wishlist" | "cart" | "plans" | "downloadMockPDF";
 
+// Public views that don't require authentication
+export const PUBLIC_VIEWS: DashboardView[] = ["dashboard", "faq"];
+
 export default function CustomerDashboard() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -35,10 +41,20 @@ export default function CustomerDashboard() {
 
   // Check for view and category query parameters on mount
   useEffect(() => {
+    if (authLoading) return; // Wait for auth to load
+    
     const viewParam = searchParams.get('view');
     const expectedView = (viewParam && ['dashboard', 'downloads', 'orders', 'freelancers', 'support', 'notifications', 'faq', 'profile', 'wishlist', 'cart', 'plans', 'downloadMockPDF'].includes(viewParam)) 
       ? (viewParam as DashboardView) 
       : 'dashboard';
+    
+    // Check if view requires authentication
+    if (!isAuthenticated && !PUBLIC_VIEWS.includes(expectedView)) {
+      // Redirect to login with current path as redirect destination
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
+      return;
+    }
     
     // Only update activeView if it's different from the expected view to prevent infinite loops
     // Use functional update to avoid needing activeView in dependencies
@@ -58,7 +74,7 @@ export default function CustomerDashboard() {
     }
     
     setIsInitialized(true);
-  }, [searchParams]); // Remove activeView from dependencies to prevent loop
+  }, [searchParams, isAuthenticated, authLoading, router]); // Add auth dependencies
 
   // Update URL when activeView changes (after initial load from URL)
   useEffect(() => {
@@ -92,8 +108,16 @@ export default function CustomerDashboard() {
     }
   }, [searchParams]);
 
-  // Handle view change with filter reset for dashboard
+  // Handle view change with filter reset for dashboard and auth check
   const handleViewChange = (view: DashboardView) => {
+    // Check if view requires authentication
+    if (!isAuthenticated && !PUBLIC_VIEWS.includes(view)) {
+      // Redirect to login with current path as redirect destination
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
+      return;
+    }
+    
     setActiveView(view);
     
     // Reset filters when switching to dashboard
@@ -112,6 +136,31 @@ export default function CustomerDashboard() {
   };
 
   const renderContent = () => {
+    // Show loading while checking auth
+    if (authLoading) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Check if view requires authentication
+    if (!isAuthenticated && !PUBLIC_VIEWS.includes(activeView)) {
+      // This should not happen as handleViewChange redirects, but as a safety measure
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Redirecting to login...</p>
+          </div>
+        </div>
+      );
+    }
+
     switch (activeView) {
       case "downloads":
         return <DownloadsContent />;
