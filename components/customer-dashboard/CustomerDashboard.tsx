@@ -188,6 +188,7 @@ export default function CustomerDashboard() {
           <CustomerDashboardContent
             searchQuery={searchQuery}
             selectedCategory={selectedCategory}
+            productIdFromUrl={searchParams.get('product')}
           />
         );
     }
