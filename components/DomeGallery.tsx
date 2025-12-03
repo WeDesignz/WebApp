@@ -404,11 +404,8 @@ export default function DomeGallery({
         const potential = (evt.target as Element).closest?.('.item__image') as HTMLElement | null;
         tapTargetRef.current = potential || null;
         
-        // Prevent default immediately for touch to enable smooth dragging
-        if (pointerTypeRef.current === 'touch') {
-          evt.preventDefault();
-          lockScroll();
-        }
+        // Don't prevent default immediately - wait to see if it's a vertical scroll
+        // This allows vertical page scrolling to work normally without affecting gallery
       },
       onDrag: ({ event, last, velocity: velArr = [0, 0], direction: dirArr = [0, 0], movement }) => {
         if (focusedElRef.current || !draggingRef.current || !startPosRef.current) return;
@@ -417,54 +414,71 @@ export default function DomeGallery({
         const dxTotal = evt.clientX - startPosRef.current.x;
         const dyTotal = evt.clientY - startPosRef.current.y;
 
-        // Always prevent default for touch to ensure smooth dragging
-        if (pointerTypeRef.current === 'touch') {
-          evt.preventDefault();
-        }
-
         if (!movedRef.current) {
           const dist2 = dxTotal * dxTotal + dyTotal * dyTotal;
           // Lower threshold for faster response (8px instead of 12px)
           if (dist2 > 8) {
             movedRef.current = true;
-            // Always treat as gallery interaction - disable vertical scrolling
-            isVerticalScrollRef.current = false;
             
-            // Lock scroll when movement is detected
+            // Detect if this is primarily a vertical scroll
+            const absDx = Math.abs(dxTotal);
+            const absDy = Math.abs(dyTotal);
+            // If vertical movement is 2.5x more than horizontal, treat as vertical scroll
+            const isVertical = absDy > absDx * 2.5 && absDy > 30;
+            isVerticalScrollRef.current = isVertical;
+            
+            // Only prevent default and lock scroll if it's NOT a vertical scroll
             if (pointerTypeRef.current === 'touch') {
-              lockScroll();
+              if (!isVertical) {
+                evt.preventDefault();
+                lockScroll();
+              }
+              // Don't prevent default for vertical scrolls - let page scroll normally
             }
+          }
+        } else {
+          // Once we've determined the gesture type, maintain it
+          if (pointerTypeRef.current === 'touch') {
+            if (!isVerticalScrollRef.current) {
+              // Only prevent default for gallery interactions, not vertical scrolls
+              evt.preventDefault();
+            }
+            // Don't prevent default for vertical scrolls - let page scroll normally
           }
         }
 
-        // Filter out small vertical movements when primary intent is horizontal
-        // This prevents flickering from natural hand movement during horizontal swipes
-        const absDx = Math.abs(dxTotal);
-        const absDy = Math.abs(dyTotal);
-        
-        // If horizontal movement is significantly more than vertical, reduce vertical sensitivity
-        // This creates a "dead zone" for small vertical movements during horizontal swipes
-        let filteredDy = dyTotal;
-        if (absDx > absDy * 2) {
-          // Horizontal is 2x more than vertical - heavily dampen vertical movement
-          filteredDy = dyTotal * 0.3;
-        } else if (absDx > absDy * 1.5) {
-          // Horizontal is 1.5x more than vertical - moderately dampen vertical movement
-          filteredDy = dyTotal * 0.5;
+        // Only rotate the gallery if it's NOT a vertical scroll
+        if (!isVerticalScrollRef.current) {
+          // Filter out small vertical movements when primary intent is horizontal
+          // This prevents flickering from natural hand movement during horizontal swipes
+          const absDx = Math.abs(dxTotal);
+          const absDy = Math.abs(dyTotal);
+          
+          // If horizontal movement is significantly more than vertical, reduce vertical sensitivity
+          // This creates a "dead zone" for small vertical movements during horizontal swipes
+          let filteredDy = dyTotal;
+          if (absDx > absDy * 2) {
+            // Horizontal is 2x more than vertical - heavily dampen vertical movement
+            filteredDy = dyTotal * 0.3;
+          } else if (absDx > absDy * 1.5) {
+            // Horizontal is 1.5x more than vertical - moderately dampen vertical movement
+            filteredDy = dyTotal * 0.5;
+          }
+
+          // Always rotate the gallery - respond immediately to any movement
+          const nextX = clamp(
+            startRotRef.current.x - filteredDy / dragSensitivity,
+            -maxVerticalRotationDeg,
+            maxVerticalRotationDeg
+          );
+          const nextY = startRotRef.current.y + dxTotal / dragSensitivity;
+
+          // Update rotation immediately - don't wait for threshold
+          rotationRef.current = { x: nextX, y: nextY };
+          // Use throttled transform for smoother performance
+          applyTransformThrottled(nextX, nextY);
         }
-
-        // Always rotate the gallery - respond immediately to any movement
-        const nextX = clamp(
-          startRotRef.current.x - filteredDy / dragSensitivity,
-          -maxVerticalRotationDeg,
-          maxVerticalRotationDeg
-        );
-        const nextY = startRotRef.current.y + dxTotal / dragSensitivity;
-
-        // Update rotation immediately - don't wait for threshold
-        rotationRef.current = { x: nextX, y: nextY };
-        // Use throttled transform for smoother performance
-        applyTransformThrottled(nextX, nextY);
+        // If it's a vertical scroll, don't update the gallery rotation at all - preserve state
 
         if (last) {
           draggingRef.current = false;
@@ -666,7 +680,7 @@ export default function DomeGallery({
           ref={mainRef}
           className="absolute inset-0 grid place-items-center overflow-hidden select-none bg-transparent"
           style={{
-            touchAction: 'none', // Disable all default touch actions to allow custom dragging
+            touchAction: 'pan-y pan-x', // Allow both vertical and horizontal panning
             WebkitUserSelect: 'none'
           }}
         >
