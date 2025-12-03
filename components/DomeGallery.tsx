@@ -261,6 +261,10 @@ export default function DomeGallery({
       cancelAnimationFrame(inertiaRAF.current);
       inertiaRAF.current = null;
     }
+    // Ensure rotationRef is synced with visual state
+    if (sphereRef.current) {
+      applyTransform(rotationRef.current.x, rotationRef.current.y);
+    }
   }, []);
 
   const startInertia = useCallback(
