@@ -157,45 +157,14 @@ export default function DomeGallery({
   const openStartedAtRef = useRef(0);
   const lastDragEndAt = useRef(0);
 
-  const scrollLockedRef = useRef(false);
-  const isVerticalScrollRef = useRef(false);
-  const lockScroll = useCallback(() => {
-    if (scrollLockedRef.current) return;
-    scrollLockedRef.current = true;
-    document.body.classList.add('dg-scroll-lock');
-  }, []);
-  const unlockScroll = useCallback(() => {
-    if (!scrollLockedRef.current) return;
-    if (rootRef.current?.getAttribute('data-enlarging') === 'true') return;
-    scrollLockedRef.current = false;
-    document.body.classList.remove('dg-scroll-lock');
-  }, []);
-
   const items = useMemo(() => buildItems(images, segments), [images, segments]);
 
-  const transformRAF = useRef<number | null>(null);
-  const pendingTransform = useRef<{ x: number; y: number } | null>(null);
-
-  const applyTransform = useCallback((xDeg: number, yDeg: number) => {
+  const applyTransform = (xDeg: number, yDeg: number) => {
     const el = sphereRef.current;
     if (el) {
-      // Use translate3d for hardware acceleration
-      el.style.transform = `translate3d(0, 0, calc(var(--radius) * -1)) rotateX(${xDeg}deg) rotateY(${yDeg}deg)`;
+      el.style.transform = `translateZ(calc(var(--radius) * -1)) rotateX(${xDeg}deg) rotateY(${yDeg}deg)`;
     }
-  }, []);
-
-  const applyTransformThrottled = useCallback((xDeg: number, yDeg: number) => {
-    pendingTransform.current = { x: xDeg, y: yDeg };
-    if (transformRAF.current === null) {
-      transformRAF.current = requestAnimationFrame(() => {
-        if (pendingTransform.current) {
-          applyTransform(pendingTransform.current.x, pendingTransform.current.y);
-          pendingTransform.current = null;
-        }
-        transformRAF.current = null;
-      });
-    }
-  }, [applyTransform]);
+  };
 
   const lockedRadiusRef = useRef<number | null>(null);
 
@@ -285,19 +254,13 @@ export default function DomeGallery({
 
   useEffect(() => {
     applyTransform(rotationRef.current.x, rotationRef.current.y);
-  }, [applyTransform]);
+  }, []);
 
   const stopInertia = useCallback(() => {
     if (inertiaRAF.current) {
       cancelAnimationFrame(inertiaRAF.current);
       inertiaRAF.current = null;
     }
-    // Clear any pending throttled transforms
-    if (transformRAF.current) {
-      cancelAnimationFrame(transformRAF.current);
-      transformRAF.current = null;
-    }
-    pendingTransform.current = null;
   }, []);
 
   const startInertia = useCallback(
@@ -344,7 +307,6 @@ export default function DomeGallery({
         draggingRef.current = true;
         cancelTapRef.current = false;
         movedRef.current = false;
-        isVerticalScrollRef.current = false;
         startRotRef.current = { ...rotationRef.current };
         startPosRef.current = { x: evt.clientX, y: evt.clientY };
         const potential = (evt.target as Element).closest?.('.item__image') as HTMLElement | null;
@@ -357,63 +319,23 @@ export default function DomeGallery({
         const dxTotal = evt.clientX - startPosRef.current.x;
         const dyTotal = evt.clientY - startPosRef.current.y;
 
-        const absDx = Math.abs(dxTotal);
-        const absDy = Math.abs(dyTotal);
-        
-        // Simplified: Only treat as vertical scroll if clearly vertical (much more lenient)
-        // This allows horizontal drags to work smoothly even with some vertical movement
-        const isVertical = pointerTypeRef.current === 'touch' && (absDy > absDx * 4 && absDy > 60);
-
         if (!movedRef.current) {
           const dist2 = dxTotal * dxTotal + dyTotal * dyTotal;
-          if (dist2 > 4) { // Lower threshold for faster response
+          if (dist2 > 12) {
             movedRef.current = true;
-            isVerticalScrollRef.current = isVertical;
-            
-            if (pointerTypeRef.current === 'touch') {
-              if (!isVertical) {
-                evt.preventDefault();
-                lockScroll();
-              }
-            }
-          }
-        } else {
-          if (pointerTypeRef.current === 'touch') {
-            // Only re-evaluate if movement is significant
-            if (absDy > 30 || absDx > 30) {
-              const isVerticalNow = absDy > absDx * 4 && absDy > 60;
-              if (isVerticalNow !== isVerticalScrollRef.current) {
-                isVerticalScrollRef.current = isVerticalNow;
-                if (!isVerticalNow) {
-                  if (!scrollLockedRef.current) lockScroll();
-                } else {
-                  unlockScroll();
-                }
-              }
-            }
-            
-            if (!isVerticalScrollRef.current) {
-              evt.preventDefault();
-            }
           }
         }
 
-        // Rotate gallery if it's NOT a vertical scroll
-        if (!isVerticalScrollRef.current) {
-          // For mobile, use responsive sensitivity
-          const effectiveSensitivity = pointerTypeRef.current === 'touch' 
-            ? dragSensitivity * 0.6  // Slightly less aggressive than 0.5
-            : dragSensitivity;
-          
-          const nextX = clamp(
-            startRotRef.current.x - dyTotal / effectiveSensitivity,
-            -maxVerticalRotationDeg,
-            maxVerticalRotationDeg
-          );
-          const nextY = startRotRef.current.y + dxTotal / effectiveSensitivity;
+        const nextX = clamp(
+          startRotRef.current.x - dyTotal / dragSensitivity,
+          -maxVerticalRotationDeg,
+          maxVerticalRotationDeg
+        );
+        const nextY = startRotRef.current.y + dxTotal / dragSensitivity;
 
+        const cur = rotationRef.current;
+        if (cur.x !== nextX || cur.y !== nextY) {
           rotationRef.current = { x: nextX, y: nextY };
-          // Apply transform DIRECTLY during drag for smooth following - no throttling!
           applyTransform(nextX, nextY);
         }
 
@@ -431,26 +353,21 @@ export default function DomeGallery({
             }
           }
 
-          // Only apply inertia for desktop/mouse, not for mobile touch
-          // On mobile, gallery should stop immediately when drag ends
-          if (!isVerticalScrollRef.current && pointerTypeRef.current !== 'touch') {
-            let [vMagX, vMagY] = velArr;
-            const [dirX, dirY] = dirArr;
-            let vx = vMagX * dirX;
-            let vy = vMagY * dirY;
+          let [vMagX, vMagY] = velArr;
+          const [dirX, dirY] = dirArr;
+          let vx = vMagX * dirX;
+          let vy = vMagY * dirY;
 
-            if (!isTap && Math.abs(vx) < 0.001 && Math.abs(vy) < 0.001 && Array.isArray(movement)) {
-              const [mx, my] = movement;
-              vx = (mx / dragSensitivity) * 0.02;
-              vy = (my / dragSensitivity) * 0.02;
-            }
-
-            if (!isTap && (Math.abs(vx) > 0.005 || Math.abs(vy) > 0.005)) {
-              startInertia(vx, vy);
-            }
+          if (!isTap && Math.abs(vx) < 0.001 && Math.abs(vy) < 0.001 && Array.isArray(movement)) {
+            const [mx, my] = movement;
+            vx = (mx / dragSensitivity) * 0.02;
+            vy = (my / dragSensitivity) * 0.02;
           }
-          // For touch/mobile, no inertia - gallery stops immediately
-          
+
+          if (!isTap && (Math.abs(vx) > 0.005 || Math.abs(vy) > 0.005)) {
+            startInertia(vx, vy);
+          }
+
           startPosRef.current = null;
           cancelTapRef.current = !isTap;
 
@@ -460,10 +377,8 @@ export default function DomeGallery({
           tapTargetRef.current = null;
 
           if (cancelTapRef.current) setTimeout(() => (cancelTapRef.current = false), 120);
-          if (pointerTypeRef.current === 'touch') unlockScroll();
           if (movedRef.current) lastDragEndAt.current = performance.now();
           movedRef.current = false;
-          isVerticalScrollRef.current = false;
         }
       }
     },
@@ -495,7 +410,6 @@ export default function DomeGallery({
         focusedElRef.current = null;
         rootRef.current?.removeAttribute('data-enlarging');
         openingRef.current = false;
-        unlockScroll();
         return;
       }
 
@@ -583,7 +497,6 @@ export default function DomeGallery({
                 el.style.transition = '';
                 el.style.opacity = '';
                 openingRef.current = false;
-                unlockScroll();
               }, 300);
             });
           });
@@ -605,13 +518,12 @@ export default function DomeGallery({
       scrim.removeEventListener('click', close);
       window.removeEventListener('keydown', onKey);
     };
-  }, [enlargeTransitionMs, openedImageBorderRadius, grayscale, unlockScroll]);
+  }, [enlargeTransitionMs, openedImageBorderRadius, grayscale]);
 
   const openItemFromElement = (el: HTMLElement) => {
     if (openingRef.current) return;
     openingRef.current = true;
     openStartedAtRef.current = performance.now();
-    lockScroll();
     const parent = el.parentElement as HTMLElement;
     focusedElRef.current = el;
     el.setAttribute('data-focused', 'true');
@@ -642,7 +554,6 @@ export default function DomeGallery({
       openingRef.current = false;
       focusedElRef.current = null;
       parent.removeChild(refDiv);
-      unlockScroll();
       return;
     }
 
@@ -718,93 +629,92 @@ export default function DomeGallery({
 
   useEffect(() => {
     return () => {
-      document.body.classList.remove('dg-scroll-lock');
+      // Cleanup
     };
   }, []);
 
   const cssStyles = `
-    .sphere-root {
-      --radius: 520px;
-      --viewer-pad: 72px;
-      --circ: calc(var(--radius) * 3.14);
-      --rot-y: calc((360deg / var(--segments-x)) / 2);
-      --rot-x: calc((360deg / var(--segments-y)) / 2);
-      --item-width: calc(var(--circ) / var(--segments-x));
-      --item-height: calc(var(--circ) / var(--segments-y));
-    }
-    
-    .sphere-root * { box-sizing: border-box; }
-    .sphere, .sphere-item, .item__image { transform-style: preserve-3d; }
-    
-    .stage {
-      width: 100%;
-      height: 100%;
-      display: grid;
-      place-items: center;
-      position: absolute;
-      inset: 0;
-      margin: auto;
-      perspective: calc(var(--radius) * 2);
-      perspective-origin: 50% 50%;
-    }
-    
-    .sphere {
-      transform: translate3d(0, 0, calc(var(--radius) * -1));
-      will-change: transform;
-      position: absolute;
+.sphere-root {
+  --radius: 520px;
+  --viewer-pad: 72px;
+  --circ: calc(var(--radius) * 3.14);
+  --rot-y: calc((360deg / var(--segments-x)) / 2);
+  --rot-x: calc((360deg / var(--segments-y)) / 2);
+  --item-width: calc(var(--circ) / var(--segments-x));
+  --item-height: calc(var(--circ) / var(--segments-y));
+}
+
+.sphere-root * { box-sizing: border-box; }
+.sphere, .sphere-item, .item__image { transform-style: preserve-3d; }
+
+.stage {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  perspective: calc(var(--radius) * 2);
+  perspective-origin: 50% 50%;
+}
+
+.sphere {
+      transform: translateZ(calc(var(--radius) * -1));
+  will-change: transform;
+  position: absolute;
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
-      transform-style: preserve-3d;
-    }
-    
-    .sphere-item {
-      width: calc(var(--item-width) * var(--item-size-x));
-      height: calc(var(--item-height) * var(--item-size-y));
-      position: absolute;
-      top: -999px;
-      bottom: -999px;
-      left: -999px;
-      right: -999px;
-      margin: auto;
-      transform-origin: 50% 50%;
-      backface-visibility: hidden;
-      transition: transform 300ms;
+}
+
+.sphere-item {
+  width: calc(var(--item-width) * var(--item-size-x));
+  height: calc(var(--item-height) * var(--item-size-y));
+  position: absolute;
+  top: -999px;
+  bottom: -999px;
+  left: -999px;
+  right: -999px;
+  margin: auto;
+  transform-origin: 50% 50%;
+  backface-visibility: hidden;
+  transition: transform 300ms;
       transform: rotateY(calc(var(--rot-y) * (var(--offset-x) + ((var(--item-size-x) - 1) / 2)) + var(--rot-y-delta, 0deg))) 
                  rotateX(calc(var(--rot-x) * (var(--offset-y) - ((var(--item-size-y) - 1) / 2)) + var(--rot-x-delta, 0deg))) 
                  translateZ(var(--radius));
-    }
-    
-    .sphere-root[data-enlarging="true"] .scrim {
-      opacity: 1 !important;
-      pointer-events: all !important;
-    }
-    
-    @media (max-aspect-ratio: 1/1) {
-      .viewer-frame {
-        height: auto !important;
+}
+
+.sphere-root[data-enlarging="true"] .scrim {
+  opacity: 1 !important;
+  pointer-events: all !important;
+}
+
+@media (max-aspect-ratio: 1/1) {
+  .viewer-frame {
+    height: auto !important;
         width: 100% !important;
-      }
-    }
-    
-    .item__image {
-      position: absolute;
-      inset: 10px;
-      border-radius: var(--tile-radius, 12px);
-      overflow: hidden;
-      cursor: pointer;
-      backface-visibility: hidden;
-      -webkit-backface-visibility: hidden;
-      transition: transform 300ms;
-      pointer-events: auto;
-      -webkit-transform: translateZ(0);
-      transform: translateZ(0);
-    }
-    .item__image--reference {
-      position: absolute;
-      inset: 10px;
-      pointer-events: none;
-    }
-  `;
+  }
+}
+
+.item__image {
+  position: absolute;
+  inset: 10px;
+  border-radius: var(--tile-radius, 12px);
+  overflow: hidden;
+  cursor: pointer;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition: transform 300ms;
+  pointer-events: auto;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+.item__image--reference {
+  position: absolute;
+  inset: 10px;
+  pointer-events: none;
+}
+`;
 
   return (
     <>
@@ -826,11 +736,6 @@ export default function DomeGallery({
         <main
           ref={mainRef}
           className="absolute inset-0 grid place-items-center overflow-hidden select-none bg-transparent"
-          style={{
-            touchAction: 'pan-y pan-x', // Allow both vertical and horizontal panning
-            WebkitUserSelect: 'none',
-            WebkitOverflowScrolling: 'touch' // Enable momentum scrolling on iOS
-          }}
         >
           <div className="stage">
             <div ref={sphereRef} className="sphere">
