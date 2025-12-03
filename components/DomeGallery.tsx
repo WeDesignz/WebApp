@@ -270,6 +270,12 @@ export default function DomeGallery({
       cancelAnimationFrame(inertiaRAF.current);
       inertiaRAF.current = null;
     }
+    // Also cancel any pending transforms to prevent conflicts
+    if (transformRAF.current) {
+      cancelAnimationFrame(transformRAF.current);
+      transformRAF.current = null;
+    }
+    pendingTransform.current = null;
   }, []);
 
   const startInertia = useCallback(
@@ -384,20 +390,19 @@ export default function DomeGallery({
     {
       onDragStart: ({ event }) => {
         if (focusedElRef.current) return;
+        // Stop inertia immediately and clear any pending transforms
         stopInertia();
         const evt = event as PointerEvent;
         pointerTypeRef.current = (evt.pointerType as any) || 'mouse';
-        // Don't prevent default or lock scroll immediately - wait to see if it's a drag
-        // This allows native smooth scrolling to work on mobile
         draggingRef.current = true;
         cancelTapRef.current = false;
         movedRef.current = false;
         isVerticalScrollRef.current = false;
+        // Update start rotation to current rotation to prevent jump
         startRotRef.current = { ...rotationRef.current };
         startPosRef.current = { x: evt.clientX, y: evt.clientY };
         const potential = (evt.target as Element).closest?.('.item__image') as HTMLElement | null;
         tapTargetRef.current = potential || null;
-        // Don't prevent default on touch start - let the browser handle it initially
       },
       onDrag: ({ event, last, velocity: velArr = [0, 0], direction: dirArr = [0, 0], movement }) => {
         if (focusedElRef.current || !draggingRef.current || !startPosRef.current) return;
@@ -426,9 +431,25 @@ export default function DomeGallery({
           }
         }
 
-        // Always rotate the gallery - no vertical scroll detection
+        // Filter out small vertical movements when primary intent is horizontal
+        // This prevents flickering from natural hand movement during horizontal swipes
+        const absDx = Math.abs(dxTotal);
+        const absDy = Math.abs(dyTotal);
+        
+        // If horizontal movement is significantly more than vertical, reduce vertical sensitivity
+        // This creates a "dead zone" for small vertical movements during horizontal swipes
+        let filteredDy = dyTotal;
+        if (absDx > absDy * 2) {
+          // Horizontal is 2x more than vertical - heavily dampen vertical movement
+          filteredDy = dyTotal * 0.3;
+        } else if (absDx > absDy * 1.5) {
+          // Horizontal is 1.5x more than vertical - moderately dampen vertical movement
+          filteredDy = dyTotal * 0.5;
+        }
+
+        // Always rotate the gallery
         const nextX = clamp(
-          startRotRef.current.x - dyTotal / dragSensitivity,
+          startRotRef.current.x - filteredDy / dragSensitivity,
           -maxVerticalRotationDeg,
           maxVerticalRotationDeg
         );
