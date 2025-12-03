@@ -408,60 +408,37 @@ export default function DomeGallery({
 
         if (!movedRef.current) {
           const dist2 = dxTotal * dxTotal + dyTotal * dyTotal;
-          // Lower threshold for faster detection (12px instead of 16px)
           if (dist2 > 12) {
             movedRef.current = true;
-            // Determine if this is primarily a vertical scroll or gallery interaction
-            // Use a higher threshold (3.5x) to be very lenient - only treat as vertical scroll
-            // if it's VERY clearly vertical. This allows diagonal swipes to work smoothly.
-            const absDx = Math.abs(dxTotal);
-            const absDy = Math.abs(dyTotal);
-            // Only treat as vertical scroll if vertical is 3.5x more than horizontal
-            // AND there's significant vertical movement (at least 50px)
-            // This ensures most diagonal swipes are treated as gallery interactions
-            const isVertical = absDy > absDx * 3.5 && absDy > 50;
-            isVerticalScrollRef.current = isVertical;
+            // Always treat as gallery interaction - disable vertical scrolling
+            isVerticalScrollRef.current = false;
             
-            // Only prevent default and lock scroll if it's NOT a vertical scroll
-            // This allows native smooth scrolling for vertical gestures
+            // Always prevent default and lock scroll for gallery interactions
             if (pointerTypeRef.current === 'touch') {
-              if (!isVertical) {
-                // Prevent default for gallery interactions to enable smooth rotation
-                evt.preventDefault();
-                lockScroll();
-              }
-              // Don't prevent default for vertical scrolls - let native scrolling work smoothly
+              evt.preventDefault();
+              lockScroll();
             }
           }
         } else {
-          // Once we've started, maintain the decision - don't switch mid-gesture
-          // Only prevent default for gallery interactions (not vertical scrolls)
-          // This allows native momentum scrolling for vertical scrolls
+          // Always prevent default for gallery interactions
           if (pointerTypeRef.current === 'touch') {
-            if (!isVerticalScrollRef.current) {
-              // Only prevent default for gallery rotations, not vertical scrolls
-              evt.preventDefault();
-            }
-            // Don't prevent default for vertical scrolls - let native scrolling work smoothly
+            evt.preventDefault();
           }
         }
 
-        // Rotate the gallery if it's not a pure vertical scroll
-        // Allow diagonal swipes to rotate the gallery smoothly
-        if (!isVerticalScrollRef.current) {
-          const nextX = clamp(
-            startRotRef.current.x - dyTotal / dragSensitivity,
-            -maxVerticalRotationDeg,
-            maxVerticalRotationDeg
-          );
-          const nextY = startRotRef.current.y + dxTotal / dragSensitivity;
+        // Always rotate the gallery - no vertical scroll detection
+        const nextX = clamp(
+          startRotRef.current.x - dyTotal / dragSensitivity,
+          -maxVerticalRotationDeg,
+          maxVerticalRotationDeg
+        );
+        const nextY = startRotRef.current.y + dxTotal / dragSensitivity;
 
-          const cur = rotationRef.current;
-          if (cur.x !== nextX || cur.y !== nextY) {
-            rotationRef.current = { x: nextX, y: nextY };
-            // Use throttled transform for smoother performance
-            applyTransformThrottled(nextX, nextY);
-          }
+        const cur = rotationRef.current;
+        if (cur.x !== nextX || cur.y !== nextY) {
+          rotationRef.current = { x: nextX, y: nextY };
+          // Use throttled transform for smoother performance
+          applyTransformThrottled(nextX, nextY);
         }
 
         if (last) {
@@ -478,22 +455,20 @@ export default function DomeGallery({
             }
           }
 
-          // Only apply inertia if it wasn't a vertical scroll
-          if (!isVerticalScrollRef.current) {
-            let [vMagX, vMagY] = velArr;
-            const [dirX, dirY] = dirArr;
-            let vx = vMagX * dirX;
-            let vy = vMagY * dirY;
+          // Always apply inertia for gallery rotation
+          let [vMagX, vMagY] = velArr;
+          const [dirX, dirY] = dirArr;
+          let vx = vMagX * dirX;
+          let vy = vMagY * dirY;
 
-            if (!isTap && Math.abs(vx) < 0.001 && Math.abs(vy) < 0.001 && Array.isArray(movement)) {
-              const [mx, my] = movement;
-              vx = (mx / dragSensitivity) * 0.02;
-              vy = (my / dragSensitivity) * 0.02;
-            }
+          if (!isTap && Math.abs(vx) < 0.001 && Math.abs(vy) < 0.001 && Array.isArray(movement)) {
+            const [mx, my] = movement;
+            vx = (mx / dragSensitivity) * 0.02;
+            vy = (my / dragSensitivity) * 0.02;
+          }
 
-            if (!isTap && (Math.abs(vx) > 0.005 || Math.abs(vy) > 0.005)) {
-              startInertia(vx, vy);
-            }
+          if (!isTap && (Math.abs(vx) > 0.005 || Math.abs(vy) > 0.005)) {
+            startInertia(vx, vy);
           }
           
           startPosRef.current = null;
@@ -666,9 +641,8 @@ export default function DomeGallery({
           ref={mainRef}
           className="absolute inset-0 grid place-items-center overflow-hidden select-none bg-transparent"
           style={{
-            touchAction: 'pan-y pan-x pinch-zoom', // Allow native panning and pinch zoom
-            WebkitUserSelect: 'none',
-            WebkitOverflowScrolling: 'touch' // Enable momentum scrolling on iOS
+            touchAction: 'pan-x pinch-zoom', // Only allow horizontal panning, disable vertical
+            WebkitUserSelect: 'none'
           }}
         >
           <div className="stage">
