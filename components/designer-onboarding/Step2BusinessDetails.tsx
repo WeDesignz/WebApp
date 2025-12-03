@@ -208,54 +208,42 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
   };
 
   const handleEmailVerified = async (otp: string): Promise<boolean> => {
-    // For now, accept sample OTP 123456
-    if (otp === '123456') {
-      try {
-        const response = await apiClient.verifyEmail(formData.businessEmail, otp);
-        
-        if (response.error) {
-          toast.error(response.error || 'Failed to verify business email');
-          return false;
-        }
-        
-    setFormData({ ...formData, businessEmailVerified: true });
-    setShowEmailOTP(false);
-    toast.success('Business email verified successfully!');
-        return true;
-      } catch (error: any) {
-        toast.error(error.message || 'Failed to verify business email');
+    try {
+      const response = await apiClient.verifyEmail(formData.businessEmail, otp);
+      
+      if (response.error) {
+        toast.error(response.error || 'Failed to verify business email');
         return false;
       }
-    } else {
-      toast.error('Invalid OTP. Please use 123456 for now.');
+      
+      setFormData({ ...formData, businessEmailVerified: true });
+      setShowEmailOTP(false);
+      toast.success('Business email verified successfully!');
+      return true;
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to verify business email');
       return false;
     }
   };
 
   const handlePhoneVerified = async (otp: string): Promise<boolean> => {
-    // For now, accept sample OTP 123456
-    if (otp === '123456') {
-      try {
-        const response = await apiClient.verifyMobileNumber({
-          mobile_number: formData.businessPhone,
-          otp: otp,
-        });
-        
-        if (response.error) {
-          toast.error(response.error || 'Failed to verify business phone');
-          return false;
-        }
-        
-    setFormData({ ...formData, businessPhoneVerified: true });
-    setShowPhoneOTP(false);
-    toast.success('Business phone verified successfully!');
-        return true;
-      } catch (error: any) {
-        toast.error(error.message || 'Failed to verify business phone');
+    try {
+      const response = await apiClient.verifyMobileNumber({
+        mobile_number: formData.businessPhone,
+        otp: otp,
+      });
+      
+      if (response.error) {
+        toast.error(response.error || 'Failed to verify business phone');
         return false;
       }
-    } else {
-      toast.error('Invalid OTP. Please use 123456 for now.');
+      
+      setFormData({ ...formData, businessPhoneVerified: true });
+      setShowPhoneOTP(false);
+      toast.success('Business phone verified successfully!');
+      return true;
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to verify business phone');
       return false;
     }
   };

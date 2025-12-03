@@ -340,40 +340,30 @@ export default function ProfileContent() {
   };
 
   const handleEmailVerified = async (otp: string): Promise<boolean> => {
-    // For now, accept sample OTP 123456
-    if (otp === '123456') {
-      try {
-        const response = await apiClient.verifyEmail(profileData.email, otp);
-        
-        if (response.error) {
-          toast({
-            title: "Verification failed",
-            description: response.error || 'Failed to verify email',
-            variant: "destructive",
-          });
-          return false;
-        }
-        
-        setShowEmailOTP(false);
-        toast({
-          title: "Email verified",
-          description: "Your email has been verified successfully.",
-        });
-        // Refresh user data
-        queryClient.invalidateQueries({ queryKey: ['userProfile'] });
-        return true;
-      } catch (error: any) {
+    try {
+      const response = await apiClient.verifyEmail(profileData.email, otp);
+      
+      if (response.error) {
         toast({
           title: "Verification failed",
-          description: error.message || 'Failed to verify email',
+          description: response.error || 'Failed to verify email',
           variant: "destructive",
         });
         return false;
       }
-    } else {
+      
+      setShowEmailOTP(false);
       toast({
-        title: "Invalid OTP",
-        description: "Please use 123456 for now.",
+        title: "Email verified",
+        description: "Your email has been verified successfully.",
+      });
+      // Refresh user data
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      return true;
+    } catch (error: any) {
+      toast({
+        title: "Verification failed",
+        description: error.message || 'Failed to verify email',
         variant: "destructive",
       });
       return false;
@@ -381,43 +371,33 @@ export default function ProfileContent() {
   };
 
   const handlePhoneVerified = async (otp: string): Promise<boolean> => {
-    // For now, accept sample OTP 123456
-    if (otp === '123456') {
-      try {
-        const response = await apiClient.verifyMobileNumber({
-          mobile_number: profileData.phone,
-          otp: otp,
-        });
-        
-        if (response.error) {
-          toast({
-            title: "Verification failed",
-            description: response.error || 'Failed to verify phone',
-            variant: "destructive",
-          });
-          return false;
-        }
-        
-        setShowPhoneOTP(false);
-        toast({
-          title: "Phone verified",
-          description: "Your phone number has been verified successfully.",
-        });
-        // Refresh user data
-        queryClient.invalidateQueries({ queryKey: ['userProfile'] });
-        return true;
-      } catch (error: any) {
+    try {
+      const response = await apiClient.verifyMobileNumber({
+        mobile_number: profileData.phone,
+        otp: otp,
+      });
+      
+      if (response.error) {
         toast({
           title: "Verification failed",
-          description: error.message || 'Failed to verify phone',
+          description: response.error || 'Failed to verify phone',
           variant: "destructive",
         });
         return false;
       }
-    } else {
+      
+      setShowPhoneOTP(false);
       toast({
-        title: "Invalid OTP",
-        description: "Please use 123456 for now.",
+        title: "Phone verified",
+        description: "Your phone number has been verified successfully.",
+      });
+      // Refresh user data
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      return true;
+    } catch (error: any) {
+      toast({
+        title: "Verification failed",
+        description: error.message || 'Failed to verify phone',
         variant: "destructive",
       });
       return false;

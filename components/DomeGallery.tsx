@@ -153,6 +153,7 @@ export default function DomeGallery({
   const lastDragEndAt = useRef(0);
 
   const scrollLockedRef = useRef(false);
+  const isVerticalScrollRef = useRef(false);
   const lockScroll = useCallback(() => {
     if (scrollLockedRef.current) return;
     scrollLockedRef.current = true;
@@ -360,11 +361,11 @@ export default function DomeGallery({
         stopInertia();
         const evt = event as PointerEvent;
         pointerTypeRef.current = (evt.pointerType as any) || 'mouse';
-        if (pointerTypeRef.current === 'touch') evt.preventDefault();
-        if (pointerTypeRef.current === 'touch') lockScroll();
+        // Don't prevent default or lock scroll immediately - wait to see if it's a drag
         draggingRef.current = true;
         cancelTapRef.current = false;
         movedRef.current = false;
+        isVerticalScrollRef.current = false;
         startRotRef.current = { ...rotationRef.current };
         startPosRef.current = { x: evt.clientX, y: evt.clientY };
         const potential = (evt.target as Element).closest?.('.item__image') as HTMLElement | null;
@@ -374,27 +375,47 @@ export default function DomeGallery({
         if (focusedElRef.current || !draggingRef.current || !startPosRef.current) return;
 
         const evt = event as PointerEvent;
-        if (pointerTypeRef.current === 'touch') evt.preventDefault();
-
         const dxTotal = evt.clientX - startPosRef.current.x;
         const dyTotal = evt.clientY - startPosRef.current.y;
 
         if (!movedRef.current) {
           const dist2 = dxTotal * dxTotal + dyTotal * dyTotal;
-          if (dist2 > 16) movedRef.current = true;
+          if (dist2 > 16) {
+            movedRef.current = true;
+            // Determine if this is primarily a vertical scroll or horizontal drag
+            // If vertical movement is significantly more than horizontal, it's a scroll
+            const isVertical = Math.abs(dyTotal) > Math.abs(dxTotal) * 1.5;
+            isVerticalScrollRef.current = isVertical;
+            
+            // Only prevent default and lock scroll if it's NOT a vertical scroll
+            if (pointerTypeRef.current === 'touch') {
+              if (!isVertical) {
+                evt.preventDefault();
+                lockScroll();
+              }
+            }
+          }
+        } else {
+          // If we've already determined it's a vertical scroll, don't prevent default
+          if (pointerTypeRef.current === 'touch' && !isVerticalScrollRef.current) {
+            evt.preventDefault();
+          }
         }
 
-        const nextX = clamp(
-          startRotRef.current.x - dyTotal / dragSensitivity,
-          -maxVerticalRotationDeg,
-          maxVerticalRotationDeg
-        );
-        const nextY = startRotRef.current.y + dxTotal / dragSensitivity;
+        // Only rotate the gallery if it's not a vertical scroll
+        if (!isVerticalScrollRef.current) {
+          const nextX = clamp(
+            startRotRef.current.x - dyTotal / dragSensitivity,
+            -maxVerticalRotationDeg,
+            maxVerticalRotationDeg
+          );
+          const nextY = startRotRef.current.y + dxTotal / dragSensitivity;
 
-        const cur = rotationRef.current;
-        if (cur.x !== nextX || cur.y !== nextY) {
-          rotationRef.current = { x: nextX, y: nextY };
-          applyTransform(nextX, nextY);
+          const cur = rotationRef.current;
+          if (cur.x !== nextX || cur.y !== nextY) {
+            rotationRef.current = { x: nextX, y: nextY };
+            applyTransform(nextX, nextY);
+          }
         }
 
         if (last) {
@@ -411,20 +432,24 @@ export default function DomeGallery({
             }
           }
 
-          let [vMagX, vMagY] = velArr;
-          const [dirX, dirY] = dirArr;
-          let vx = vMagX * dirX;
-          let vy = vMagY * dirY;
+          // Only apply inertia if it wasn't a vertical scroll
+          if (!isVerticalScrollRef.current) {
+            let [vMagX, vMagY] = velArr;
+            const [dirX, dirY] = dirArr;
+            let vx = vMagX * dirX;
+            let vy = vMagY * dirY;
 
-          if (!isTap && Math.abs(vx) < 0.001 && Math.abs(vy) < 0.001 && Array.isArray(movement)) {
-            const [mx, my] = movement;
-            vx = (mx / dragSensitivity) * 0.02;
-            vy = (my / dragSensitivity) * 0.02;
-          }
+            if (!isTap && Math.abs(vx) < 0.001 && Math.abs(vy) < 0.001 && Array.isArray(movement)) {
+              const [mx, my] = movement;
+              vx = (mx / dragSensitivity) * 0.02;
+              vy = (my / dragSensitivity) * 0.02;
+            }
 
-          if (!isTap && (Math.abs(vx) > 0.005 || Math.abs(vy) > 0.005)) {
-            startInertia(vx, vy);
+            if (!isTap && (Math.abs(vx) > 0.005 || Math.abs(vy) > 0.005)) {
+              startInertia(vx, vy);
+            }
           }
+          
           startPosRef.current = null;
           cancelTapRef.current = !isTap;
 
@@ -437,6 +462,7 @@ export default function DomeGallery({
           if (pointerTypeRef.current === 'touch') unlockScroll();
           if (movedRef.current) lastDragEndAt.current = performance.now();
           movedRef.current = false;
+          isVerticalScrollRef.current = false;
         }
       }
     },
@@ -589,7 +615,7 @@ export default function DomeGallery({
           ref={mainRef}
           className="absolute inset-0 grid place-items-center overflow-hidden select-none bg-transparent"
           style={{
-            touchAction: 'none',
+            touchAction: 'pan-y pan-x',
             WebkitUserSelect: 'none'
           }}
         >

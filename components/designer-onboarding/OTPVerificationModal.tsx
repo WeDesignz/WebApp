@@ -150,8 +150,9 @@ export default function OTPVerificationModal({ open, onClose, onVerified, onRese
               <>
                 We&apos;ve sent a 6-digit code to<br />
                 <span className="font-semibold text-foreground">{value}</span>
-                <br />
-                <span className="text-xs text-muted-foreground mt-2 block">Use 123456 as OTP for now</span>
+                {type === 'phone' && (
+                  <><br /><span className="text-xs text-muted-foreground mt-2 block">via WhatsApp</span></>
+                )}
               </>
             )}
           </DialogDescription>

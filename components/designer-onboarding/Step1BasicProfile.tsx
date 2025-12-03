@@ -221,56 +221,44 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
   };
 
   const handleEmailVerified = async (otp: string) => {
-    // For now, accept sample OTP 123456
-    if (otp === '123456') {
-      try {
-        const response = await apiClient.verifyEmail(formData.email, otp);
-        
-        if (response.error) {
-          toast.error(response.error || 'Failed to verify email');
-          return false;
-        }
-        
-    setFormData({ ...formData, emailVerified: true });
-    setShowEmailOTP(false);
-    toast.success('Email verified successfully!');
-        
-        return true;
-      } catch (error: any) {
-        toast.error(error.message || 'Failed to verify email');
+    try {
+      const response = await apiClient.verifyEmail(formData.email, otp);
+      
+      if (response.error) {
+        toast.error(response.error || 'Failed to verify email');
         return false;
       }
-    } else {
-      toast.error('Invalid OTP. Please use 123456 for now.');
+      
+      setFormData({ ...formData, emailVerified: true });
+      setShowEmailOTP(false);
+      toast.success('Email verified successfully!');
+      
+      return true;
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to verify email');
       return false;
     }
   };
 
   const handlePhoneVerified = async (otp: string) => {
-    // For now, accept sample OTP 123456
-    if (otp === '123456') {
-      try {
-        const response = await apiClient.verifyMobileNumber({
-          mobile_number: formData.phone,
-          otp: otp,
-        });
-        
-        if (response.error) {
-          toast.error(response.error || 'Failed to verify phone');
-          return false;
-        }
-        
-    setFormData({ ...formData, phoneVerified: true });
-    setShowPhoneOTP(false);
-    toast.success('Phone verified successfully!');
-        
-        return true;
-      } catch (error: any) {
-        toast.error(error.message || 'Failed to verify phone');
+    try {
+      const response = await apiClient.verifyMobileNumber({
+        mobile_number: formData.phone,
+        otp: otp,
+      });
+      
+      if (response.error) {
+        toast.error(response.error || 'Failed to verify phone');
         return false;
       }
-    } else {
-      toast.error('Invalid OTP. Please use 123456 for now.');
+      
+      setFormData({ ...formData, phoneVerified: true });
+      setShowPhoneOTP(false);
+      toast.success('Phone verified successfully!');
+      
+      return true;
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to verify phone');
       return false;
     }
   };
