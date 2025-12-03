@@ -29,6 +29,38 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
   const hasDraggedRef = useRef(false);
   const clickAllowedRef = useRef(true);
 
+  // Initialize scroll position for seamless looping
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || items.length === 0) return;
+    
+    // Wait for DOM to be ready, then set initial scroll position
+    const initScroll = () => {
+      if (!el) return;
+      const itemCount = items.length;
+      const firstChild = el.firstElementChild as HTMLElement;
+      if (firstChild) {
+        const cardWidth = firstChild.offsetWidth;
+        const gap = 20;
+        const singleSetWidth = itemCount * cardWidth + (itemCount - 1) * gap;
+        
+        // Start at the second set for seamless infinite loop
+        if (el.scrollLeft === 0 && singleSetWidth > 0) {
+          el.style.scrollBehavior = 'auto';
+          el.scrollLeft = singleSetWidth;
+          // Restore smooth scrolling after initialization
+          requestAnimationFrame(() => {
+            if (el) el.style.scrollBehavior = 'smooth';
+          });
+        }
+      }
+    };
+    
+    // Initialize after a short delay to ensure DOM is ready
+    const timeoutId = setTimeout(initScroll, 100);
+    return () => clearTimeout(timeoutId);
+  }, [items.length]);
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -56,8 +88,18 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
     // Initialize and update the ref for width calculation
     singleSetWidthRef.current = calculateSingleSetWidth();
     
+    // Initialize scroll position to start at the second set for seamless looping
+    // This allows us to scroll forward and loop back seamlessly
+    if (singleSetWidthRef.current > 0 && el.scrollLeft === 0) {
+      el.scrollLeft = singleSetWidthRef.current;
+    }
+    
     const handleResize = () => {
-      singleSetWidthRef.current = calculateSingleSetWidth();
+      const newWidth = calculateSingleSetWidth();
+      // Maintain relative scroll position on resize
+      const ratio = el.scrollLeft / singleSetWidthRef.current;
+      singleSetWidthRef.current = newWidth;
+      el.scrollLeft = singleSetWidthRef.current * ratio;
     };
     window.addEventListener('resize', handleResize);
     
@@ -68,24 +110,25 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
     }
     
     const step = (currentTime: number) => {
-      if (!paused && !isDragging && el) {
+      if (!paused && !isDragging && el && items.length > 0) {
         // Use delta time for frame-rate independent scrolling
         const deltaTime = currentTime - lastTime;
         lastTime = currentTime;
         
         // Calculate scroll speed based on frame time (60fps = ~16.67ms per frame)
-        // Slower on mobile for better performance
-        const baseSpeed = typeof window !== 'undefined' && window.innerWidth < 768 ? 0.3 : 0.6;
+        // Consistent speed on both mobile and desktop for smooth autoscroll
+        const baseSpeed = typeof window !== 'undefined' && window.innerWidth < 768 ? 0.5 : 0.8;
         const scrollSpeed = baseSpeed * (deltaTime / 16.67); // Normalize to 60fps
         
         el.scrollLeft += scrollSpeed;
         
-        // Seamlessly loop when we've scrolled past one complete set
-        if (el.scrollLeft >= singleSetWidthRef.current) {
+        // Seamlessly loop when we've scrolled past two complete sets
+        // Since we start at the second set, we loop back when reaching the third set
+        if (el.scrollLeft >= singleSetWidthRef.current * 2) {
           // Temporarily disable smooth scroll for instant reset
           const wasSmooth = el.style.scrollBehavior;
           el.style.scrollBehavior = 'auto';
-          // Instantly reset to the beginning without visual jump
+          // Instantly reset to the second set (one set width) without visual jump
           el.scrollLeft = el.scrollLeft - singleSetWidthRef.current;
           // Restore smooth scrolling after a frame
           requestAnimationFrame(() => {
