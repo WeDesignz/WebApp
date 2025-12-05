@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import Step1BasicProfile from './Step1BasicProfile';
 import Step2BusinessDetails from './Step2BusinessDetails';
 import Step3LegalInfo from './Step3LegalInfo';
+import Step4BankDetails from './Step4BankDetails';
 import Step4BulkUpload from './Step4BulkUpload';
 
 interface Step1Data {
@@ -47,6 +48,13 @@ interface Step3Data {
   panNumber: string;
   panCard: File | null;
   panCardUrl: string | null;
+}
+
+interface Step4Data {
+  bankAccountNumber: string;
+  bankIfscCode: string;
+  bankAccountHolderName: string;
+  accountType: 'savings' | 'current' | '';
 }
 
 export default function DesignerOnboardingWizard() {
@@ -92,6 +100,13 @@ export default function DesignerOnboardingWizard() {
     panCardUrl: null,
   });
 
+  const [step4Data, setStep4Data] = useState<Step4Data>({
+    bankAccountNumber: '',
+    bankIfscCode: '',
+    bankAccountHolderName: '',
+    accountType: '',
+  });
+
   // Determine which step to show based on isIndividual
   const getNextStep = (fromStep: number, isIndividual: boolean) => {
     if (fromStep === 1) {
@@ -133,8 +148,17 @@ export default function DesignerOnboardingWizard() {
     setCurrentStep(3);
   };
 
-  const handleStep4Complete = (bulkFile: File) => {
-    // Toast is already shown in Step4BulkUpload component
+  const handleStep4Complete = (data: Step4Data) => {
+    setStep4Data(data);
+    setCurrentStep(5);
+  };
+
+  const handleStep5Back = () => {
+    setCurrentStep(4);
+  };
+
+  const handleStep5Complete = (bulkFile: File) => {
+    // Toast is already shown in Step5BulkUpload component
     // Get redirect destination from query params, default to designer-console
     const redirectTo = searchParams.get('redirect') || '/designer-console';
     
@@ -150,14 +174,16 @@ export default function DesignerOnboardingWizard() {
       return [
         { number: 1, label: 'Basic Profile', completed: currentStep > 1, stepValue: 1 },
         { number: 2, label: 'Legal Info', completed: currentStep > 3, stepValue: 3 },
-        { number: 3, label: 'Upload Designs', completed: currentStep > 4, stepValue: 4 },
+        { number: 3, label: 'Bank Details', completed: currentStep > 4, stepValue: 4 },
+        { number: 4, label: 'Upload Designs', completed: currentStep > 5, stepValue: 5 },
       ];
     }
     return [
       { number: 1, label: 'Basic Profile', completed: currentStep > 1, stepValue: 1 },
       { number: 2, label: 'Business Details', completed: currentStep > 2, stepValue: 2 },
       { number: 3, label: 'Legal Info', completed: currentStep > 3, stepValue: 3 },
-      { number: 4, label: 'Upload Designs', completed: currentStep > 4, stepValue: 4 },
+      { number: 4, label: 'Bank Details', completed: currentStep > 4, stepValue: 4 },
+      { number: 5, label: 'Upload Designs', completed: currentStep > 5, stepValue: 5 },
     ];
   };
 
@@ -264,9 +290,25 @@ export default function DesignerOnboardingWizard() {
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.3 }}
             >
-              <Step4BulkUpload
+              <Step4BankDetails
+                initialData={step4Data}
                 onBack={handleStep4Back}
                 onComplete={handleStep4Complete}
+              />
+            </motion.div>
+          )}
+
+          {currentStep === 5 && (
+            <motion.div
+              key="step5"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Step4BulkUpload
+                onBack={handleStep5Back}
+                onComplete={handleStep5Complete}
               />
             </motion.div>
           )}
