@@ -115,7 +115,7 @@ export default function Step4BankDetails({ initialData, onBack, onComplete }: St
         bank_account_number: formData.bankAccountNumber.trim(),
         bank_ifsc_code: formData.bankIfscCode.trim().toUpperCase(),
         bank_account_holder_name: formData.bankAccountHolderName.trim(),
-        account_type: formData.accountType,
+        account_type: formData.accountType as 'savings' | 'current',
       });
 
       if (response.error) {

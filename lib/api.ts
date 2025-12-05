@@ -301,7 +301,8 @@ export async function apiRequest<T>(
         (endpoint.includes('/get-designer-onboarding-step') || 
          endpoint.includes('/get-designer-onboarding-step1') ||
          endpoint.includes('/get-designer-onboarding-step2') ||
-         endpoint.includes('/get-designer-onboarding-step3'));
+         endpoint.includes('/get-designer-onboarding-step3') ||
+         endpoint.includes('/get-designer-onboarding-step4'));
       
       // Don't log errors for logout endpoint - 400/401 errors are expected when token is invalid/expired
       const isLogoutEndpoint = endpoint.includes('/auth/logout') || endpoint.includes('/logout/');
@@ -1951,7 +1952,59 @@ export const apiClient = {
     }
   },
 
-  saveDesignerOnboardingStep4: async (zipFile: File): Promise<ApiResponse<any>> => {
+  saveDesignerOnboardingStep4: async (data: {
+    bank_account_number: string;
+    bank_ifsc_code: string;
+    bank_account_holder_name: string;
+    account_type: 'savings' | 'current';
+  }): Promise<ApiResponse<any>> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
+    const baseUrl = getApiBaseUrl();
+    if (!baseUrl) {
+      return {
+        error: 'API base URL is not configured. Please set NEXT_PUBLIC_API_BASE_URL environment variable.',
+        errorDetails: {
+          type: ErrorType.NETWORK,
+          message: 'API base URL is not configured',
+          statusCode: 500,
+        },
+      };
+    }
+    
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${baseUrl}/api/profiles/designer-onboarding-step4/`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+        credentials: 'include', // Include credentials for CORS
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        return {
+          error: errorData.error || errorData.detail || 'Failed to save bank details',
+          errorDetails: formatError(errorData, response.status),
+        };
+      }
+
+      const responseData = await response.json();
+      return { data: responseData };
+    } catch (error: any) {
+      return {
+        error: error.message || 'Network error occurred',
+        errorDetails: error,
+      };
+    }
+  },
+
+  saveDesignerOnboardingStep5: async (zipFile: File): Promise<ApiResponse<any>> => {
     const formData = new FormData();
     formData.append('zip_file', zipFile);
 
@@ -2145,6 +2198,15 @@ export const apiClient = {
     // Handle 404 gracefully - it means no saved data exists yet (expected for new users)
     if (response.error && response.errorDetails?.statusCode === 404) {
       return { data: null, message: 'No Step 3 data found' };
+    }
+    return response;
+  },
+
+  getDesignerOnboardingStep4: async (): Promise<ApiResponse<any>> => {
+    const response = await apiRequest<any>('/api/profiles/get-designer-onboarding-step4/');
+    // Handle 404 gracefully - it means no saved data exists yet (expected for new users)
+    if (response.error && response.errorDetails?.statusCode === 404) {
+      return { data: null, message: 'No Step 4 data found' };
     }
     return response;
   },

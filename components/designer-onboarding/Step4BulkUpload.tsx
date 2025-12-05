@@ -364,7 +364,7 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
     setValidationErrors([]); // Clear previous validation errors
     
     try {
-      const response = await apiClient.saveDesignerOnboardingStep4(bulkFile);
+      const response = await apiClient.saveDesignerOnboardingStep5(bulkFile);
 
       if (response.error) {
         const errorMsg = response.error;
