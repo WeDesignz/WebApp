@@ -107,6 +107,7 @@ export default function EarningsWalletContent() {
   const [activeTab, setActiveTab] = useState("transactions");
   const [transactionType, setTransactionType] = useState("all");
   const [dateRange, setDateRange] = useState("all");
+  const [selectedMonthYear, setSelectedMonthYear] = useState<string>("all");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [withdrawalToCancel, setWithdrawalToCancel] = useState<number | null>(null);
 
@@ -278,6 +279,43 @@ export default function EarningsWalletContent() {
     }
   };
 
+  // Handle month-year selection - reset dateRange when month-year is selected
+  const handleMonthYearChange = (value: string) => {
+    setSelectedMonthYear(value);
+    if (value !== "all") {
+      setDateRange("all"); // Reset dateRange when a specific month is selected
+    }
+  };
+
+  // Handle dateRange selection - reset month-year when dateRange is selected
+  const handleDateRangeChange = (value: string) => {
+    setDateRange(value);
+    if (value !== "all") {
+      setSelectedMonthYear("all"); // Reset month-year when a date range is selected
+    }
+  };
+
+  // Get unique month-year combinations from transactions
+  const availableMonthYears = useMemo(() => {
+    const monthYearSet = new Set<string>();
+    transactions.forEach(txn => {
+      const date = new Date(txn.created_at);
+      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      monthYearSet.add(monthYear);
+    });
+    
+    // Sort in descending order (most recent first)
+    return Array.from(monthYearSet).sort().reverse();
+  }, [transactions]);
+
+  // Format month-year for display
+  const formatMonthYear = (monthYear: string): string => {
+    if (monthYear === "all") return "All Months";
+    const [year, month] = monthYear.split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1);
+    return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  };
+
   // Filter transactions
   const filteredTransactions = useMemo(() => {
     let filtered = [...transactions];
@@ -301,8 +339,17 @@ export default function EarningsWalletContent() {
       });
     }
 
+    // Filter by month-year
+    if (selectedMonthYear !== "all") {
+      filtered = filtered.filter(txn => {
+        const date = new Date(txn.created_at);
+        const txnMonthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        return txnMonthYear === selectedMonthYear;
+      });
+    }
+
     return filtered;
-  }, [transactions, transactionType, dateRange]);
+  }, [transactions, transactionType, dateRange, selectedMonthYear]);
 
   // Group transactions by date
   const groupedTransactions = useMemo(() => {
@@ -428,7 +475,7 @@ export default function EarningsWalletContent() {
                       <SelectItem value="debit">Debits Only</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select value={dateRange} onValueChange={setDateRange}>
+                  <Select value={dateRange} onValueChange={handleDateRangeChange}>
                     <SelectTrigger className="w-40">
                       <SelectValue />
                     </SelectTrigger>
@@ -437,6 +484,19 @@ export default function EarningsWalletContent() {
                       <SelectItem value="7d">Last 7 Days</SelectItem>
                       <SelectItem value="30d">Last 30 Days</SelectItem>
                       <SelectItem value="90d">Last 90 Days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={selectedMonthYear} onValueChange={handleMonthYearChange}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Select Month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Months</SelectItem>
+                      {availableMonthYears.map(monthYear => (
+                        <SelectItem key={monthYear} value={monthYear}>
+                          {formatMonthYear(monthYear)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
