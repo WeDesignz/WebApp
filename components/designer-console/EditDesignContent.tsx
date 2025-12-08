@@ -52,7 +52,6 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
   const [description, setDescription] = useState("");
   const [parentCategoryId, setParentCategoryId] = useState<number | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
-  const [price, setPrice] = useState("");
   const [color, setColor] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -243,7 +242,7 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
       // Map product_plan_type: if price exists and > 0, it's paid, otherwise free
       const hasPrice = designData.price && parseFloat(String(designData.price)) > 0;
       setPricingType(hasPrice ? "paid" : "free");
-      setPrice(designData.price ? String(designData.price) : "");
+      // Price is now managed globally, so we don't set it here
       setColor(designData.color || "");
       
       // Set tags if available
@@ -523,9 +522,7 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
       errors.category = "Category is required";
     }
 
-    if (pricingType === "paid" && (!price || parseFloat(price) <= 0)) {
-      errors.price = "Valid price is required for paid designs";
-    }
+    // Price is now managed globally by admin, so no validation needed
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -561,15 +558,11 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
         updateData.append('status', 'draft'); // Set status to draft when files are updated
         
         // Map pricing type
-        if (pricingType === "paid" && price) {
-          const priceValue = parseFloat(price);
-          if (!isNaN(priceValue) && priceValue > 0) {
-            updateData.append('price', String(priceValue));
-            updateData.append('product_plan_type', 'prime');
-          }
-        } else if (pricingType === "free") {
-          updateData.append('price', '');
+        // Price is now managed globally by admin, so we only set product_plan_type
+        if (pricingType === "paid") {
           updateData.append('product_plan_type', 'basic');
+        } else if (pricingType === "free") {
+          updateData.append('product_plan_type', 'free');
         }
 
         if (color && color.trim()) {
@@ -596,15 +589,11 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
         };
 
         // Map pricing type
-        if (pricingType === "paid" && price) {
-          const priceValue = parseFloat(price);
-          if (!isNaN(priceValue) && priceValue > 0) {
-            updateData.price = priceValue;
-            updateData.product_plan_type = 'prime';
-          }
-        } else if (pricingType === "free") {
-          updateData.price = null;
+        // Price is now managed globally by admin, so we only set product_plan_type
+        if (pricingType === "paid") {
           updateData.product_plan_type = 'basic';
+        } else if (pricingType === "free") {
+          updateData.product_plan_type = 'free';
         }
 
         if (color && color.trim()) {
@@ -836,7 +825,6 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
                 variant={pricingType === "free" ? "default" : "outline"}
                 onClick={() => {
                   setPricingType("free");
-                  setPrice("");
                 }}
               >
                 Free
@@ -851,23 +839,12 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
             </div>
           </div>
 
-          {/* Price */}
+          {/* Price - Now managed globally by admin */}
           {pricingType === "paid" && (
             <div>
-              <Label htmlFor="price">Price (INR) *</Label>
-              <Input
-                id="price"
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="Enter price"
-                min="0"
-                step="0.01"
-                className={validationErrors.price ? "border-destructive" : ""}
-              />
-              {validationErrors.price && (
-                <p className="text-sm text-destructive mt-1">{validationErrors.price}</p>
-              )}
+              <p className="text-sm text-muted-foreground">
+                Price is set globally by the admin. All paid designs will use the system-wide design price.
+              </p>
             </div>
           )}
 

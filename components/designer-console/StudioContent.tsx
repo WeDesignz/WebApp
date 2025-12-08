@@ -80,6 +80,38 @@ interface StudioMember {
   };
 }
 
+// Helper function to make absolute URL
+const makeAbsoluteUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  // If it's already a data URL or absolute URL, return as-is
+  if (url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+  if (!apiBaseUrl) {
+    console.warn('NEXT_PUBLIC_API_BASE_URL is not set');
+    return url;
+  }
+  // Remove trailing slash from apiBaseUrl if present
+  const baseUrl = apiBaseUrl.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
+  if (url.startsWith('/')) {
+    return `${baseUrl}${url}`;
+  }
+  return `${baseUrl}/${url}`;
+};
+
+// Helper function to check if a URL is a PDF
+const isPDF = (url: string | null | undefined): boolean => {
+  if (!url) return false;
+  // Check if it's a data URL with PDF MIME type
+  if (url.startsWith('data:')) {
+    return url.toLowerCase().includes('application/pdf') || url.toLowerCase().includes('data:application/pdf');
+  }
+  // Check regular URLs
+  const urlLower = url.toLowerCase();
+  return urlLower.includes('.pdf') || urlLower.includes('application/pdf');
+};
+
 export default function StudioContent() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -87,6 +119,9 @@ export default function StudioContent() {
   const [selectedStudioId, setSelectedStudioId] = useState<number | null>(null);
   const [isEditingStudio, setIsEditingStudio] = useState(false);
   const [isEditingBusiness, setIsEditingBusiness] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewTitle, setPreviewTitle] = useState<string>('');
+  const [pdfLoadError, setPdfLoadError] = useState<boolean>(false);
   
   // Studio Members state
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -1025,8 +1060,9 @@ export default function StudioContent() {
                             <div>
                               <Label className="text-sm text-muted-foreground">PAN Card</Label>
                               <div className="mt-2">
+                                {isPDF(businessDetails.pan_card) ? (
                                 <a
-                                  href={businessDetails.pan_card}
+                                    href={makeAbsoluteUrl(businessDetails.pan_card) || '#'}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-sm text-primary hover:underline flex items-center gap-2"
@@ -1034,6 +1070,28 @@ export default function StudioContent() {
                                   <Eye className="w-4 h-4" />
                                   View PAN Card
                                 </a>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      const absoluteUrl = makeAbsoluteUrl(businessDetails.pan_card);
+                                      if (absoluteUrl) {
+                                        setPreviewUrl(absoluteUrl);
+                                        setPreviewTitle('PAN Card');
+                                        setPdfLoadError(false);
+                                      } else {
+                                        toast({
+                                          title: 'Error',
+                                          description: 'Unable to load PAN Card preview. URL is missing.',
+                                          variant: 'destructive',
+                                        });
+                                      }
+                                    }}
+                                    className="text-sm text-primary hover:underline flex items-center gap-2"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                    View PAN Card
+                                  </button>
+                                )}
                               </div>
                             </div>
                           )}
@@ -1049,8 +1107,9 @@ export default function StudioContent() {
                             <div>
                               <Label className="text-sm text-muted-foreground">MSME Certificate</Label>
                               <div className="mt-2">
+                                {isPDF(businessDetails.msme_certificate_annexure) ? (
                                 <a
-                                  href={businessDetails.msme_certificate_annexure}
+                                    href={makeAbsoluteUrl(businessDetails.msme_certificate_annexure) || '#'}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-sm text-primary hover:underline flex items-center gap-2"
@@ -1058,6 +1117,28 @@ export default function StudioContent() {
                                   <Eye className="w-4 h-4" />
                                   View MSME Certificate
                                 </a>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      const absoluteUrl = makeAbsoluteUrl(businessDetails.msme_certificate_annexure);
+                                      if (absoluteUrl) {
+                                        setPreviewUrl(absoluteUrl);
+                                        setPreviewTitle('MSME Certificate');
+                                        setPdfLoadError(false);
+                                      } else {
+                                        toast({
+                                          title: 'Error',
+                                          description: 'Unable to load MSME Certificate preview. URL is missing.',
+                                          variant: 'destructive',
+                                        });
+                                      }
+                                    }}
+                                    className="text-sm text-primary hover:underline flex items-center gap-2"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                    View MSME Certificate
+                                  </button>
+                                )}
                               </div>
                             </div>
                           )}
@@ -1286,6 +1367,7 @@ export default function StudioContent() {
                           <Label htmlFor="panCard">PAN Card (Image/PDF)</Label>
                           {businessForm.pan_card_preview && (
                             <div className="mb-2">
+                              {isPDF(businessForm.pan_card_preview) ? (
                               <a
                                 href={businessForm.pan_card_preview}
                                 target="_blank"
@@ -1295,6 +1377,21 @@ export default function StudioContent() {
                                 <Eye className="w-4 h-4" />
                                 View Current PAN Card
                               </a>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    const absoluteUrl = makeAbsoluteUrl(businessForm.pan_card_preview);
+                                    if (absoluteUrl) {
+                                      setPreviewUrl(absoluteUrl);
+                                      setPreviewTitle('PAN Card');
+                                    }
+                                  }}
+                                  className="text-sm text-primary hover:underline flex items-center gap-2 mb-2"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  View Current PAN Card
+                                </button>
+                              )}
                             </div>
                           )}
                           <Input
@@ -1320,6 +1417,7 @@ export default function StudioContent() {
                           <Label htmlFor="msmeCertificate">MSME Certificate Annexure (Image/PDF)</Label>
                           {businessForm.msme_certificate_preview && (
                             <div className="mb-2">
+                              {isPDF(businessForm.msme_certificate_preview) ? (
                               <a
                                 href={businessForm.msme_certificate_preview}
                                 target="_blank"
@@ -1329,6 +1427,21 @@ export default function StudioContent() {
                                 <Eye className="w-4 h-4" />
                                 View Current MSME Certificate
                               </a>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    const absoluteUrl = makeAbsoluteUrl(businessForm.msme_certificate_preview);
+                                    if (absoluteUrl) {
+                                      setPreviewUrl(absoluteUrl);
+                                      setPreviewTitle('MSME Certificate');
+                                    }
+                                  }}
+                                  className="text-sm text-primary hover:underline flex items-center gap-2 mb-2"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  View Current MSME Certificate
+                                </button>
+                              )}
                             </div>
                           )}
                           <Input
@@ -1834,6 +1947,194 @@ export default function StudioContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Document Preview Modal */}
+      <Dialog open={!!previewUrl} onOpenChange={(open) => {
+        if (!open) {
+          setPreviewUrl(null);
+          setPdfLoadError(false);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle>{previewTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="p-6 flex items-center justify-center bg-muted/30 min-h-[400px]">
+            {previewUrl && (() => {
+              // Check if it's a data URL
+              const isDataUrl = previewUrl.startsWith('data:');
+              
+              // Extract file extension from URL (handle both regular URLs and data URLs)
+              let fileExtension = '';
+              if (isDataUrl) {
+                // For data URLs, extract from the data URL itself (e.g., data:image/jpeg;base64,...)
+                const mimeMatch = previewUrl.match(/data:([^;]+)/);
+                if (mimeMatch) {
+                  const mimeType = mimeMatch[1];
+                  if (mimeType.includes('pdf')) fileExtension = 'pdf';
+                  else if (mimeType.includes('jpeg') || mimeType.includes('jpg')) fileExtension = 'jpg';
+                  else if (mimeType.includes('png')) fileExtension = 'png';
+                  else if (mimeType.includes('gif')) fileExtension = 'gif';
+                  else if (mimeType.includes('webp')) fileExtension = 'webp';
+                }
+              } else {
+                // For regular URLs, extract from the path
+                const urlPath = previewUrl.split('?')[0]; // Remove query params
+                fileExtension = urlPath.split('.').pop()?.toLowerCase() || '';
+              }
+              
+              const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension);
+              const isPDF = fileExtension === 'pdf' || previewUrl.toLowerCase().includes('.pdf') || previewUrl.toLowerCase().includes('application/pdf');
+              
+              if (isImage) {
+                return (
+                  <img 
+                    src={previewUrl} 
+                    alt={previewTitle} 
+                    className="max-w-full max-h-[70vh] object-contain rounded-lg"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                );
+              } else if (isPDF) {
+                // For PDFs, use multiple approaches with fallbacks
+                return (
+                  <div className="w-full space-y-4">
+                    {pdfLoadError ? (
+                      <div className="w-full h-[70vh] rounded-lg border border-border bg-muted/50 flex flex-col items-center justify-center space-y-4 p-8">
+                        <FileText className="w-16 h-16 text-muted-foreground" />
+                        <div className="text-center space-y-2">
+                          <p className="text-lg font-semibold">Unable to preview PDF</p>
+                          <p className="text-sm text-muted-foreground">
+                            The PDF cannot be displayed in the preview. Please download or open it in a new tab.
+                          </p>
+                        </div>
+                        <div className="flex gap-3">
+                          <a
+                            href={previewUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Open in new tab
+                          </a>
+                          <a
+                            href={previewUrl}
+                            download
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
+                          >
+                            <Download className="w-4 h-4" />
+                            Download
+                          </a>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-full h-[70vh] rounded-lg border border-border overflow-hidden bg-white relative">
+                          {/* Use iframe for PDF preview with error handling */}
+                          <iframe
+                            key={previewUrl} // Force re-render when URL changes
+                            src={previewUrl}
+                            className="w-full h-full"
+                            title={previewTitle}
+                            style={{ border: 'none' }}
+                            onLoad={(e) => {
+                              // Reset error state when iframe loads successfully
+                              const iframe = e.target as HTMLIFrameElement;
+                              try {
+                                // Try to check if content loaded (may fail due to CORS)
+                                const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+                                if (iframeDoc) {
+                                  setPdfLoadError(false);
+                                }
+                              } catch (err) {
+                                // CORS error is expected for cross-origin PDFs, don't treat as error
+                                // The PDF viewer should still work
+                                setPdfLoadError(false);
+                              }
+                            }}
+                            onError={() => {
+                              console.error('PDF iframe failed to load:', previewUrl);
+                              setPdfLoadError(true);
+                            }}
+                          />
+                          {/* Overlay error message if PDF fails to load */}
+                          {pdfLoadError && (
+                            <div className="absolute inset-0 bg-background/95 flex flex-col items-center justify-center space-y-4 p-8 z-10">
+                              <FileText className="w-16 h-16 text-muted-foreground" />
+                              <div className="text-center space-y-2">
+                                <p className="text-lg font-semibold">Unable to preview PDF</p>
+                                <p className="text-sm text-muted-foreground max-w-md">
+                                  The PDF cannot be displayed in the preview. This might be due to browser security restrictions or the file format.
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-2 font-mono break-all">
+                                  URL: {previewUrl}
+                                </p>
+                              </div>
+                              <div className="flex gap-3">
+                                <a
+                                  href={previewUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  Open in new tab
+                                </a>
+                                <a
+                                  href={previewUrl}
+                                  download
+                                  className="inline-flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
+                                >
+                                  <Download className="w-4 h-4" />
+                                  Download
+                                </a>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-center space-y-2">
+                          <p className="text-sm text-muted-foreground">
+                            Having trouble viewing? Try opening in a new tab
+                          </p>
+                          <a
+                            href={previewUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline inline-flex items-center gap-2"
+                          >
+                            <Download className="w-4 h-4" />
+                            Open in new tab
+                          </a>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              } else {
+                return (
+                  <div className="text-center">
+                    <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground mb-4">Preview not available for this file type</p>
+                    <a
+                      href={previewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline flex items-center gap-2 justify-center"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download file
+                    </a>
+                  </div>
+                );
+              }
+            })()}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

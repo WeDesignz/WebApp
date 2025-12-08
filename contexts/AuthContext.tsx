@@ -62,16 +62,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const savedUser = localStorage.getItem('wedesign_user');
         
         if (savedAccessToken && savedRefreshToken && savedUser) {
-          setToken(savedAccessToken);
-          setRefreshToken(savedRefreshToken);
-          setUser(JSON.parse(savedUser));
+          // Don't set auth state yet - verify token first to prevent queries from running with invalid tokens
+          // Token is already in localStorage, so API calls will work
           
           // Verify token is still valid by fetching user profile
           try {
             const response = await apiClient.getUserProfile();
             if (response.data) {
-              // Update user data
+              // Token is valid, set both token and user
               const updatedUser = transformUserData(response.data);
+              setToken(savedAccessToken);
+              setRefreshToken(savedRefreshToken);
               setUser(updatedUser);
               localStorage.setItem('wedesign_user', JSON.stringify(updatedUser));
             } else {
@@ -82,13 +83,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 setRefreshToken(refreshResponse.data.refresh);
                 localStorage.setItem('wedesign_access_token', refreshResponse.data.access);
                 localStorage.setItem('wedesign_refresh_token', refreshResponse.data.refresh);
+                // Parse and set user from saved data after successful refresh
+                setUser(JSON.parse(savedUser));
               } else {
+                // Refresh failed, clear everything
                 clearAuthData();
               }
             }
-          } catch (error) {
-            // Token invalid, clear auth data
+          } catch (error: any) {
+            // Only clear auth data if it's a 401 (token expired/invalid)
+            // For other errors (network, etc.), don't set state - user stays unauthenticated
+            if (error?.errorDetails?.statusCode === 401) {
+              // Token invalid, clear auth data silently
             clearAuthData();
+            }
+            // For other errors, don't set token/user state - isAuthenticated stays false
           }
         }
       } catch (e) {
@@ -244,18 +253,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (data: RegisterData) => {
     try {
+      // Clean mobile number - remove any non-digit characters and ensure it's exactly 10 digits
+      const cleanMobileNumber = data.mobileNumber.replace(/\D/g, '').slice(0, 10);
+      
       // Signup with email, mobile number, and password (no verification required)
       const signupResponse = await apiClient.signup({
         first_name: data.firstName,
         last_name: data.lastName,
         email: data.email,
-        mobile_number: data.mobileNumber,
+        mobile_number: cleanMobileNumber,
         password: data.password,
         confirm_password: data.confirmPassword,
       });
 
       if (signupResponse.error) {
-        throw new Error(signupResponse.error);
+        // Create error object with field errors attached
+        const error = new Error(signupResponse.error);
+        // Attach field errors for form validation display
+        if (signupResponse.fieldErrors) {
+          (error as any).fieldErrors = signupResponse.fieldErrors;
+        }
+        // Attach error details for more context
+        if (signupResponse.errorDetails) {
+          (error as any).errorDetails = signupResponse.errorDetails;
+        }
+        throw error;
       }
 
       if (!signupResponse.data) {

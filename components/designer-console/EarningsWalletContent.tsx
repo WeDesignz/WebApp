@@ -3,9 +3,6 @@
 import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +10,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { 
   Wallet, 
-  ArrowUpRight, 
   Download, 
   CheckCircle2, 
   Clock, 
@@ -111,9 +107,6 @@ export default function EarningsWalletContent() {
   const [activeTab, setActiveTab] = useState("transactions");
   const [transactionType, setTransactionType] = useState("all");
   const [dateRange, setDateRange] = useState("all");
-  const [showWithdrawalDialog, setShowWithdrawalDialog] = useState(false);
-  const [withdrawalAmount, setWithdrawalAmount] = useState("");
-  const [withdrawalReason, setWithdrawalReason] = useState("");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [withdrawalToCancel, setWithdrawalToCancel] = useState<number | null>(null);
 
@@ -246,35 +239,6 @@ export default function EarningsWalletContent() {
     amount: typeof req.amount === 'string' ? parseFloat(req.amount) : req.amount,
   }));
   const pendingWithdrawals = withdrawalRequests.filter(w => w.status === 'pending');
-  const hasPendingWithdrawal = pendingWithdrawals.length > 0;
-
-  // Create withdrawal mutation
-  const createWithdrawalMutation = useMutation({
-    mutationFn: async (data: { amount: number; reason?: string }) => {
-      const response = await apiClient.createWithdrawal(data);
-      if (response.error) throw new Error(response.error);
-      return response.data;
-    },
-    onSuccess: () => {
-      toast({
-        title: "Withdrawal request created",
-        description: "Your withdrawal request has been submitted successfully.",
-      });
-      setShowWithdrawalDialog(false);
-      setWithdrawalAmount("");
-      setWithdrawalReason("");
-      queryClient.invalidateQueries({ queryKey: ['withdrawalRequests'] });
-      queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
-      queryClient.invalidateQueries({ queryKey: ['earningsSummary'] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Withdrawal failed",
-        description: error.message || "Failed to create withdrawal request. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
 
   // Cancel withdrawal mutation
   const cancelWithdrawalMutation = useMutation({
@@ -302,32 +266,6 @@ export default function EarningsWalletContent() {
       });
     },
   });
-
-  const handleWithdraw = () => {
-    const amount = parseFloat(withdrawalAmount);
-    if (!amount || amount <= 0) {
-      toast({
-        title: "Invalid amount",
-        description: "Please enter a valid amount greater than 0.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (amount > balance) {
-      toast({
-        title: "Insufficient balance",
-        description: `You cannot withdraw more than your available balance of ${formatCurrency(balance)}.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    createWithdrawalMutation.mutate({
-      amount,
-      reason: withdrawalReason.trim() || undefined,
-    });
-  };
 
   const handleCancelWithdrawal = (requestId: number) => {
     setWithdrawalToCancel(requestId);
@@ -416,30 +354,6 @@ export default function EarningsWalletContent() {
                 </div>
               </div>
               
-              <div className="flex items-center gap-3">
-                <Button 
-                  size="lg" 
-                  onClick={() => setShowWithdrawalDialog(true)}
-                  disabled={balance <= 0 || hasPendingWithdrawal}
-                >
-                  <ArrowUpRight className="w-4 h-4 mr-2" />
-                  Withdraw Funds
-                </Button>
-
-                {hasPendingWithdrawal && (
-                  <div className="flex items-center gap-2 text-sm text-warning">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>You have a pending withdrawal request</span>
-                  </div>
-                )}
-
-                {balance <= 0 && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>Insufficient balance</span>
-                  </div>
-                )}
-              </div>
             </CardContent>
           </Card>
 
@@ -625,10 +539,7 @@ export default function EarningsWalletContent() {
               ) : withdrawalRequests.length === 0 ? (
                 <div className="p-12 text-center">
                   <Wallet className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                  <p className="text-muted-foreground mb-4">No withdrawal requests yet</p>
-                  <Button onClick={() => setShowWithdrawalDialog(true)}>
-                    Create Withdrawal Request
-                  </Button>
+                  <p className="text-muted-foreground">No withdrawal requests yet</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -698,81 +609,6 @@ export default function EarningsWalletContent() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Withdrawal Dialog */}
-      <AlertDialog open={showWithdrawalDialog} onOpenChange={setShowWithdrawalDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Withdraw Funds</AlertDialogTitle>
-            <AlertDialogDescription>
-              Enter the amount you want to withdraw from your wallet. Available balance: {formatCurrency(balance)}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="amount">Amount (₹) *</Label>
-              <Input
-                id="amount"
-                type="number"
-                placeholder="Enter amount"
-                value={withdrawalAmount}
-                onChange={(e) => setWithdrawalAmount(e.target.value)}
-                min="1"
-                max={balance}
-                disabled={createWithdrawalMutation.isPending}
-              />
-              {withdrawalAmount && parseFloat(withdrawalAmount) > balance && (
-                <p className="text-sm text-destructive">
-                  Amount cannot exceed available balance
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="reason">Reason (Optional)</Label>
-              <Textarea
-                id="reason"
-                placeholder="Enter reason for withdrawal"
-                value={withdrawalReason}
-                onChange={(e) => setWithdrawalReason(e.target.value)}
-                rows={3}
-                disabled={createWithdrawalMutation.isPending}
-              />
-            </div>
-            {hasPendingWithdrawal && (
-              <div className="p-3 bg-warning/10 border border-warning/30 rounded-lg">
-                <div className="flex items-center gap-2 text-warning">
-                  <AlertCircle className="w-4 h-4" />
-                  <p className="text-sm">You already have a pending withdrawal request. Please wait for it to be processed.</p>
-                </div>
-              </div>
-            )}
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={createWithdrawalMutation.isPending}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleWithdraw}
-              disabled={
-                createWithdrawalMutation.isPending ||
-                !withdrawalAmount ||
-                parseFloat(withdrawalAmount) <= 0 ||
-                parseFloat(withdrawalAmount) > balance ||
-                hasPendingWithdrawal
-              }
-            >
-              {createWithdrawalMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                "Submit Request"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Cancel Withdrawal Dialog */}
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>

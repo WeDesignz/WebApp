@@ -53,7 +53,6 @@ export default function UploadDesignContent() {
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
-  const [price, setPrice] = useState("");
   const [color, setColor] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]); // Store tag names for chip display
@@ -353,11 +352,12 @@ export default function UploadDesignContent() {
       }
       
       // Create metadata.xlsx
+      // Note: Price is now managed globally by admin via SystemConfig, so it's not included in the template
       const metadataData = [
-        ['folder_name', 'title', 'description', 'category', 'subcategory', 'Plan', 'color', 'price', 'Visible', 'Tags'],
-        ['Design_001', 'Sample Design 1', 'This is a sample design', 'ecommerce', 'residential', '0', 'Red', '100', '1', 'tag1,tag2'],
-        ['Design_002', 'Sample Design 2', 'This is a sample design', 'ecommerce', 'commercial', '1', 'Blue', '200', '1', 'tag3,tag4'],
-        ['Design_003', 'Sample Design 3', 'This is a sample design', 'other', 'other', '2', 'Green', '300', '1', 'tag5,tag6'],
+        ['folder_name', 'title', 'description', 'category', 'subcategory', 'Plan', 'color', 'Visible', 'Tags'],
+        ['Design_001', 'Sample Design 1', 'This is a sample design', 'ecommerce', 'residential', '0', 'Red', '1', 'tag1,tag2'],
+        ['Design_002', 'Sample Design 2', 'This is a sample design', 'ecommerce', 'commercial', '1', 'Blue', '1', 'tag3,tag4'],
+        ['Design_003', 'Sample Design 3', 'This is a sample design', 'other', 'other', '2', 'Green', '1', 'tag5,tag6'],
       ];
       
       // Create workbook and worksheet
@@ -640,9 +640,8 @@ export default function UploadDesignContent() {
       errors.category = "Category is required";
     }
 
-    if (pricingType === "paid" && (!price || parseFloat(price) <= 0)) {
-      errors.price = "Valid price is required for paid designs";
-    }
+    // Price validation removed - price is now managed globally by admin via SystemConfig
+    // No need to validate price as it's automatically set by the backend for paid designs
 
       // Check for required files: eps, cdr, jpg, png (mockup is optional)
       const requiredFiles = ['eps', 'cdr', 'jpg', 'png'] as const;
@@ -743,9 +742,8 @@ export default function UploadDesignContent() {
       formData.append('category_id', String(finalCategoryId));
       formData.append('product_plan_type', pricingType === "free" ? "free" : "basic");
 
-      if (pricingType === "paid" && price) {
-        formData.append('price', price);
-      }
+      // Price is now managed globally via SystemConfig, so we don't send it from the frontend
+      // The backend will automatically use the global design price for paid designs
 
       if (color.trim()) {
         formData.append('color', color.trim());
@@ -795,7 +793,6 @@ export default function UploadDesignContent() {
       setDescription("");
       setCategoryId(null);
       setSubcategoryId(null);
-      setPrice("");
       setColor("");
       setSelectedTagIds([]);
       setSelectedTags([]);
@@ -868,7 +865,7 @@ export default function UploadDesignContent() {
                   setDescription("");
                   setCategoryId(null);
                   setSubcategoryId(null);
-                  setPrice("");
+                  // Price is now managed globally, no need to reset it
                   setColor("");
                   setSelectedTagIds([]);
                   setSelectedTags([]);
@@ -1257,22 +1254,9 @@ export default function UploadDesignContent() {
 
             {pricingType === "paid" && (
               <div className="space-y-2">
-                <Label htmlFor="price">Price (₹) <span className="text-destructive">*</span></Label>
-                <Input
-                  id="price"
-                  type="number"
-                  placeholder="Enter price in rupees"
-                  value={price}
-                  onChange={(e) => {
-                    setPrice(e.target.value);
-                    setValidationErrors({ ...validationErrors, price: "" });
-                  }}
-                  min="1"
-                  disabled={isUploading}
-                />
-                {validationErrors.price && (
-                  <p className="text-sm text-destructive">{validationErrors.price}</p>
-                )}
+                <p className="text-sm text-muted-foreground">
+                  Price is set globally by the admin. All paid designs will use the system-wide design price.
+                </p>
               </div>
             )}
           </div>

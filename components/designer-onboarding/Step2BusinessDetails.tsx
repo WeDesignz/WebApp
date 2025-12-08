@@ -212,7 +212,13 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
       const response = await apiClient.verifyEmail(formData.businessEmail, otp);
       
       if (response.error) {
-        toast.error(response.error || 'Failed to verify business email');
+        // Map specific backend error messages to user-friendly messages
+        const errorMessage = response.error === 'Invalid OTP' 
+          ? 'Invalid OTP. Please check the code and try again.'
+          : response.error === 'OTP has expired'
+          ? 'OTP has expired. Please request a new one.'
+          : response.error || 'Failed to verify business email';
+        toast.error(errorMessage);
         return false;
       }
       
@@ -221,7 +227,20 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
       toast.success('Business email verified successfully!');
       return true;
     } catch (error: any) {
-      toast.error(error.message || 'Failed to verify business email');
+      // Extract error message from various possible formats
+      const errorMessage = error?.response?.data?.error || 
+                          error?.error || 
+                          error?.message || 
+                          'Failed to verify business email. Please try again.';
+      
+      // Map specific backend error messages
+      const mappedMessage = errorMessage === 'Invalid OTP' 
+        ? 'Invalid OTP. Please check the code and try again.'
+        : errorMessage === 'OTP has expired'
+        ? 'OTP has expired. Please request a new one.'
+        : errorMessage;
+      
+      toast.error(mappedMessage);
       return false;
     }
   };
@@ -234,7 +253,13 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
       });
       
       if (response.error) {
-        toast.error(response.error || 'Failed to verify business phone');
+        // Map specific backend error messages to user-friendly messages
+        const errorMessage = response.error === 'Invalid OTP' 
+          ? 'Invalid OTP. Please check the code and try again.'
+          : response.error === 'OTP has expired'
+          ? 'OTP has expired. Please request a new one.'
+          : response.error || 'Failed to verify business phone';
+        toast.error(errorMessage);
         return false;
       }
       
@@ -243,7 +268,20 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
       toast.success('Business phone verified successfully!');
       return true;
     } catch (error: any) {
-      toast.error(error.message || 'Failed to verify business phone');
+      // Extract error message from various possible formats
+      const errorMessage = error?.response?.data?.error || 
+                          error?.error || 
+                          error?.message || 
+                          'Failed to verify business phone. Please try again.';
+      
+      // Map specific backend error messages
+      const mappedMessage = errorMessage === 'Invalid OTP' 
+        ? 'Invalid OTP. Please check the code and try again.'
+        : errorMessage === 'OTP has expired'
+        ? 'OTP has expired. Please request a new one.'
+        : errorMessage;
+      
+      toast.error(mappedMessage);
       return false;
     }
   };

@@ -178,12 +178,18 @@ export async function apiRequest<T>(
     // Check if body is FormData
     const isFormData = options.body instanceof FormData;
     
+    // Don't send Authorization header for signup/login endpoints (user doesn't have valid token yet)
+    const isPublicAuthEndpoint = endpoint.includes('/auth/signup/') || 
+                                 endpoint.includes('/auth/login/') ||
+                                 endpoint.includes('/auth/register/');
+    
     const headers: Record<string, string> = {
       ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(options.headers as Record<string, string> || {}),
     };
 
-    if (token) {
+    // Only add Authorization header if token exists and it's not a public auth endpoint
+    if (token && !isPublicAuthEndpoint) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
@@ -271,9 +277,17 @@ export async function apiRequest<T>(
       // For validation errors, extract the first field error or use the error message
       let finalErrorMessage = errorData?.error || errorData?.detail;
       
+      // Django REST Framework returns validation errors directly in the response object
+      // Check for non_field_errors first (general errors)
+      if (!finalErrorMessage && errorData?.non_field_errors && Array.isArray(errorData.non_field_errors) && errorData.non_field_errors.length > 0) {
+        finalErrorMessage = errorData.non_field_errors[0];
+      }
+      
       // If no direct error message, try to extract from field-specific errors
-      if (!finalErrorMessage && errorData?.errors && typeof errorData.errors === 'object') {
-        // Get first error from any field
+      // Django serializer errors are at the top level of errorData
+      if (!finalErrorMessage && typeof errorData === 'object' && errorData !== null) {
+        // First check if errors are nested under an 'errors' key
+        if (errorData.errors && typeof errorData.errors === 'object') {
         for (const field in errorData.errors) {
           if (Array.isArray(errorData.errors[field]) && errorData.errors[field].length > 0) {
             finalErrorMessage = errorData.errors[field][0];
@@ -281,6 +295,26 @@ export async function apiRequest<T>(
           } else if (errorData.errors[field]) {
             finalErrorMessage = String(errorData.errors[field]);
             break;
+            }
+          }
+        } else {
+          // Check for Django serializer format - errors are at top level
+          // Skip known keys that aren't field errors
+          const skipKeys = ['error', 'detail', 'errors', 'non_field_errors', 'received_data'];
+          for (const field in errorData) {
+            if (!skipKeys.includes(field)) {
+              const fieldError = errorData[field];
+              if (Array.isArray(fieldError) && fieldError.length > 0) {
+                // Format field name to be user-friendly
+                const friendlyFieldName = field.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+                finalErrorMessage = `${friendlyFieldName}: ${fieldError[0]}`;
+                break;
+              } else if (typeof fieldError === 'string' && fieldError) {
+                const friendlyFieldName = field.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+                finalErrorMessage = `${friendlyFieldName}: ${fieldError}`;
+                break;
+              }
+            }
           }
         }
       }
@@ -317,8 +351,20 @@ export async function apiRequest<T>(
       const isLoginEndpoint = endpoint.includes('/auth/login/') || endpoint.includes('/login/');
       const isLoginValidationError = isLoginEndpoint && response.status === 400;
       
-      // Log error for debugging (skip expected 404s, logout errors, OTP validation errors, and login validation errors)
-      if (!isExpected404 && !isLogoutError && !isOTPValidationError && !isLoginValidationError) {
+      // Don't log 401 errors for profile endpoint during initial auth verification (expected when token is invalid)
+      const isProfileEndpoint = endpoint.includes('/auth/profile/') || endpoint.includes('/profile/');
+      const isProfile401 = isProfileEndpoint && response.status === 401;
+      
+      // Don't log 401 errors for cart/wishlist endpoints when user is not authenticated (expected behavior)
+      const isCartWishlistEndpoint = endpoint.includes('/orders/cart/') || endpoint.includes('/orders/wishlist/');
+      const isCartWishlist401 = isCartWishlistEndpoint && response.status === 401;
+      
+      // Don't log 401 errors for signup endpoint (expected when invalid token is sent or backend validation fails)
+      const isSignupEndpoint = endpoint.includes('/auth/signup/') || endpoint.includes('/auth/register/');
+      const isSignup401 = isSignupEndpoint && response.status === 401;
+      
+      // Log error for debugging (skip expected 404s, logout errors, OTP validation errors, login validation errors, profile 401s, cart/wishlist 401s, and signup 401s)
+      if (!isExpected404 && !isLogoutError && !isOTPValidationError && !isLoginValidationError && !isProfile401 && !isCartWishlist401 && !isSignup401) {
         logError(errorDetails, `API Request: ${endpoint}`);
       }
       
@@ -2220,7 +2266,6 @@ export const apiClient = {
       designer_profile_status: string;
       studio_created: boolean;
       business_details_completed: boolean;
-      razorpay_account_verified: boolean;
       design_processing_status?: {
         task_id: number;
         status: string;
@@ -2251,7 +2296,6 @@ export const apiClient = {
         designer_profile_status: string;
         studio_created: boolean;
         business_details_completed: boolean;
-        razorpay_account_verified: boolean;
         design_processing_status?: {
           task_id: number;
           status: string;
@@ -2301,6 +2345,43 @@ export const apiClient = {
 
   getEarningsSummary: async (): Promise<ApiResponse<any>> => {
     return apiRequest<any>('/api/wallet/earnings-summary/');
+  },
+
+  /**
+   * Get settlement status
+   */
+  getSettlementStatus: async (): Promise<ApiResponse<{
+    settlement_window_active: boolean;
+    current_day: number;
+    settlement_window_days: number[];
+    settlement_request: {
+      id: number;
+      settlement_period_start: string;
+      settlement_period_end: string;
+      wallet_balance_at_period_end: number;
+      settlement_amount: number;
+      status: string;
+      opted_in: boolean;
+      opted_in_at: string | null;
+      settlement_date: string | null;
+    } | null;
+    can_accept_settlement: boolean;
+    has_bank_details: boolean;
+    current_wallet_balance: number;
+  }>> => {
+    return apiRequest<any>('/api/wallet/settlement-status/');
+  },
+
+  /**
+   * Accept settlement
+   */
+  acceptSettlement: async (): Promise<ApiResponse<{
+    message: string;
+    settlement_request: any;
+  }>> => {
+    return apiRequest<any>('/api/wallet/accept-settlement/', {
+      method: 'POST',
+    });
   },
 
   getWithdrawalRequests: async (): Promise<ApiResponse<{
