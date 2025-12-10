@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShoppingCart, Download, Heart, Loader2, Tag, Image as ImageIcon, Package, Hash, Palette, DollarSign, Info, Eye, ZoomIn, Zap, ChevronDown } from "lucide-react";
+import { X, ShoppingCart, Download, Heart, Loader2, Tag, Image as ImageIcon, Package, Hash, Palette, Coins, Info, Eye, ZoomIn, Zap, ChevronDown, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -880,6 +880,16 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                           </div>
                         )}
 
+                        {rawProduct?.studio_wedesignz_auto_name && (
+                          <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                              <Building2 className="w-4 h-4" />
+                              <span className="text-xs font-medium">Designer</span>
+                            </div>
+                            <p className="font-mono text-sm font-semibold">{rawProduct.studio_wedesignz_auto_name}</p>
+                          </div>
+                        )}
+
                         {rawProduct?.color && (
                           <div className="p-4 bg-muted/50 rounded-lg border border-border">
                             <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -899,7 +909,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                         {rawProduct?.price && (
                           <div className="p-4 bg-muted/50 rounded-lg border border-border">
                             <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                              <DollarSign className="w-4 h-4" />
+                              <Coins className="w-4 h-4" />
                               <span className="text-xs font-medium">Price</span>
                             </div>
                             <p className="text-lg font-bold text-primary">₹{parseFloat(rawProduct.price).toLocaleString()}</p>
