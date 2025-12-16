@@ -27,16 +27,6 @@ import { apiClient } from "@/lib/api";
 import { initializeRazorpayCheckout } from "@/lib/payment";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 interface Plan {
   id: number;
@@ -51,6 +41,7 @@ interface Plan {
   custom_design_hour?: number;
   mock_pdf_count?: number;
   no_of_free_downloads?: number;
+  is_most_popular?: boolean;
 }
 
 interface Subscription {
@@ -93,7 +84,6 @@ export default function PlansContent() {
   const queryClient = useQueryClient();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Fetch plans
@@ -162,30 +152,6 @@ export default function PlansContent() {
     },
   });
 
-  // Cancel subscription mutation
-  const cancelSubscriptionMutation = useMutation({
-    mutationFn: async () => {
-      return apiClient.cancelSubscription();
-    },
-    onSuccess: async (response) => {
-      if (response.error) {
-        throw new Error(response.error);
-      }
-      await refetchSubscription();
-      toast({
-        title: "Subscription cancelled",
-        description: "Your subscription has been cancelled successfully.",
-      });
-      setCancelDialogOpen(false);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Cancellation failed",
-        description: error.message || "Failed to cancel subscription. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
 
   const hasSubscription = subscriptionData?.has_active_subscription || false;
   const currentSubscription = subscriptionData?.subscription as Subscription | undefined;
@@ -303,22 +269,30 @@ export default function PlansContent() {
     }
   };
 
-  const handleCancelSubscription = () => {
-    setCancelDialogOpen(true);
-  };
 
-  const confirmCancelSubscription = () => {
-    cancelSubscriptionMutation.mutate();
-  };
-
-  // Format plan name for display
-  const getPlanDisplayName = (planName: string) => {
+  // Format plan name for display - prioritizes plan_name_display if available
+  const getPlanDisplayName = (plan: Plan | string) => {
+    // If plan object is passed, use plan_name_display if available
+    if (typeof plan !== 'string') {
+      // Check for plan_name_display first (from backend)
+      if (plan.plan_name_display && plan.plan_name_display.trim()) {
+        return plan.plan_name_display;
+      }
+      // Fallback to plan_name
+      if (plan.plan_name) {
+        plan = plan.plan_name;
+      } else {
+        return 'Plan'; // Ultimate fallback
+      }
+    }
+    
+    // Fallback to formatted name based on plan_name value
     const nameMap: Record<string, string> = {
-      basic: "Starter",
-      prime: "Pro",
-      premium: "Enterprise",
+      basic: "Basic",
+      prime: "Prime", 
+      premium: "Premium",
     };
-    return nameMap[planName] || planName.charAt(0).toUpperCase() + planName.slice(1);
+    return nameMap[plan.toLowerCase()] || (plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : 'Plan');
   };
 
   // Parse description (JSONField) to get features array
@@ -424,7 +398,7 @@ export default function PlansContent() {
                           {currentSubscription.status.toUpperCase()}
                         </Badge>
                         <span className="text-sm font-medium text-foreground">
-                          {getPlanDisplayName(currentPlan.plan_name)} Plan
+                          {getPlanDisplayName(currentPlan)}
                         </span>
                         <Badge variant="outline" className="border-primary/30">
                           {currentPlan.plan_duration === 'annually' ? 'Annual' : 'Monthly'}
@@ -432,21 +406,6 @@ export default function PlansContent() {
                       </div>
                     </div>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    onClick={handleCancelSubscription}
-                    disabled={cancelSubscriptionMutation.isPending}
-                    className="border-red-500/30 text-red-600 hover:bg-red-50 hover:border-red-500 dark:hover:bg-red-950/20"
-                  >
-                    {cancelSubscriptionMutation.isPending ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Cancelling...
-                      </>
-                    ) : (
-                      "Cancel Subscription"
-                    )}
-                  </Button>
                 </div>
               </div>
 
@@ -739,10 +698,10 @@ export default function PlansContent() {
             {currentPlans.map((plan: Plan, index: number) => {
               const Icon = iconMap[plan.plan_name] || Star;
               const color = colorMap[plan.plan_name] || "from-blue-500 to-cyan-500";
-              const displayName = getPlanDisplayName(plan.plan_name);
+              const displayName = getPlanDisplayName(plan);
               const features = getPlanFeatures(plan.description);
               const isCurrentPlan = hasSubscription && currentPlan?.id === plan.id;
-              const isPopular = plan.plan_name === 'prime' || plan.plan_name === 'premium';
+              const isPopular = plan.is_most_popular === true;
 
             return (
               <motion.div
@@ -845,33 +804,6 @@ export default function PlansContent() {
         </Card>
       </div>
 
-      {/* Cancel Subscription Dialog */}
-      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Subscription</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to cancel your subscription? You will lose access to all premium features at the end of your current billing period.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmCancelSubscription}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {cancelSubscriptionMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Cancelling...
-                </>
-              ) : (
-                "Cancel Subscription"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

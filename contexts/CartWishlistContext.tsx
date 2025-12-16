@@ -59,9 +59,9 @@ const CartWishlistContext = createContext<CartWishlistContextType | undefined>(u
 export const CartWishlistProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
 
-  // Fetch cart from API - only when authenticated
+  // Fetch cart from API - only when authenticated and auth is loaded
   const { data: cartData, isLoading: isLoadingCart } = useQuery({
     queryKey: ['cart'],
     queryFn: async () => {
@@ -75,7 +75,7 @@ export const CartWishlistProvider = ({ children }: { children: ReactNode }) => {
       }
       return transformCartItems(response.data?.cart_items || []);
     },
-    enabled: isAuthenticated, // Only fetch when authenticated
+    enabled: isAuthenticated && !isAuthLoading, // Only fetch when authenticated AND auth is loaded
     staleTime: 30 * 1000, // 30 seconds
     refetchOnWindowFocus: true,
     retry: (failureCount, error: any) => {
@@ -87,7 +87,7 @@ export const CartWishlistProvider = ({ children }: { children: ReactNode }) => {
     },
   });
 
-  // Fetch wishlist from API - only when authenticated
+  // Fetch wishlist from API - only when authenticated and auth is loaded
   const { data: wishlistData, isLoading: isLoadingWishlist } = useQuery({
     queryKey: ['wishlist'],
     queryFn: async () => {
@@ -101,7 +101,7 @@ export const CartWishlistProvider = ({ children }: { children: ReactNode }) => {
       }
       return transformWishlistItems(response.data?.wishlist_items || []);
     },
-    enabled: isAuthenticated, // Only fetch when authenticated
+    enabled: isAuthenticated && !isAuthLoading, // Only fetch when authenticated AND auth is loaded
     staleTime: 30 * 1000, // 30 seconds
     refetchOnWindowFocus: true,
     retry: (failureCount, error: any) => {

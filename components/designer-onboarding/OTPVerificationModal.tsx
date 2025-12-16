@@ -97,9 +97,23 @@ export default function OTPVerificationModal({ open, onClose, onVerified, onRese
       const result = await onVerified(otpValue);
       if (result) {
         onClose();
+      } else {
+        // Show error toast when verification returns false
+        toast.error('Invalid OTP. Please check the code and try again.');
+        // Clear OTP inputs
+        setOtp(['', '', '', '', '', '']);
+        inputRefs.current[0]?.focus();
       }
     } catch (error: any) {
-      toast.error(error.message || 'Verification failed');
+      // Extract error message from various possible formats
+      const errorMessage = error?.response?.data?.error || 
+                          error?.error || 
+                          error?.message || 
+                          'Invalid OTP. Please check the code and try again.';
+      toast.error(errorMessage);
+      // Clear OTP inputs
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
     } finally {
       setIsVerifying(false);
     }
@@ -150,8 +164,9 @@ export default function OTPVerificationModal({ open, onClose, onVerified, onRese
               <>
                 We&apos;ve sent a 6-digit code to<br />
                 <span className="font-semibold text-foreground">{value}</span>
-                <br />
-                <span className="text-xs text-muted-foreground mt-2 block">Use 123456 as OTP for now</span>
+                {type === 'phone' && (
+                  <><br /><span className="text-xs text-muted-foreground mt-2 block">via WhatsApp</span></>
+                )}
               </>
             )}
           </DialogDescription>

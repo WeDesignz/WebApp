@@ -288,13 +288,23 @@ export default function DownloadsContent() {
   const mockPDFDownloads = transformedPDFDownloads.length;
 
   // Helper function to format plan name (consistent with PlansContent)
-  const getPlanDisplayName = (planName: string) => {
+  // Prioritizes plan_name_display if available
+  const getPlanDisplayName = (plan: { plan_name_display?: string; plan_name: string } | string) => {
+    // If plan object is passed, use plan_name_display if available
+    if (typeof plan !== 'string') {
+      if (plan.plan_name_display) {
+        return plan.plan_name_display;
+      }
+      plan = plan.plan_name;
+    }
+    
+    // Fallback to formatted name
     const nameMap: Record<string, string> = {
       basic: "Starter",
       prime: "Pro",
       premium: "Enterprise",
     };
-    return nameMap[planName] || planName.charAt(0).toUpperCase() + planName.slice(1);
+    return nameMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
   };
 
   // Fetch subscription data for Subscription Benefits box
@@ -871,7 +881,7 @@ export default function DownloadsContent() {
                       <span className="text-sm text-muted-foreground">Active Plan</span>
                       <Badge className="bg-primary/20 text-primary border-primary/30">
                         {subscriptionData.plan?.plan_name 
-                          ? `${getPlanDisplayName(subscriptionData.plan.plan_name)} ${subscriptionData.plan.plan_duration === 'monthly' ? 'Monthly' : 'Annually'}`
+                          ? `${getPlanDisplayName(subscriptionData.plan)} ${subscriptionData.plan.plan_duration === 'monthly' ? 'Monthly' : 'Annually'}`
                           : 'Active'}
                       </Badge>
                     </div>

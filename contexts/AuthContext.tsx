@@ -24,8 +24,8 @@ interface AuthContextType {
   login: (emailOrUsername: string, password: string, rememberMe?: boolean) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
-  setPassword: (email: string, otp: string, password: string, confirmPassword: string) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  setPassword: (email: string, otp: string, password: string, confirmPassword: string, phoneNumber?: string) => Promise<void>;
+  resetPassword: (email: string, deliveryMethod?: 'email' | 'whatsapp', phoneNumber?: string) => Promise<void>;
   verifyEmailOTP: (email: string, otp: string, mobileNumber?: string) => Promise<boolean>;
   verifyMobileOTP: (mobile: string, otp: string) => Promise<boolean>;
   sendEmailOTP: (email: string) => Promise<void>;
@@ -62,16 +62,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const savedUser = localStorage.getItem('wedesign_user');
         
         if (savedAccessToken && savedRefreshToken && savedUser) {
-          setToken(savedAccessToken);
-          setRefreshToken(savedRefreshToken);
-          setUser(JSON.parse(savedUser));
+          // Don't set auth state yet - verify token first to prevent queries from running with invalid tokens
+          // Token is already in localStorage, so API calls will work
           
           // Verify token is still valid by fetching user profile
           try {
             const response = await apiClient.getUserProfile();
             if (response.data) {
-              // Update user data
+              // Token is valid, set both token and user
               const updatedUser = transformUserData(response.data);
+              setToken(savedAccessToken);
+              setRefreshToken(savedRefreshToken);
               setUser(updatedUser);
               localStorage.setItem('wedesign_user', JSON.stringify(updatedUser));
             } else {
@@ -82,13 +83,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 setRefreshToken(refreshResponse.data.refresh);
                 localStorage.setItem('wedesign_access_token', refreshResponse.data.access);
                 localStorage.setItem('wedesign_refresh_token', refreshResponse.data.refresh);
+                // Parse and set user from saved data after successful refresh
+                setUser(JSON.parse(savedUser));
               } else {
+                // Refresh failed, clear everything
                 clearAuthData();
               }
             }
-          } catch (error) {
-            // Token invalid, clear auth data
+          } catch (error: any) {
+            // Only clear auth data if it's a 401 (token expired/invalid)
+            // For other errors (network, etc.), don't set state - user stays unauthenticated
+            if (error?.errorDetails?.statusCode === 401) {
+              // Token invalid, clear auth data silently
             clearAuthData();
+            }
+            // For other errors, don't set token/user state - isAuthenticated stays false
           }
         }
       } catch (e) {
@@ -143,17 +152,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const issuedAt = payload.iat ? new Date(payload.iat * 1000) : null;
             const tokenAgeMinutes = payload.iat ? Math.floor((currentTime - (payload.iat * 1000)) / (60 * 1000)) : null;
             
-            console.log('[WebApp TokenRefresh] 🔑 Access Token Status:', {
-              'Expires At': expirationDate.toLocaleString(),
-              'Time Remaining': `${minutesRemaining}m ${secondsRemaining}s`,
-              'Will Refresh Soon': timeUntilExpiry < 5 * 60 * 1000 ? '✅ Yes (within 5 min)' : '❌ No',
-              'Token Age': tokenAgeMinutes !== null ? `${tokenAgeMinutes} minutes` : 'Unknown',
-              'Issued At': issuedAt ? issuedAt.toLocaleString() : 'Unknown'
-            });
+            // Debug logging disabled to reduce console noise
+            // Token status logging can be re-enabled for debugging if needed
             
             // If token expires in less than 5 minutes, refresh it proactively
             if (timeUntilExpiry > 0 && timeUntilExpiry < 5 * 60 * 1000) {
-              console.log('[WebApp TokenRefresh] ⚠️ Token expiring soon, refreshing...');
               isRefreshingRef.current = true;
               
               try {
@@ -163,7 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   setRefreshToken(refreshResponse.data.refresh);
                   localStorage.setItem('wedesign_access_token', refreshResponse.data.access);
                   localStorage.setItem('wedesign_refresh_token', refreshResponse.data.refresh);
-                  console.log('[WebApp TokenRefresh] ✅ Token refreshed successfully');
+                  // Token refresh successful - no need to log
                 }
               } catch (error) {
                 // Don't log errors - let normal flow handle it
@@ -243,25 +246,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('wedesign_refresh_token', tokens.refresh);
       localStorage.setItem('wedesign_user', JSON.stringify(transformedUser));
     } catch (error: any) {
-      console.error('Login error in AuthContext:', error);
+      // Error is already handled and displayed to user, no need to log to console
       throw error;
     }
   };
 
   const register = async (data: RegisterData) => {
     try {
+      // Clean mobile number - remove any non-digit characters and ensure it's exactly 10 digits
+      const cleanMobileNumber = data.mobileNumber.replace(/\D/g, '').slice(0, 10);
+      
       // Signup with email, mobile number, and password (no verification required)
       const signupResponse = await apiClient.signup({
         first_name: data.firstName,
         last_name: data.lastName,
         email: data.email,
-        mobile_number: data.mobileNumber,
+        mobile_number: cleanMobileNumber,
         password: data.password,
         confirm_password: data.confirmPassword,
       });
 
       if (signupResponse.error) {
-        throw new Error(signupResponse.error);
+        // Create error object with field errors attached
+        const error = new Error(signupResponse.error);
+        // Attach field errors for form validation display
+        if (signupResponse.fieldErrors) {
+          (error as any).fieldErrors = signupResponse.fieldErrors;
+        }
+        // Attach error details for more context
+        if (signupResponse.errorDetails) {
+          (error as any).errorDetails = signupResponse.errorDetails;
+        }
+        throw error;
       }
 
       if (!signupResponse.data) {
@@ -306,21 +322,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     clearAuthData();
   };
 
-  const setPassword = async (email: string, otp: string, password: string, confirmPassword: string) => {
-    const response = await apiClient.confirmPasswordReset({
-      email,
+  const setPassword = async (email: string, otp: string, password: string, confirmPassword: string, phoneNumber?: string) => {
+    const payload: any = {
       otp,
       new_password: password,
       confirm_password: confirmPassword,
-    });
+    };
+    
+    if (phoneNumber) {
+      payload.phone_number = phoneNumber;
+    } else {
+      payload.email = email;
+    }
+    
+    const response = await apiClient.confirmPasswordReset(payload);
 
     if (response.error) {
       throw new Error(response.error);
     }
   };
 
-  const resetPassword = async (email: string) => {
-    const response = await apiClient.requestPasswordReset(email);
+  const resetPassword = async (email: string, deliveryMethod: 'email' | 'whatsapp' = 'email', phoneNumber?: string) => {
+    const response = await apiClient.requestPasswordReset(email, deliveryMethod, phoneNumber);
 
     if (response.error) {
       throw new Error(response.error);

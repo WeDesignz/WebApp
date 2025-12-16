@@ -55,7 +55,7 @@ export default function LoginForm() {
         }
       }, 500);
     } catch (err: any) {
-      console.error('Login error:', err);
+      // Error is already handled and displayed to user via toast, no need to log to console
       const errorMessage = err?.message || err?.error || 'Login failed. Please check your credentials.';
       toast.error(errorMessage);
     } finally {

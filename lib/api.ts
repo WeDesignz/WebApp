@@ -178,12 +178,18 @@ export async function apiRequest<T>(
     // Check if body is FormData
     const isFormData = options.body instanceof FormData;
     
+    // Don't send Authorization header for signup/login endpoints (user doesn't have valid token yet)
+    const isPublicAuthEndpoint = endpoint.includes('/auth/signup/') || 
+                                 endpoint.includes('/auth/login/') ||
+                                 endpoint.includes('/auth/register/');
+    
     const headers: Record<string, string> = {
       ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(options.headers as Record<string, string> || {}),
     };
 
-    if (token) {
+    // Only add Authorization header if token exists and it's not a public auth endpoint
+    if (token && !isPublicAuthEndpoint) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
@@ -271,9 +277,17 @@ export async function apiRequest<T>(
       // For validation errors, extract the first field error or use the error message
       let finalErrorMessage = errorData?.error || errorData?.detail;
       
+      // Django REST Framework returns validation errors directly in the response object
+      // Check for non_field_errors first (general errors)
+      if (!finalErrorMessage && errorData?.non_field_errors && Array.isArray(errorData.non_field_errors) && errorData.non_field_errors.length > 0) {
+        finalErrorMessage = errorData.non_field_errors[0];
+      }
+      
       // If no direct error message, try to extract from field-specific errors
-      if (!finalErrorMessage && errorData?.errors && typeof errorData.errors === 'object') {
-        // Get first error from any field
+      // Django serializer errors are at the top level of errorData
+      if (!finalErrorMessage && typeof errorData === 'object' && errorData !== null) {
+        // First check if errors are nested under an 'errors' key
+        if (errorData.errors && typeof errorData.errors === 'object') {
         for (const field in errorData.errors) {
           if (Array.isArray(errorData.errors[field]) && errorData.errors[field].length > 0) {
             finalErrorMessage = errorData.errors[field][0];
@@ -281,6 +295,26 @@ export async function apiRequest<T>(
           } else if (errorData.errors[field]) {
             finalErrorMessage = String(errorData.errors[field]);
             break;
+            }
+          }
+        } else {
+          // Check for Django serializer format - errors are at top level
+          // Skip known keys that aren't field errors
+          const skipKeys = ['error', 'detail', 'errors', 'non_field_errors', 'received_data'];
+          for (const field in errorData) {
+            if (!skipKeys.includes(field)) {
+              const fieldError = errorData[field];
+              if (Array.isArray(fieldError) && fieldError.length > 0) {
+                // Format field name to be user-friendly
+                const friendlyFieldName = field.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+                finalErrorMessage = `${friendlyFieldName}: ${fieldError[0]}`;
+                break;
+              } else if (typeof fieldError === 'string' && fieldError) {
+                const friendlyFieldName = field.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+                finalErrorMessage = `${friendlyFieldName}: ${fieldError}`;
+                break;
+              }
+            }
           }
         }
       }
@@ -301,14 +335,36 @@ export async function apiRequest<T>(
         (endpoint.includes('/get-designer-onboarding-step') || 
          endpoint.includes('/get-designer-onboarding-step1') ||
          endpoint.includes('/get-designer-onboarding-step2') ||
-         endpoint.includes('/get-designer-onboarding-step3'));
+         endpoint.includes('/get-designer-onboarding-step3') ||
+         endpoint.includes('/get-designer-onboarding-step4'));
       
       // Don't log errors for logout endpoint - 400/401 errors are expected when token is invalid/expired
       const isLogoutEndpoint = endpoint.includes('/auth/logout') || endpoint.includes('/logout/');
       const isLogoutError = isLogoutEndpoint && (response.status === 400 || response.status === 401);
       
-      // Log error for debugging (skip expected 404s and logout errors)
-      if (!isExpected404 && !isLogoutError) {
+      // Don't log validation errors for OTP verification - these are expected user errors
+      const isOTPVerificationEndpoint = endpoint.includes('/verify-password-reset-otp/') || 
+                                       endpoint.includes('/verify-otp/');
+      const isOTPValidationError = isOTPVerificationEndpoint && response.status === 400;
+      
+      // Don't log validation errors for login - invalid credentials are expected user errors
+      const isLoginEndpoint = endpoint.includes('/auth/login/') || endpoint.includes('/login/');
+      const isLoginValidationError = isLoginEndpoint && response.status === 400;
+      
+      // Don't log 401 errors for profile endpoint during initial auth verification (expected when token is invalid)
+      const isProfileEndpoint = endpoint.includes('/auth/profile/') || endpoint.includes('/profile/');
+      const isProfile401 = isProfileEndpoint && response.status === 401;
+      
+      // Don't log 401 errors for cart/wishlist endpoints when user is not authenticated (expected behavior)
+      const isCartWishlistEndpoint = endpoint.includes('/orders/cart/') || endpoint.includes('/orders/wishlist/');
+      const isCartWishlist401 = isCartWishlistEndpoint && response.status === 401;
+      
+      // Don't log 401 errors for signup endpoint (expected when invalid token is sent or backend validation fails)
+      const isSignupEndpoint = endpoint.includes('/auth/signup/') || endpoint.includes('/auth/register/');
+      const isSignup401 = isSignupEndpoint && response.status === 401;
+      
+      // Log error for debugging (skip expected 404s, logout errors, OTP validation errors, login validation errors, profile 401s, cart/wishlist 401s, and signup 401s)
+      if (!isExpected404 && !isLogoutError && !isOTPValidationError && !isLoginValidationError && !isProfile401 && !isCartWishlist401 && !isSignup401) {
         logError(errorDetails, `API Request: ${endpoint}`);
       }
       
@@ -753,10 +809,23 @@ export const apiClient = {
     });
   },
 
-  requestPasswordReset: async (email: string) => {
+  requestPasswordReset: async (email: string, deliveryMethod: 'email' | 'whatsapp' = 'email', phoneNumber?: string) => {
+    const payload: any = { delivery_method: deliveryMethod };
+    if (deliveryMethod === 'email') {
+      payload.email = email;
+    } else if (phoneNumber) {
+      payload.phone_number = phoneNumber;
+    }
     return apiRequest('/api/auth/request-password-reset/', {
       method: 'POST',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify(payload),
+    });
+  },
+
+  verifyPasswordResetOTP: async (data: any) => {
+    return apiRequest('/api/auth/verify-password-reset-otp/', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
 
@@ -1929,7 +1998,59 @@ export const apiClient = {
     }
   },
 
-  saveDesignerOnboardingStep4: async (zipFile: File): Promise<ApiResponse<any>> => {
+  saveDesignerOnboardingStep4: async (data: {
+    bank_account_number: string;
+    bank_ifsc_code: string;
+    bank_account_holder_name: string;
+    account_type: 'savings' | 'current';
+  }): Promise<ApiResponse<any>> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
+    const baseUrl = getApiBaseUrl();
+    if (!baseUrl) {
+      return {
+        error: 'API base URL is not configured. Please set NEXT_PUBLIC_API_BASE_URL environment variable.',
+        errorDetails: {
+          type: ErrorType.NETWORK,
+          message: 'API base URL is not configured',
+          statusCode: 500,
+        },
+      };
+    }
+    
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${baseUrl}/api/profiles/designer-onboarding-step4/`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+        credentials: 'include', // Include credentials for CORS
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        return {
+          error: errorData.error || errorData.detail || 'Failed to save bank details',
+          errorDetails: formatError(errorData, response.status),
+        };
+      }
+
+      const responseData = await response.json();
+      return { data: responseData };
+    } catch (error: any) {
+      return {
+        error: error.message || 'Network error occurred',
+        errorDetails: error,
+      };
+    }
+  },
+
+  saveDesignerOnboardingStep5: async (zipFile: File): Promise<ApiResponse<any>> => {
     const formData = new FormData();
     formData.append('zip_file', zipFile);
 
@@ -2127,6 +2248,15 @@ export const apiClient = {
     return response;
   },
 
+  getDesignerOnboardingStep4: async (): Promise<ApiResponse<any>> => {
+    const response = await apiRequest<any>('/api/profiles/get-designer-onboarding-step4/');
+    // Handle 404 gracefully - it means no saved data exists yet (expected for new users)
+    if (response.error && response.errorDetails?.statusCode === 404) {
+      return { data: null, message: 'No Step 4 data found' };
+    }
+    return response;
+  },
+
   getDesignerOnboardingStatus: async (): Promise<ApiResponse<{
     onboarding_status: {
       step1_completed: boolean;
@@ -2136,7 +2266,6 @@ export const apiClient = {
       designer_profile_status: string;
       studio_created: boolean;
       business_details_completed: boolean;
-      razorpay_account_verified: boolean;
       design_processing_status?: {
         task_id: number;
         status: string;
@@ -2167,7 +2296,6 @@ export const apiClient = {
         designer_profile_status: string;
         studio_created: boolean;
         business_details_completed: boolean;
-        razorpay_account_verified: boolean;
         design_processing_status?: {
           task_id: number;
           status: string;
@@ -2217,6 +2345,43 @@ export const apiClient = {
 
   getEarningsSummary: async (): Promise<ApiResponse<any>> => {
     return apiRequest<any>('/api/wallet/earnings-summary/');
+  },
+
+  /**
+   * Get settlement status
+   */
+  getSettlementStatus: async (): Promise<ApiResponse<{
+    settlement_window_active: boolean;
+    current_day: number;
+    settlement_window_days: number[];
+    settlement_request: {
+      id: number;
+      settlement_period_start: string;
+      settlement_period_end: string;
+      wallet_balance_at_period_end: number;
+      settlement_amount: number;
+      status: string;
+      opted_in: boolean;
+      opted_in_at: string | null;
+      settlement_date: string | null;
+    } | null;
+    can_accept_settlement: boolean;
+    has_bank_details: boolean;
+    current_wallet_balance: number;
+  }>> => {
+    return apiRequest<any>('/api/wallet/settlement-status/');
+  },
+
+  /**
+   * Accept settlement
+   */
+  acceptSettlement: async (): Promise<ApiResponse<{
+    message: string;
+    settlement_request: any;
+  }>> => {
+    return apiRequest<any>('/api/wallet/accept-settlement/', {
+      method: 'POST',
+    });
   },
 
   getWithdrawalRequests: async (): Promise<ApiResponse<{

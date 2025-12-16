@@ -38,7 +38,13 @@ export default function RegisterForm() {
       case 'email':
         return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? 'Invalid email address' : '';
       case 'mobileNumber':
-        return !/^\+?[\d\s-]{10,}$/.test(value) ? 'Invalid mobile number' : '';
+        // Remove any spaces, dashes, or plus signs for validation
+        const cleanNumber = value.replace(/[\s\-+]/g, '');
+        // Only allow exactly 10 digits
+        if (!/^\d{10}$/.test(cleanNumber)) {
+          return 'Mobile number must be exactly 10 digits (e.g., 9998887770)';
+        }
+        return '';
       case 'password':
         if (value.length < 8) return 'Must be at least 8 characters';
         if (!/(?=.*[a-z])/.test(value)) return 'Must contain lowercase letter';
@@ -54,8 +60,20 @@ export default function RegisterForm() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    const error = validateField(name, value);
+    
+    // For mobile number, strip out any non-digit characters (spaces, dashes, plus signs)
+    let processedValue = value;
+    if (name === 'mobileNumber') {
+      // Remove all non-digit characters
+      processedValue = value.replace(/\D/g, '');
+      // Limit to 10 digits
+      if (processedValue.length > 10) {
+        processedValue = processedValue.slice(0, 10);
+      }
+    }
+    
+    setFormData(prev => ({ ...prev, [name]: processedValue }));
+    const error = validateField(name, processedValue);
     setErrors(prev => ({ ...prev, [name]: error }));
   };
 
@@ -122,8 +140,44 @@ export default function RegisterForm() {
       }, 1500);
     } catch (err: any) {
       console.error('Registration error:', err);
-      const errorMessage = err?.message || err?.error || 'Registration failed. Please try again.';
-      toast.error(errorMessage);
+      
+      // Map Django field names to form field names
+      const fieldNameMap: Record<string, string> = {
+        'first_name': 'firstName',
+        'last_name': 'lastName',
+        'email': 'email',
+        'mobile_number': 'mobileNumber',
+        'password': 'password',
+        'confirm_password': 'confirmPassword',
+      };
+      
+      // If there are field-specific errors, display them on the form
+      if (err?.fieldErrors && typeof err.fieldErrors === 'object') {
+        const newErrors: Record<string, string> = {};
+        
+        // Map backend field names to frontend field names
+        Object.keys(err.fieldErrors).forEach(backendField => {
+          const frontendField = fieldNameMap[backendField] || backendField;
+          const fieldErrors = err.fieldErrors[backendField];
+          
+          if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
+            newErrors[frontendField] = fieldErrors[0];
+          } else if (typeof fieldErrors === 'string') {
+            newErrors[frontendField] = fieldErrors;
+          }
+        });
+        
+        if (Object.keys(newErrors).length > 0) {
+          setErrors(newErrors);
+          // Show first field error in toast as well
+          const firstErrorField = Object.keys(newErrors)[0];
+          toast.error(`${firstErrorField === 'firstName' ? 'First name' : firstErrorField === 'lastName' ? 'Last name' : firstErrorField === 'mobileNumber' ? 'Mobile number' : firstErrorField === 'confirmPassword' ? 'Confirm password' : firstErrorField}: ${newErrors[firstErrorField]}`);
+        }
+      } else {
+        // Show general error message
+        const errorMessage = err?.message || err?.error || 'Registration failed. Please try again.';
+        toast.error(errorMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -212,7 +266,8 @@ export default function RegisterForm() {
                   type="tel"
                   value={formData.mobileNumber}
                   onChange={handleChange}
-                  placeholder="+1 234 567 8900"
+                  placeholder="7427089473"
+                  maxLength={10}
                   className={errors.mobileNumber ? 'border-red-500' : ''}
                 />
                 {errors.mobileNumber && (

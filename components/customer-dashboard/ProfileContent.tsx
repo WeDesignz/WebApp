@@ -1431,14 +1431,14 @@ function MobileNumbersSection() {
         throw new Error(errorMsg);
       }
 
-      // Show verification modal immediately (demo mode - no SMS sent)
+      // Show verification modal immediately (OTP sent via WhatsApp)
       setVerifyingMobile(trimmedMobile);
       setNewMobileNumber("");
       setIsMobileModalOpen(false);
       
       toast({
         title: "Mobile number added",
-        description: "Please verify your mobile number with the OTP.",
+        description: "OTP has been sent to your WhatsApp. Please verify your mobile number.",
       });
 
       await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
@@ -1524,7 +1524,7 @@ function MobileNumbersSection() {
     } catch (error: any) {
       toast({
         title: "Verification failed",
-        description: error.message || "Invalid OTP. Please use 123456 for demo.",
+        description: error.message || "Invalid OTP. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -1634,14 +1634,11 @@ function MobileNumbersSection() {
     }
   };
 
-  // Send OTP automatically when verification modal opens (demo mode - show message)
+  // Send OTP automatically when verification modal opens
   useEffect(() => {
     if (verifyingMobile) {
-      // In demo mode, we don't actually send SMS, but we show a message
-      toast({
-        title: "Demo Mode",
-        description: "Use OTP 123456 to verify your mobile number.",
-      });
+      // OTP is sent automatically when mobile number is added
+      // User will receive OTP via WhatsApp
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verifyingMobile]);
@@ -1824,18 +1821,10 @@ function MobileNumbersSection() {
           <DialogHeader>
             <DialogTitle>Verify Mobile Number</DialogTitle>
             <DialogDescription>
-              Enter the 6-digit OTP to verify your mobile number.
+              Enter the 6-digit OTP sent to <strong>{verifyingMobile}</strong> via WhatsApp
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Enter the 6-digit OTP sent to <strong>{verifyingMobile}</strong>
-            </p>
-            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
-              <p className="text-xs text-yellow-800 dark:text-yellow-200">
-                <strong>Demo Mode:</strong> Use OTP <strong>123456</strong> to verify
-              </p>
-            </div>
             <div className="space-y-2">
               <Label>OTP</Label>
               <OTPInput

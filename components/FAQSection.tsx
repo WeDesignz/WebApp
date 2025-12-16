@@ -21,18 +21,16 @@ export default function FAQSection() {
         console.error('Error fetching FAQs:', response.error);
         return [];
       }
-      console.log('FAQ API Response:', response.data);
       return response.data || [];
     },
   });
 
   const faqs = faqsData || [];
   
-  // Debug logging
+  // Error handling
   if (error) {
     console.error('FAQ Query Error:', error);
   }
-  console.log('FAQs for landing page:', faqs);
 
   return (
     <section id="faqs" className="py-24">

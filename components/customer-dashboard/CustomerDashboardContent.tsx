@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 interface ContentProps {
   searchQuery: string;
   selectedCategory: string;
+  productIdFromUrl?: string | null;
 }
 
 type Product = TransformedProduct;
@@ -52,11 +53,12 @@ const iconMap: Record<string, any> = {
 };
 
 
-export default function CustomerDashboardContent({ searchQuery, selectedCategory }: ContentProps) {
+export default function CustomerDashboardContent({ searchQuery, selectedCategory, productIdFromUrl }: ContentProps) {
   const { user } = useAuth();
   const router = useRouter();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [hasOpenedProductFromUrl, setHasOpenedProductFromUrl] = useState(false);
   const [hasActivePlan, setHasActivePlan] = useState(false);
   const [isPDFModalOpen, setIsPDFModalOpen] = useState(false);
   const [freePDFUsed, setFreePDFUsed] = useState(false);
@@ -175,6 +177,75 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
     }
   }, [isAuthenticated]);
 
+  // Reset hasOpenedProductFromUrl when productIdFromUrl changes
+  useEffect(() => {
+    setHasOpenedProductFromUrl(false);
+  }, [productIdFromUrl]);
+
+  // Fetch and open product modal when product ID is in URL (from Pinterest link)
+  const { data: productFromUrlData, isLoading: isLoadingProductFromUrl, error: productFromUrlError } = useQuery({
+    queryKey: ['productFromUrl', productIdFromUrl],
+    queryFn: async () => {
+      if (!productIdFromUrl) return null;
+      const productId = parseInt(productIdFromUrl);
+      if (isNaN(productId)) {
+        throw new Error('Invalid product ID');
+      }
+      
+      const response = await catalogAPI.getProductDetail(productId);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      const product = response.data?.product;
+      if (!product) {
+        throw new Error('Product not found');
+      }
+      return transformProduct(product);
+    },
+    enabled: !!productIdFromUrl && !hasOpenedProductFromUrl && isMounted,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: 1, // Only retry once on failure
+  });
+
+  // Show error toast if product fetch fails
+  useEffect(() => {
+    if (productFromUrlError && !hasOpenedProductFromUrl) {
+      toast({
+        title: "Product not found",
+        description: productFromUrlError instanceof Error 
+          ? productFromUrlError.message 
+          : "Unable to load product details. Please try again.",
+        variant: "destructive",
+      });
+      setHasOpenedProductFromUrl(true); // Prevent retrying
+      
+      // Clean up URL parameter
+      const params = new URLSearchParams(window.location.search);
+      params.delete('product');
+      const newUrl = params.toString() 
+        ? `${window.location.pathname}?${params.toString()}` 
+        : window.location.pathname;
+      router.replace(newUrl, { scroll: false });
+    }
+  }, [productFromUrlError, hasOpenedProductFromUrl, router, toast]);
+
+  // Auto-open modal when product is loaded from URL
+  useEffect(() => {
+    if (productFromUrlData && !hasOpenedProductFromUrl && !isLoadingProductFromUrl) {
+      setSelectedProduct(productFromUrlData);
+      setIsModalOpen(true);
+      setHasOpenedProductFromUrl(true);
+      
+      // Clean up URL parameter after opening modal
+      const params = new URLSearchParams(window.location.search);
+      params.delete('product');
+      const newUrl = params.toString() 
+        ? `${window.location.pathname}?${params.toString()}` 
+        : window.location.pathname;
+      router.replace(newUrl, { scroll: false });
+    }
+  }, [productFromUrlData, hasOpenedProductFromUrl, isLoadingProductFromUrl, router]);
+
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
     setIsModalOpen(true);
@@ -182,6 +253,14 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
 
   const handleDownloadProduct = async (e: React.MouseEvent, productId: number) => {
     e.stopPropagation(); // Prevent opening modal
+    
+    // Check authentication before downloading
+    if (!isAuthenticated) {
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
+      return;
+    }
+    
     if (downloadingProductId === productId) return;
     
     setDownloadingProductId(productId);

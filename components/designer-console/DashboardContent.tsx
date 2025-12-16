@@ -24,14 +24,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDesignerVerification } from "@/contexts/DesignerVerificationContext";
 import { useStudioAccess } from "@/contexts/StudioAccessContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SkeletonKPICard, SkeletonLoader } from "@/components/common/SkeletonLoader";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
-import { toast } from "@/lib/utils/toast";
 import DesignProcessingProgress from "./DesignProcessingProgress";
+import { useToast } from "@/hooks/use-toast";
 
 // Helper function to format numbers
 const formatNumber = (num: number): string => {
@@ -43,8 +43,8 @@ const formatCurrency = (num: number): string => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(num);
 };
 
@@ -67,10 +67,8 @@ export default function DashboardContent() {
   const { hasFullAccess, isStudioMember, studioMembership, studioId } = useStudioAccess();
   const { user } = useAuth();
   const router = useRouter();
-  const today = new Date();
-  const currentDay = today.getDate();
-  const isSettlementWindow = currentDay >= 5 && currentDay <= 10;
-  const nextSettlementDate = currentDay > 10 ? new Date(today.getFullYear(), today.getMonth() + 1, 5) : new Date(today.getFullYear(), today.getMonth(), 5);
+  const queryClient = useQueryClient();
+  const { toast: toastNotification } = useToast();
 
   // Fetch onboarding status to get design processing task
   const { data: onboardingStatusData } = useQuery({
@@ -148,6 +146,54 @@ export default function DashboardContent() {
     staleTime: 30 * 1000,
   });
 
+  // Fetch settlement status
+  const { 
+    data: settlementData, 
+    isLoading: isLoadingSettlement,
+    error: settlementError,
+  } = useQuery({
+    queryKey: ['settlementStatus'],
+    queryFn: async () => {
+      const response = await apiClient.getSettlementStatus();
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    staleTime: 30 * 1000,
+  });
+
+  // Accept settlement mutation
+  const acceptSettlementMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.acceptSettlement();
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      toastNotification({
+        title: "Settlement Accepted",
+        description: "Your settlement request has been accepted successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['settlementStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+      queryClient.invalidateQueries({ queryKey: ['earningsSummary'] });
+    },
+    onError: (error: any) => {
+      toastNotification({
+        title: "Failed to Accept Settlement",
+        description: error.message || "Please try again later.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAcceptSettlement = () => {
+    acceptSettlementMutation.mutate();
+  };
+
   const kpis = dashboardData?.kpis || {};
   const walletBalance = dashboardData?.wallet_balance || 0;
   const recentDesigns = designsData?.designs || [];
@@ -215,8 +261,7 @@ export default function DashboardContent() {
   if (!isVerified && !isStudioMember) {
     return (
       <div className="p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6">
             {/* Show design processing progress if processing */}
             {isProcessing && taskId && (
               <DesignProcessingProgress taskId={taskId} />
@@ -239,24 +284,6 @@ export default function DashboardContent() {
                 </div>
               </CardContent>
             </Card>
-          </div>
-
-          <div className="space-y-6">
-            <Card className="border-primary/30">
-              <CardContent className="p-5">
-                <h3 className="font-semibold text-sm mb-3">Linked Account Status</h3>
-                <div className="flex items-center justify-center py-4">
-                  <Badge className="text-sm px-4 py-2 bg-green-500/10 text-green-500 border-green-500/30">
-                    ✓ Verified
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground text-center mb-4">
-                  Your bank account is linked and verified
-                </p>
-                <Button variant="outline" className="w-full text-sm">View Details</Button>
-              </CardContent>
-            </Card>
-          </div>
         </div>
       </div>
     );
@@ -341,9 +368,32 @@ export default function DashboardContent() {
                           <span className="text-muted-foreground">Pending withdrawals:</span>
                           <span className="font-semibold">{formatCurrency(kpis.pending_withdrawals || 0)}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">Total downloads:</span>
-                          <span className="font-semibold">{formatNumber(kpis.total_downloads || 0)}</span>
+                      </div>
+                      
+                      {/* Download Statistics Section */}
+                      <div className="mt-4 p-4 bg-muted/50 rounded-lg border">
+                        <h3 className="text-sm font-semibold mb-3">Download Statistics</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground block">Total Downloads</span>
+                            <span className="font-semibold text-lg">{formatNumber(kpis.total_downloads || 0)}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block">Individual Design Purchases</span>
+                            <span className="font-semibold text-lg">{formatNumber(kpis.individual_purchases || 0)}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block">From Basic Plan</span>
+                            <span className="font-semibold text-lg">{formatNumber(kpis.downloads_by_plan?.basic || 0)}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block">From Prime Plan</span>
+                            <span className="font-semibold text-lg">{formatNumber(kpis.downloads_by_plan?.prime || 0)}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block">From Premium Plan</span>
+                            <span className="font-semibold text-lg">{formatNumber(kpis.downloads_by_plan?.premium || 0)}</span>
+                          </div>
                         </div>
                       </div>
                     </>
@@ -702,46 +752,70 @@ export default function DashboardContent() {
 
           {hasFullAccess && (
             <>
-              <Card className="border-primary/30">
-                <CardContent className="p-5">
-                  <h3 className="font-semibold text-sm mb-3">Linked Account Status</h3>
-                  <div className="flex items-center justify-center py-4">
-                    <Badge className="text-sm px-4 py-2 bg-green-500/10 text-green-500 border-green-500/30">
-                      ✓ Verified
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center mb-4">
-                    Your bank account is linked and verified
-                  </p>
-                  <Button variant="outline" className="w-full text-sm">View Details</Button>
-                </CardContent>
-              </Card>
-
               <Card className="bg-gradient-to-br from-primary/5 to-purple-500/5 border-primary/20">
                 <CardContent className="p-5">
                   <h3 className="font-semibold text-sm mb-3">Settlement Window</h3>
-                  {isSettlementWindow ? (
-                    <>
-                      <div className="mb-4">
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-muted-foreground">Pending Amount</span>
-                          <span className="font-bold">₹8,200</span>
-                        </div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-muted-foreground">Processing Fee</span>
-                          <span>₹164</span>
-                        </div>
-                        <div className="border-t border-border pt-2 mt-2">
-                          <div className="flex justify-between text-sm font-semibold">
-                            <span>You'll Receive</span>
-                            <span className="text-primary">₹8,036</span>
-                          </div>
-                        </div>
-                      </div>
-                      <Button className="w-full mb-3">Accept Settlement</Button>
-                      <p className="text-xs text-center text-muted-foreground">
-                        Deadline: {today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} ({10 - currentDay} days left)
+                  {isLoadingSettlement ? (
+                    <div className="py-4">
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-3/4 mb-2" />
+                      <Skeleton className="h-8 w-full mt-4" />
+                    </div>
+                  ) : settlementError ? (
+                    <div className="text-center py-4">
+                      <AlertCircle className="w-8 h-8 mx-auto mb-2 text-destructive" />
+                      <p className="text-sm text-muted-foreground">
+                        Failed to load settlement status
                       </p>
+                    </div>
+                  ) : settlementData?.settlement_window_active ? (
+                    <>
+                      {settlementData?.settlement_request && settlementData.settlement_request.status === 'pending' ? (
+                        <>
+                          <div className="mb-4">
+                            <div className="flex justify-between text-sm mb-2">
+                              <span className="text-muted-foreground">Pending Amount</span>
+                              <span className="font-bold">{formatCurrency(settlementData.settlement_request.settlement_amount)}</span>
+                            </div>
+                            <div className="border-t border-border pt-2 mt-2">
+                              <div className="flex justify-between text-sm font-semibold">
+                                <span>You'll Receive</span>
+                                <span className="text-primary">{formatCurrency(settlementData.settlement_request.settlement_amount)}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <Button 
+                            className="w-full mb-3"
+                            onClick={handleAcceptSettlement}
+                            disabled={!settlementData.can_accept_settlement || acceptSettlementMutation.isPending}
+                          >
+                            {acceptSettlementMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Processing...
+                              </>
+                            ) : (
+                              "Accept Settlement"
+                            )}
+                          </Button>
+                          {!settlementData.has_bank_details && (
+                            <p className="text-xs text-center text-warning mb-2">
+                              Please complete your bank details to accept settlement
+                            </p>
+                          )}
+                          <p className="text-xs text-center text-muted-foreground">
+                            Deadline: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} ({Math.max(0, 5 - settlementData.current_day)} days left)
+                          </p>
+                        </>
+                      ) : (
+                        <div className="text-center py-4">
+                          <p className="text-sm text-muted-foreground mb-3">
+                            {settlementData?.settlement_request?.status === 'opted_in' 
+                              ? "You have already accepted this settlement."
+                              : "No pending settlement available for this period."}
+                          </p>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div className="text-center py-4">
@@ -751,11 +825,15 @@ export default function DashboardContent() {
                       <div className="p-3 rounded-lg bg-muted/50 mb-3">
                         <p className="text-xs text-muted-foreground mb-1">Next Settlement Date</p>
                         <p className="text-sm font-semibold">
-                          {nextSettlementDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                          {(() => {
+                            const today = new Date();
+                            const nextDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                            return nextDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                          })()}
                         </p>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Settlement windows are open from the 5th to 10th of each month. You can accept your pending settlement during this period.
+                        Settlement windows are open from the 1st to 5th of each month. You can accept your pending settlement during this period.
                       </p>
                     </div>
                   )}

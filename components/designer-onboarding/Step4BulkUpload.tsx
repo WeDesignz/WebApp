@@ -74,11 +74,12 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
       }
       
       // Create metadata.xlsx
+      // Note: Price is now managed globally by admin via SystemConfig, so it's not included in the template
       const metadataData = [
-        ['folder_name', 'title', 'description', 'category', 'subcategory', 'Plan', 'color', 'price', 'Visible', 'Tags'],
-        ['Design_001', 'Sample Design 1', 'This is a sample design', 'ecommerce', 'residential', '0', 'Red', '100', '1', 'tag1,tag2'],
-        ['Design_002', 'Sample Design 2', 'This is a sample design', 'ecommerce', 'commercial', '1', 'Blue', '200', '1', 'tag3,tag4'],
-        ['Design_003', 'Sample Design 3', 'This is a sample design', 'other', 'other', '2', 'Green', '300', '1', 'tag5,tag6'],
+        ['folder_name', 'title', 'description', 'category', 'subcategory', 'Plan', 'color', 'Visible', 'Tags'],
+        ['Design_001', 'Sample Design 1', 'This is a sample design', 'ecommerce', 'residential', '0', 'Red', '1', 'tag1,tag2'],
+        ['Design_002', 'Sample Design 2', 'This is a sample design', 'ecommerce', 'commercial', '1', 'Blue', '1', 'tag3,tag4'],
+        ['Design_003', 'Sample Design 3', 'This is a sample design', 'other', 'other', '2', 'Green', '1', 'tag5,tag6'],
       ];
       
       // Create workbook and worksheet
@@ -364,7 +365,7 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
     setValidationErrors([]); // Clear previous validation errors
     
     try {
-      const response = await apiClient.saveDesignerOnboardingStep4(bulkFile);
+      const response = await apiClient.saveDesignerOnboardingStep5(bulkFile);
 
       if (response.error) {
         const errorMsg = response.error;

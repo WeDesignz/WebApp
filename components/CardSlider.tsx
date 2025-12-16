@@ -20,7 +20,6 @@ interface CardSliderProps {
 
 export default function CardSlider({ title, items, isLoading = false }: CardSliderProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [paused, setPaused] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const startXRef = useRef(0);
   const scrollLeftRef = useRef(0);
@@ -29,66 +28,11 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
   const hasDraggedRef = useRef(false);
   const clickAllowedRef = useRef(true);
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    let raf: number;
-    
-    // Calculate the width of one set of items for seamless looping
-    // Use actual DOM measurements for accuracy
-    const calculateSingleSetWidth = () => {
-      const itemCount = items.length;
-      // Get the actual width of the first card element
-      const firstChild = el.firstElementChild as HTMLElement;
-      if (firstChild) {
-        const cardWidth = firstChild.offsetWidth;
-        // Get computed gap (gap-5 = 1.25rem = 20px typically)
-        const gap = 20; // gap-5 = 1.25rem
-        return itemCount * cardWidth + (itemCount - 1) * gap;
-      }
-      // Fallback calculation
-      const cardWidth = typeof window !== 'undefined' && window.innerWidth >= 768 ? 360 : 300;
-      const gap = 20;
-      return itemCount * cardWidth + (itemCount - 1) * gap;
-    };
-    
-    // Initialize and update the ref for width calculation
-    singleSetWidthRef.current = calculateSingleSetWidth();
-    
-    const handleResize = () => {
-      singleSetWidthRef.current = calculateSingleSetWidth();
-    };
-    window.addEventListener('resize', handleResize);
-    
-    const step = () => {
-      if (!paused && !isDragging && el) {
-        el.scrollLeft += 0.8; // Smooth scrolling speed
-        
-        // Seamlessly loop when we've scrolled past one complete set
-        if (el.scrollLeft >= singleSetWidthRef.current) {
-          // Temporarily disable smooth scroll for instant reset
-          const wasSmooth = el.style.scrollBehavior;
-          el.style.scrollBehavior = 'auto';
-          // Instantly reset to the beginning without visual jump
-          el.scrollLeft = el.scrollLeft - singleSetWidthRef.current;
-          // Restore smooth scrolling after a frame
-          requestAnimationFrame(() => {
-            if (el) el.style.scrollBehavior = wasSmooth || 'smooth';
-          });
-        }
-      }
-      raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [paused, isDragging, items.length]);
-
   // Use global event listeners for dragging
   useEffect(() => {
     if (!isDragging) return;
+
+    let touchMoveRAF: number | null = null;
 
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (!ref.current) return;
@@ -133,42 +77,63 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
       }, 200);
     };
 
+    let lastTouchX = 0;
     const handleGlobalTouchMove = (e: TouchEvent) => {
       if (!ref.current) return;
-      e.preventDefault();
       const touch = e.touches[0];
       if (!touch) return;
       
-      // Calculate delta from initial touch position (using clientX - same coordinate system)
-      const currentX = touch.clientX;
-      const deltaX = currentX - startXRef.current;
+      // Store latest touch position for RAF callback
+      lastTouchX = touch.clientX;
+      
+      // Calculate delta from initial touch position
+      const deltaX = lastTouchX - startXRef.current;
       
       dragDistanceRef.current = Math.abs(deltaX);
-      if (dragDistanceRef.current > 5) {
+      if (dragDistanceRef.current > 10) {
         hasDraggedRef.current = true;
         clickAllowedRef.current = false;
+        // Only prevent default once we're actually dragging
+        e.preventDefault();
       }
       
-      // Calculate scroll change - drag right scrolls left, drag left scrolls right
-      const walk = deltaX * 2;
-      let newScrollLeft = scrollLeftRef.current - walk;
-      
-      const itemCount = items.length;
-      const cardWidth = typeof window !== 'undefined' && window.innerWidth >= 768 ? 360 : 300;
-      const gap = 20;
-      const singleSetWidth = itemCount * cardWidth + (itemCount - 1) * gap;
-      
-      if (newScrollLeft < 0) {
-        newScrollLeft = singleSetWidth * 2 + newScrollLeft;
-      } else if (newScrollLeft >= singleSetWidth * 2) {
-        newScrollLeft = newScrollLeft - singleSetWidth * 2;
+      // Use requestAnimationFrame for smooth updates
+      if (touchMoveRAF === null) {
+        touchMoveRAF = requestAnimationFrame(() => {
+          if (!ref.current) {
+            touchMoveRAF = null;
+            return;
+          }
+          
+          // Use the latest stored touch position
+          const currentDeltaX = lastTouchX - startXRef.current;
+          // Smoother scroll calculation for mobile
+          const walk = currentDeltaX * (typeof window !== 'undefined' && window.innerWidth < 768 ? 1.2 : 2);
+          let newScrollLeft = scrollLeftRef.current - walk;
+          
+          const itemCount = items.length;
+          const cardWidth = typeof window !== 'undefined' && window.innerWidth >= 768 ? 360 : 300;
+          const gap = 20;
+          const singleSetWidth = itemCount * cardWidth + (itemCount - 1) * gap;
+          
+          if (newScrollLeft < 0) {
+            newScrollLeft = singleSetWidth * 2 + newScrollLeft;
+          } else if (newScrollLeft >= singleSetWidth * 2) {
+            newScrollLeft = newScrollLeft - singleSetWidth * 2;
+          }
+          
+          ref.current.scrollLeft = newScrollLeft;
+          touchMoveRAF = null;
+        });
       }
-      
-      ref.current.scrollLeft = newScrollLeft;
     };
 
     const handleGlobalTouchEnd = () => {
       setIsDragging(false);
+      if (touchMoveRAF !== null) {
+        cancelAnimationFrame(touchMoveRAF);
+        touchMoveRAF = null;
+      }
       setTimeout(() => {
         hasDraggedRef.current = false;
         dragDistanceRef.current = 0;
@@ -182,6 +147,10 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
     document.addEventListener('touchend', handleGlobalTouchEnd);
 
     return () => {
+      if (touchMoveRAF !== null) {
+        cancelAnimationFrame(touchMoveRAF);
+        touchMoveRAF = null;
+      }
       document.removeEventListener('mousemove', handleGlobalMouseMove);
       document.removeEventListener('mouseup', handleGlobalMouseUp);
       document.removeEventListener('touchmove', handleGlobalTouchMove);
@@ -230,13 +199,8 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
     }, 200);
   };
 
-  const handleMouseEnter = () => {
-    setPaused(true);
-  };
-
   const handleMouseLeave = () => {
     setIsDragging(false);
-    setPaused(false);
   };
 
   // Duplicate items multiple times for seamless infinite loop
@@ -270,7 +234,7 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
           {!isLoading && items.length > 0 && (
             <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
               <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-pulse" />
-              <span>Hover to pause • Drag to explore</span>
+              <span>Drag to explore</span>
             </div>
           )}
         </div>
@@ -285,11 +249,14 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
         <div
           ref={ref}
           onMouseDown={handleMouseDown}
-          onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onTouchStart={handleTouchStart}
           className="flex gap-5 overflow-x-auto scrollbar-none select-none cursor-grab active:cursor-grabbing pb-2"
-          style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
+          style={{ 
+            scrollBehavior: isDragging ? 'auto' : 'smooth',
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehaviorX: 'contain'
+          }}
         >
           {duplicatedItems.map((it, idx) => (
             <div 
