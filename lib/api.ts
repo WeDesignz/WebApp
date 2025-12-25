@@ -332,11 +332,7 @@ export async function apiRequest<T>(
       // Don't log 404 errors for GET endpoints that are expected to return 404 when no data exists
       const isExpected404 = response.status === 404 && 
         (options.method === 'GET' || !options.method) &&
-        (endpoint.includes('/get-designer-onboarding-step') || 
-         endpoint.includes('/get-designer-onboarding-step1') ||
-         endpoint.includes('/get-designer-onboarding-step2') ||
-         endpoint.includes('/get-designer-onboarding-step3') ||
-         endpoint.includes('/get-designer-onboarding-step4'));
+        endpoint.includes('/get-designer-onboarding-step');
       
       // Don't log errors for logout endpoint - 400/401 errors are expected when token is invalid/expired
       const isLogoutEndpoint = endpoint.includes('/auth/logout') || endpoint.includes('/logout/');
@@ -346,6 +342,10 @@ export async function apiRequest<T>(
       const isOTPVerificationEndpoint = endpoint.includes('/verify-password-reset-otp/') || 
                                        endpoint.includes('/verify-otp/');
       const isOTPValidationError = isOTPVerificationEndpoint && response.status === 400;
+      
+      // Don't log validation errors for resend-otp - these are expected user errors (invalid input)
+      const isResendOTPEndpoint = endpoint.includes('/auth/resend-otp/') || endpoint.includes('/resend-otp/');
+      const isResendOTPValidationError = isResendOTPEndpoint && response.status === 400;
       
       // Don't log validation errors for login - invalid credentials are expected user errors
       const isLoginEndpoint = endpoint.includes('/auth/login/') || endpoint.includes('/login/');
@@ -363,8 +363,8 @@ export async function apiRequest<T>(
       const isSignupEndpoint = endpoint.includes('/auth/signup/') || endpoint.includes('/auth/register/');
       const isSignup401 = isSignupEndpoint && response.status === 401;
       
-      // Log error for debugging (skip expected 404s, logout errors, OTP validation errors, login validation errors, profile 401s, cart/wishlist 401s, and signup 401s)
-      if (!isExpected404 && !isLogoutError && !isOTPValidationError && !isLoginValidationError && !isProfile401 && !isCartWishlist401 && !isSignup401) {
+      // Log error for debugging (skip expected 404s, logout errors, OTP validation errors, resend-otp validation errors, login validation errors, profile 401s, cart/wishlist 401s, and signup 401s)
+      if (!isExpected404 && !isLogoutError && !isOTPValidationError && !isResendOTPValidationError && !isLoginValidationError && !isProfile401 && !isCartWishlist401 && !isSignup401) {
         logError(errorDetails, `API Request: ${endpoint}`);
       }
       
@@ -837,6 +837,56 @@ export const apiClient = {
   },
 
   resendOTP: async (data: any) => {
+    // Validate data before sending
+    if (!data || typeof data !== 'object') {
+      return {
+        error: 'Invalid request data. Please provide valid email or mobile number and OTP purpose.',
+        errorDetails: {
+          type: ErrorType.VALIDATION,
+          message: 'Invalid request data',
+          statusCode: 400,
+        },
+      };
+    }
+
+    // Ensure otp_for is provided
+    if (!data.otp_for) {
+      return {
+        error: 'OTP purpose (otp_for) is required. Please specify: email_verification, mobile_verification, or password_reset.',
+        errorDetails: {
+          type: ErrorType.VALIDATION,
+          message: 'OTP purpose is required',
+          statusCode: 400,
+        },
+      };
+    }
+
+    // Ensure either email or mobile_number is provided, but not both
+    const hasEmail = data.email && data.email.trim() !== '';
+    const hasMobile = data.mobile_number && data.mobile_number.trim() !== '';
+    
+    if (!hasEmail && !hasMobile) {
+      return {
+        error: 'Either email or mobile number is required.',
+        errorDetails: {
+          type: ErrorType.VALIDATION,
+          message: 'Either email or mobile number is required',
+          statusCode: 400,
+        },
+      };
+    }
+
+    if (hasEmail && hasMobile) {
+      return {
+        error: 'Provide either email or mobile number, not both.',
+        errorDetails: {
+          type: ErrorType.VALIDATION,
+          message: 'Provide either email or mobile number, not both',
+          statusCode: 400,
+        },
+      };
+    }
+
     return apiRequest('/api/auth/resend-otp/', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -2224,8 +2274,9 @@ export const apiClient = {
   getDesignerOnboardingStep1: async (): Promise<ApiResponse<any>> => {
     const response = await apiRequest<any>('/api/profiles/get-designer-onboarding-step1/');
     // Handle 404 gracefully - it means no saved data exists yet (expected for new users)
+    // Return success response with null data instead of error
     if (response.error && response.errorDetails?.statusCode === 404) {
-      return { data: null, message: 'No Step 1 data found' };
+      return { data: { data: null, message: 'No Step 1 data found' } };
     }
     return response;
   },
@@ -2233,8 +2284,9 @@ export const apiClient = {
   getDesignerOnboardingStep2: async (): Promise<ApiResponse<any>> => {
     const response = await apiRequest<any>('/api/profiles/get-designer-onboarding-step2/');
     // Handle 404 gracefully - it means no saved data exists yet (expected for new users)
+    // Return success response with null data instead of error
     if (response.error && response.errorDetails?.statusCode === 404) {
-      return { data: null, message: 'No Step 2 data found' };
+      return { data: { data: null, message: 'No Step 2 data found' } };
     }
     return response;
   },
@@ -2242,8 +2294,9 @@ export const apiClient = {
   getDesignerOnboardingStep3: async (): Promise<ApiResponse<any>> => {
     const response = await apiRequest<any>('/api/profiles/get-designer-onboarding-step3/');
     // Handle 404 gracefully - it means no saved data exists yet (expected for new users)
+    // Return success response with null data instead of error
     if (response.error && response.errorDetails?.statusCode === 404) {
-      return { data: null, message: 'No Step 3 data found' };
+      return { data: { data: null, message: 'No Step 3 data found' } };
     }
     return response;
   },
@@ -2251,8 +2304,9 @@ export const apiClient = {
   getDesignerOnboardingStep4: async (): Promise<ApiResponse<any>> => {
     const response = await apiRequest<any>('/api/profiles/get-designer-onboarding-step4/');
     // Handle 404 gracefully - it means no saved data exists yet (expected for new users)
+    // Return success response with null data instead of error
     if (response.error && response.errorDetails?.statusCode === 404) {
-      return { data: null, message: 'No Step 4 data found' };
+      return { data: { data: null, message: 'No Step 4 data found' } };
     }
     return response;
   },

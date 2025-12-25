@@ -67,7 +67,7 @@ export default function DesignerFAQPage() {
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
         />
         
-        <main className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
+        <main className={`flex-1 transition-all duration-300 pt-16 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
           <div className="p-4 md:p-6 pb-24 md:pb-6">
             <div className="max-w-7xl mx-auto space-y-6">
               <div>
