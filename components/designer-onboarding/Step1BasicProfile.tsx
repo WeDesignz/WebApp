@@ -175,13 +175,20 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
     setShowEmailOTP(true);
   };
 
-  const handleSendPhoneOTP = () => {
+  const handleSendPhoneOTP = async () => {
     if (!validatePhone(formData.phone)) {
       setErrors({ ...errors, phone: 'Please enter a valid 10-digit phone number' });
       return;
     }
-    // Just open the modal - OTP will be sent when modal opens
-    setShowPhoneOTP(true);
+    // Send OTP first, then open modal only if successful
+    try {
+      await sendPhoneOTP();
+      // Only open modal if OTP was sent successfully (no error thrown)
+      setShowPhoneOTP(true);
+    } catch (error) {
+      // Error already handled in sendPhoneOTP with toast
+      // Don't open modal if there's an error
+    }
   };
 
   const sendEmailOTP = async (): Promise<void> => {
@@ -203,20 +210,147 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
   };
 
   const sendPhoneOTP = async (): Promise<void> => {
+    let errorShown = false; // Track if we've already shown an error toast
+    
     try {
-      const response = await apiClient.resendOTP({
-        mobile_number: formData.phone,
-        otp_for: 'mobile_verification',
-      });
-      
-      if (response.error) {
-        toast.error(response.error || 'Failed to send OTP');
-        return;
+      // First, add mobile number if not already added
+      // This will create the MobileNumber record and send the first OTP
+      let otpAlreadySent = false;
+      try {
+        const addResponse = await apiClient.addMobileNumber({ 
+          mobile_number: formData.phone 
+        });
+        
+        // Debug: Log the response to see what we're getting
+        console.log('addMobileNumber response:', addResponse);
+        
+        // If successful, OTP was already sent
+        if (addResponse.data && !addResponse.error) {
+          toast.success('OTP sent to your phone');
+          otpAlreadySent = true;
+          // Don't return here - let the function complete so modal can open
+        }
+        
+        // If there's an error, check what kind
+        if (addResponse.error) {
+          const errorMessage = String(addResponse.error).toLowerCase();
+          
+          console.log('Error detected:', addResponse.error, 'Lowercase:', errorMessage);
+          
+          // If mobile belongs to another user, show error and throw to prevent modal opening
+          if (errorMessage.includes('another account') || errorMessage.includes('already registered with another')) {
+            console.log('Showing error toast for another account');
+            const errorMsg = 'This mobile number is already registered with another account. Please use a different number.';
+            toast.error(errorMsg);
+            errorShown = true;
+            // Add small delay to ensure toast is visible before throwing
+            await new Promise(resolve => setTimeout(resolve, 100));
+            throw new Error(errorMsg);
+          }
+          
+          // If mobile already exists for this user, that's okay - just continue to resend
+          if (errorMessage.includes('already registered') || errorMessage.includes('already exists')) {
+            console.log('Mobile exists for this user, continuing to resend OTP');
+            // Mobile exists for this user, continue to resend OTP
+          } else {
+            // Other errors - show the original error message and throw
+            console.log('Showing error toast for other error:', addResponse.error);
+            toast.error(addResponse.error);
+            errorShown = true;
+            // Add small delay to ensure toast is visible before throwing
+            await new Promise(resolve => setTimeout(resolve, 100));
+            throw new Error(addResponse.error);
+          }
+        }
+      } catch (error: any) {
+        // Only show error if we haven't shown it already
+        if (!errorShown) {
+          console.error('Exception in addMobileNumber:', error);
+          
+          // Extract error message from various possible formats
+          const errorMessage = String(
+            error?.response?.data?.error || 
+            error?.data?.error ||
+            error?.error || 
+            error?.message || 
+            'Failed to add mobile number'
+          ).toLowerCase();
+          
+          console.log('Extracted error message:', errorMessage);
+          
+          // If mobile belongs to another user, show error and throw to prevent modal opening
+          if (errorMessage.includes('another account') || errorMessage.includes('already registered with another')) {
+            console.log('Showing error toast for another account (from catch)');
+            const errorMsg = 'This mobile number is already registered with another account. Please use a different number.';
+            toast.error(errorMsg);
+            errorShown = true;
+            // Add small delay to ensure toast is visible before throwing
+            await new Promise(resolve => setTimeout(resolve, 100));
+            throw new Error(errorMsg);
+          }
+          
+          // If mobile already exists for this user, that's okay - just continue to resend
+          if (errorMessage.includes('already registered') || errorMessage.includes('already exists')) {
+            console.log('Mobile exists for this user, continuing to resend OTP (from catch)');
+            // Mobile exists for this user, continue to resend OTP
+          } else {
+            // Other errors - show the original error message and throw
+            const originalError = error?.response?.data?.error || 
+                                 error?.data?.error ||
+                                 error?.error || 
+                                 error?.message || 
+                                 'Failed to add mobile number';
+            console.log('Showing error toast for other error (from catch):', originalError);
+            toast.error(originalError);
+            errorShown = true;
+            // Add small delay to ensure toast is visible before throwing
+            await new Promise(resolve => setTimeout(resolve, 100));
+            throw new Error(originalError);
+          }
+        } else {
+          // Error already shown, just re-throw
+          throw error;
+        }
       }
-      
-    toast.success('OTP sent to your phone');
+
+      // Only resend OTP if it wasn't already sent
+      if (!otpAlreadySent) {
+        const response = await apiClient.resendOTP({
+          mobile_number: formData.phone,
+          otp_for: 'mobile_verification',
+        });
+        
+        if (response.error) {
+          const errorMessage = response.error || 'Failed to send OTP';
+          if (!errorShown) {
+            toast.error(errorMessage);
+            errorShown = true;
+            // Add small delay to ensure toast is visible before throwing
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          throw new Error(errorMessage);
+        }
+        
+        toast.success('OTP sent to your phone');
+      }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to send OTP');
+      // Only show error in outer catch if we haven't shown it already
+      if (!errorShown) {
+        console.error('Outer catch block:', error);
+        // Extract error message from various possible formats
+        const errorMessage = error?.response?.data?.error || 
+                            error?.data?.error ||
+                            error?.error || 
+                            error?.message || 
+                            'Failed to send OTP. Please try again.';
+        
+        console.log('Showing error toast in outer catch:', errorMessage);
+        toast.error(errorMessage);
+        // Add small delay to ensure toast is visible
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      // Always re-throw to prevent modal from opening
+      throw error;
     }
   };
 
