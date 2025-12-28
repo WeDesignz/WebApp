@@ -197,12 +197,12 @@ export default function DesignerOnboardingWizard() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
             <img 
-              src="/Logos/ONLY LOGO.svg" 
+              src="/Logos/ONLY LOGO.png" 
               alt="WeDesignz Logo" 
               className="h-12 w-12 w-auto brightness-0 invert"
             />
             <img 
-              src="/Logos/ONLY TEXT.svg" 
+              src="/Logos/ONLY TEXT.png" 
               alt="WeDesignz" 
               className="h-8 w-auto brightness-0 invert"
             />
