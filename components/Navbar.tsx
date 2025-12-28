@@ -9,9 +9,9 @@ export default function Navbar() {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   const moreMenuItems = [
-    { label: 'About', href: '#about' },
-    { label: 'Contact', href: '#contact' },
-    { label: 'Blog', href: '#blog' },
+    { label: 'About', href: '/about' },
+    { label: 'Contact', href: '/contact' },
+    { label: 'Blog', href: '/blog' },
     { label: 'FAQ', href: '#faqs' },
   ];
 
