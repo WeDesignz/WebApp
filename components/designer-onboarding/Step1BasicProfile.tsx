@@ -166,13 +166,21 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
     }
   };
 
-  const handleSendEmailOTP = () => {
+  const handleSendEmailOTP = async () => {
     if (!validateEmail(formData.email)) {
       setErrors({ ...errors, email: 'Please enter a valid email address' });
       return;
     }
-    // Just open the modal - OTP will be sent when modal opens
+    
+    // Send OTP first, then open modal only if successful
+    try {
+      await sendEmailOTP();
+      // Only open modal if OTP was sent successfully (no error thrown)
     setShowEmailOTP(true);
+    } catch (error: any) {
+      // Error already handled in sendEmailOTP with toast
+      // Don't open modal if there's an error
+    }
   };
 
   const handleSendPhoneOTP = async () => {
@@ -200,12 +208,15 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
       
       if (response.error) {
         toast.error(response.error || 'Failed to send OTP');
-        return;
+        throw new Error(response.error || 'Failed to send OTP');
       }
       
       toast.success('OTP sent to your email');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to send OTP');
+      console.error('Error in sendEmailOTP:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to send OTP';
+      toast.error(errorMessage);
+      throw error; // Re-throw to prevent modal from opening
     }
   };
 
@@ -626,7 +637,11 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
                   variant={formData.emailVerified ? "outline" : "default"}
                   size="sm"
                   className="shrink-0"
-                  onClick={handleSendEmailOTP}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSendEmailOTP();
+                  }}
                   disabled={formData.emailVerified || !formData.email}
                 >
                   {formData.emailVerified ? (

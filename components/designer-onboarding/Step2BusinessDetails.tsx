@@ -153,13 +153,21 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
     }
   };
 
-  const handleSendEmailOTP = () => {
+  const handleSendEmailOTP = async () => {
     if (!validateEmail(formData.businessEmail)) {
       setErrors({ ...errors, businessEmail: 'Please enter a valid email address' });
       return;
     }
-    // Just open the modal - OTP will be sent when modal opens
+    // Send OTP first, then open modal only if successful
+    try {
+      await sendEmailOTP();
+      // Only open modal if OTP was sent successfully (no error thrown)
     setShowEmailOTP(true);
+    } catch (error: any) {
+      // Error already handled in sendEmailOTP with toast
+      console.error('Error sending email OTP:', error);
+      // Don't open modal if there's an error
+    }
   };
 
   const handleSendPhoneOTP = async () => {
@@ -187,12 +195,15 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
       
       if (response.error) {
         toast.error(response.error || 'Failed to send OTP');
-        return;
+        throw new Error(response.error || 'Failed to send OTP');
       }
       
       toast.success('OTP sent to your business email');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to send OTP');
+      console.error('Error in sendEmailOTP:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to send OTP';
+      toast.error(errorMessage);
+      throw error; // Re-throw to prevent modal from opening
     }
   };
 
@@ -741,7 +752,11 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
                     type="button"
                     variant={formData.businessEmailVerified ? "outline" : "default"}
                     size="sm"
-                    onClick={handleSendEmailOTP}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSendEmailOTP();
+                    }}
                     disabled={formData.businessEmailVerified || !formData.businessEmail}
                   >
                     {formData.businessEmailVerified ? (

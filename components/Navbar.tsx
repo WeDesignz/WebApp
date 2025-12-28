@@ -22,14 +22,14 @@ export default function Navbar() {
           {/* Logo */}
           <a href="/" className="flex items-center gap-2.5 flex-shrink-0" data-testid="link-home">
             <img 
-              src="/Logos/ONLY LOGO.svg" 
+              src="/Logos/ONLY LOGO.png" 
               alt="WeDesign Logo" 
-              className="h-8 md:h-10 w-auto brightness-0 invert"
+              className="h-8 md:h-10 w-auto object-contain brightness-0 invert"
             />
             <img 
-              src="/Logos/ONLY TEXT.svg" 
+              src="/Logos/ONLY TEXT.png" 
               alt="WeDesign" 
-              className="h-6 md:h-7 w-auto brightness-0 invert"
+              className="h-6 md:h-7 w-auto object-contain brightness-0 invert"
             />
           </a>
 

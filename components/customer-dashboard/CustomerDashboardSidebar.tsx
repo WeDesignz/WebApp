@@ -86,14 +86,14 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
                 className="flex items-center gap-2"
               >
                 <img 
-                  src="/Logos/ONLY LOGO.svg" 
+                  src="/Logos/ONLY LOGO.png" 
                   alt="WeDesign Logo" 
-                  className={`h-10 w-10 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                  className={`h-10 w-10 object-contain ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
                 />
                 <img 
-                  src="/Logos/ONLY TEXT.svg" 
+                  src="/Logos/ONLY TEXT.png" 
                   alt="WeDesign" 
-                  className={`h-6 w-auto ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                  className={`h-6 w-auto object-contain ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
                 />
               </motion.div>
             ) : (
@@ -105,9 +105,9 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
                 className="flex items-center justify-center mx-auto"
               >
                 <img 
-                  src="/Logos/ONLY LOGO.svg" 
+                  src="/Logos/ONLY LOGO.png" 
                   alt="WeDesign Logo" 
-                  className={`h-10 w-10 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                  className={`h-10 w-10 object-contain ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
                 />
               </motion.div>
             )}
@@ -243,14 +243,14 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
               <div className="p-4 flex items-center justify-between border-b border-border">
                 <div className="flex items-center gap-2">
                   <img 
-                    src="/Logos/ONLY LOGO.svg" 
+                    src="/Logos/ONLY LOGO.png" 
                     alt="WeDesign Logo" 
-                    className={`h-10 w-10 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                    className={`h-10 w-10 object-contain ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
                   />
                   <img 
-                    src="/Logos/ONLY TEXT.svg" 
+                    src="/Logos/ONLY TEXT.png" 
                     alt="WeDesign" 
-                    className={`h-6 w-auto ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                    className={`h-6 w-auto object-contain ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
                   />
                 </div>
               </div>
