@@ -8,19 +8,19 @@ import { Button } from "@/components/ui/button";
 const jerseyModels = [
   {
     name: "Classic Sports Jersey",
-    image: "/generated_images/classic_sports_jersey_photo.png",
+    image: "/generated_images/3D_1.jpeg",
     description: "Premium polyester blend with moisture-wicking technology",
     color: "Blue & White"
   },
   {
     name: "Modern Football Kit",
-    image: "/generated_images/football_kit_jersey_photo.png",
+    image: "/generated_images/3D_2.jpeg",
     description: "Lightweight fabric designed for maximum performance",
     color: "Red & Black"
   },
   {
     name: "Retro Basketball Jersey",
-    image: "/generated_images/retro_basketball_jersey_photo.png",
+    image: "/generated_images/3D_3.jpeg",
     description: "Classic mesh design with authentic team branding",
     color: "Gold & Purple"
   }
