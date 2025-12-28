@@ -347,6 +347,17 @@ export async function apiRequest<T>(
                                        endpoint.includes('/verify-otp/');
       const isOTPValidationError = isOTPVerificationEndpoint && response.status === 400;
       
+<<<<<<< Updated upstream
+=======
+      // Don't log validation errors for email verification - these are expected user errors (invalid OTP)
+      const isEmailVerificationEndpoint = endpoint.includes('/verify-email/') || endpoint.includes('/auth/verify-email/');
+      const isEmailVerificationValidationError = isEmailVerificationEndpoint && response.status === 400;
+      
+      // Don't log validation errors for resend-otp - these are expected user errors (invalid input)
+      const isResendOTPEndpoint = endpoint.includes('/auth/resend-otp/') || endpoint.includes('/resend-otp/');
+      const isResendOTPValidationError = isResendOTPEndpoint && response.status === 400;
+      
+>>>>>>> Stashed changes
       // Don't log validation errors for login - invalid credentials are expected user errors
       const isLoginEndpoint = endpoint.includes('/auth/login/') || endpoint.includes('/login/');
       const isLoginValidationError = isLoginEndpoint && response.status === 400;
@@ -363,8 +374,13 @@ export async function apiRequest<T>(
       const isSignupEndpoint = endpoint.includes('/auth/signup/') || endpoint.includes('/auth/register/');
       const isSignup401 = isSignupEndpoint && response.status === 401;
       
+<<<<<<< Updated upstream
       // Log error for debugging (skip expected 404s, logout errors, OTP validation errors, login validation errors, profile 401s, cart/wishlist 401s, and signup 401s)
       if (!isExpected404 && !isLogoutError && !isOTPValidationError && !isLoginValidationError && !isProfile401 && !isCartWishlist401 && !isSignup401) {
+=======
+      // Log error for debugging (skip expected 404s, logout errors, OTP validation errors, email verification validation errors, resend-otp validation errors, login validation errors, profile 401s, cart/wishlist 401s, and signup 401s)
+      if (!isExpected404 && !isLogoutError && !isOTPValidationError && !isEmailVerificationValidationError && !isResendOTPValidationError && !isLoginValidationError && !isProfile401 && !isCartWishlist401 && !isSignup401) {
+>>>>>>> Stashed changes
         logError(errorDetails, `API Request: ${endpoint}`);
       }
       

@@ -45,6 +45,11 @@ export function extractErrorMessage(error: any): string {
   // String error
   if (typeof error === 'string') return error;
 
+  // Check if error is an empty object
+  if (typeof error === 'object' && Object.keys(error).length === 0) {
+    return 'An unexpected error occurred';
+  }
+
   // Error object with message
   if (error.message) return error.message;
 
