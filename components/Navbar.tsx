@@ -24,12 +24,12 @@ export default function Navbar() {
             <img 
               src="/Logos/ONLY LOGO.png" 
               alt="WeDesign Logo" 
-              className="h-8 md:h-10 w-auto brightness-0 invert"
+              className="h-8 md:h-10 w-auto object-contain brightness-0 invert"
             />
             <img 
               src="/Logos/ONLY TEXT.png" 
               alt="WeDesign" 
-              className="h-6 md:h-7 w-auto brightness-0 invert"
+              className="h-6 md:h-7 w-auto object-contain brightness-0 invert"
             />
           </a>
 

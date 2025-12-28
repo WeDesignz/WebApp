@@ -59,12 +59,12 @@ export default function Footer() {
                 <img 
                   src="/Logos/ONLY LOGO.png" 
                   alt="WeDesignz Logo" 
-                  className="h-10 w-auto brightness-0 invert"
+                  className="h-10 w-auto object-contain brightness-0 invert"
                 />
                 <img 
                   src="/Logos/ONLY TEXT.png" 
                   alt="WeDesignz" 
-                  className="h-7 w-auto brightness-0 invert"
+                  className="h-7 w-auto object-contain brightness-0 invert"
                 />
               </Link>
               
