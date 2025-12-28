@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import JSZip from "jszip";
 import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 type UploadMode = "single" | "bulk";
 type PricingType = "free" | "paid";
@@ -240,27 +241,26 @@ export default function UploadDesignContent() {
           const subcategoriesResponse = await apiClient.getCategorySubcategories(category.id);
           const subcategories = subcategoriesResponse.data?.subcategories || [];
           return {
+            id: category.id,
             name: category.name,
-            subcategories: subcategories.map((sub: any) => sub.name),
+            subcategories: subcategories.map((sub: any) => ({
+              id: sub.id,
+              name: sub.name,
+            })),
           };
         })
       );
 
-      // Build category list text
-      const categoryNames = categoriesWithSubcategories.map(cat => cat.name).join(', ');
-
-      // Build subcategory text - show all subcategories grouped by category with pipe separator
-      const subcategoryGroups = categoriesWithSubcategories
-        .filter(cat => cat.subcategories.length > 0)
-        .map(cat => `${cat.name}: ${cat.subcategories.join(', ')}`)
-        .join(' | ');
-
-      // Build header row with instructions
-      const categoryHeader = `category (Available: ${categoryNames})`;
-      const subcategoryHeader = subcategoryGroups 
-        ? `subcategory (${subcategoryGroups})`
-        : 'subcategory (Optional - leave empty if none)';
-      const tagsHeader = 'Tags (Comma-separated: tag1,tag2,tag3 - Add as many tags as needed)';
+      // Build category list for dropdown
+      const categoryNames = categoriesWithSubcategories.map(cat => cat.name);
+      
+      // Build mapping of subcategory to category (for reverse lookup)
+      const subcategoryToCategoryMap: { [key: string]: string } = {};
+      categoriesWithSubcategories.forEach(cat => {
+        cat.subcategories.forEach(sub => {
+          subcategoryToCategoryMap[sub.name] = cat.name;
+        });
+      });
 
       const zip = new JSZip();
       const rootFolder = 'designs';
@@ -287,80 +287,145 @@ export default function UploadDesignContent() {
         }
       }
       
-      // Create metadata.xlsx with descriptive headers in row 1, data starts from row 2
-      // Note: Price, color, and visible are managed by system defaults (plan=4, visible=1, color=None)
-      const metadataData = [
-        ['folder_name', 'title', 'description', categoryHeader, subcategoryHeader, tagsHeader],
-        ['Design_001', 'Sample Design 1', 'This is a sample design', allCategories[0]?.name || 'ecommerce', categoriesWithSubcategories[0]?.subcategories[0] || 'residential', 'tag1,tag2'],
-        ['Design_002', 'Sample Design 2', 'This is a sample design', allCategories[0]?.name || 'ecommerce', categoriesWithSubcategories[0]?.subcategories[1] || 'commercial', 'tag3,tag4'],
-        ['Design_003', 'Sample Design 3', 'This is a sample design', allCategories[allCategories.length - 1]?.name || 'other', categoriesWithSubcategories[categoriesWithSubcategories.length - 1]?.subcategories[0] || 'other', 'tag5,tag6'],
+      // Create Excel workbook using ExcelJS
+      const workbook = new ExcelJS.Workbook();
+      
+      // 1. Create main Metadata sheet FIRST (so it appears first and is active)
+      const metadataSheet = workbook.addWorksheet('Metadata');
+      metadataSheet.getColumn(1).width = 20; // folder_name
+      metadataSheet.getColumn(2).width = 30; // title
+      metadataSheet.getColumn(3).width = 50; // description
+      metadataSheet.getColumn(4).width = 25; // category
+      metadataSheet.getColumn(5).width = 25; // subcategory
+      metadataSheet.getColumn(6).width = 40; // tags
+      
+      // 2. Create Categories sheet (for dropdown reference) - hidden from users
+      const categoriesSheet = workbook.addWorksheet('Categories', {
+        state: 'veryHidden'  // Hide sheet - can't be unhidden by users, but still accessible for dropdowns
+      });
+      categoriesSheet.getColumn(1).width = 30;
+      categoriesSheet.getRow(1).values = ['Category'];
+      categoriesSheet.getRow(1).font = { bold: true };
+      categoryNames.forEach((name, index) => {
+        categoriesSheet.getRow(index + 2).values = [name];
+      });
+      
+      // 3. Create Subcategories sheet - Category | Subcategory (for dependent dropdown) - hidden from users
+      const subcategoriesSheet = workbook.addWorksheet('Subcategories', {
+        state: 'veryHidden'  // Hide sheet - can't be unhidden by users, but still accessible for dropdowns
+      });
+      subcategoriesSheet.getColumn(1).width = 30;
+      subcategoriesSheet.getColumn(2).width = 30;
+      subcategoriesSheet.getRow(1).values = ['Category', 'Subcategory'];
+      subcategoriesSheet.getRow(1).font = { bold: true };
+      
+      let subcategoryRow = 2;
+      categoriesWithSubcategories.forEach(cat => {
+        if (cat.subcategories.length > 0) {
+          cat.subcategories.forEach(sub => {
+            subcategoriesSheet.getRow(subcategoryRow).values = [cat.name, sub.name];
+            subcategoryRow++;
+          });
+        } else {
+          // Category with no subcategories
+          subcategoriesSheet.getRow(subcategoryRow).values = [cat.name, ''];
+          subcategoryRow++;
+        }
+      });
+      
+      // Headers
+      metadataSheet.getRow(1).values = [
+        'folder_name',
+        'title',
+        'description',
+        'category',
+        'subcategory',
+        'Tags (Comma-separated: tag1,tag2,tag3)'
+      ];
+      metadataSheet.getRow(1).font = { bold: true };
+      
+      // Sample data
+      metadataSheet.getRow(2).values = [
+        'Design_001',
+        'Sample Design 1',
+        'This is a sample design',
+        allCategories[0]?.name || 'ecommerce',
+        categoriesWithSubcategories[0]?.subcategories[0]?.name || '',
+        'tag1,tag2'
+      ];
+      metadataSheet.getRow(3).values = [
+        'Design_002',
+        'Sample Design 2',
+        'This is a sample design',
+        allCategories[0]?.name || 'ecommerce',
+        categoriesWithSubcategories[0]?.subcategories[1]?.name || '',
+        'tag3,tag4'
+      ];
+      metadataSheet.getRow(4).values = [
+        'Design_003',
+        'Sample Design 3',
+        'This is a sample design',
+        allCategories[allCategories.length - 1]?.name || 'other',
+        categoriesWithSubcategories[categoriesWithSubcategories.length - 1]?.subcategories[0]?.name || '',
+        'tag5,tag6'
       ];
       
-      // Create instructions sheet
-      const instructionsData = [
-        ['METADATA.XLSX INSTRUCTIONS'],
-        [''],
-        ['COLUMN DESCRIPTIONS:'],
-        [''],
-        ['1. folder_name'],
-        ['   - The exact name of the folder containing your design files'],
-        ['   - Must match the folder name in your zip file exactly'],
-        ['   - Example: "Design_001"'],
-        [''],
-        ['2. title'],
-        ['   - The title of your design (max 200 characters)'],
-        ['   - This will be displayed to customers'],
-        ['   - Example: "Modern Logo Design"'],
-        [''],
-        ['3. description'],
-        ['   - A detailed description of your design'],
-        ['   - Describe what the design is, its features, and use cases'],
-        ['   - Example: "A modern and clean logo design perfect for tech startups"'],
-        [''],
-        ['4. category'],
-        [`   - Must be one of the following: ${categoryNames}`],
-        ['   - Enter the exact category name (case-sensitive)'],
-        ['   - This field is MANDATORY'],
-        [''],
-        ['5. subcategory'],
-        ['   - The subcategory for your design (optional)'],
-        ['   - Leave empty if no subcategory applies'],
-        ['   - Available subcategories by category:'],
-        ...categoriesWithSubcategories
-          .filter(cat => cat.subcategories.length > 0)
-          .map(cat => [`   ${cat.name}: ${cat.subcategories.join(', ')}`]),
-        [''],
-        ['6. Tags'],
-        ['   - Enter tags separated by commas (no spaces after commas)'],
-        ['   - You can add as many tags as needed'],
-        ['   - Example: "logo,branding,modern,minimal,tech"'],
-        ['   - Tags help customers find your design'],
-        [''],
-        ['IMPORTANT NOTES:'],
-        ['- All columns must be in the exact order shown'],
-        ['- Do not add extra columns (Plan, color, price, Visible are not supported)'],
-        ['- Each design folder must contain: .eps, .cdr, .jpg, .png files'],
-        ['- Optional: You can include mockup.jpg or mockup.png in each folder'],
-        [''],
-        ['SAMPLE DATA:'],
-        ['The template includes 3 sample rows that you can modify or delete.'],
-      ];
+      // Add data validation for category column (column D, index 4)
+      const categoryCol = 4;
+      const lastCategoryRow = categoryNames.length + 1;
       
-      // Create workbook with two sheets
-      const wb = XLSX.utils.book_new();
+      // Reference the Categories sheet
+      const categoryRange = `Categories!$A$2:$A${lastCategoryRow}`;
+      console.log(`Setting category dropdown with range: ${categoryRange}, Categories count: ${categoryNames.length}`);
       
-      // Main data sheet
-      const ws = XLSX.utils.aoa_to_sheet(metadataData);
-      XLSX.utils.book_append_sheet(wb, ws, 'Metadata');
       
-      // Instructions sheet
-      const instructionsWs = XLSX.utils.aoa_to_sheet(instructionsData);
-      // Set column widths for instructions sheet
-      instructionsWs['!cols'] = [{ wch: 80 }];
-      XLSX.utils.book_append_sheet(wb, instructionsWs, 'Instructions');
+      // Apply data validation to cells - limit to first 100 rows for better performance
+      // Users can copy the validation to more rows if needed
+      const maxValidationRows = 100;
+      for (let row = 2; row <= maxValidationRows; row++) {
+        const cell = metadataSheet.getCell(row, categoryCol);
+        try {
+          cell.dataValidation = {
+            type: 'list',
+            allowBlank: false,
+            formulae: [categoryRange],
+            showErrorMessage: true,
+            errorTitle: 'Invalid Category',
+            error: 'Please select a valid category from the dropdown.',
+          };
+          // Log first row for debugging
+          if (row === 2) {
+            console.log(`Data validation set for D${row} with formula:`, categoryRange);
+          }
+        } catch (error) {
+          console.error(`Error setting data validation for row ${row}:`, error);
+        }
+      }
       
-      // Convert workbook to binary string
-      const excelBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+      // Add data validation for subcategory column (column E, index 5)
+      // Use OFFSET formula for dependent dropdowns - reference Subcategories sheet
+      const subcategoryCol = 5;
+      
+      for (let row = 2; row <= maxValidationRows; row++) {
+        const cell = metadataSheet.getCell(row, subcategoryCol);
+        
+        // Use OFFSET with MATCH and COUNTIF to dynamically filter subcategories
+        // Reference Subcategories sheet columns A (category) and B (subcategory)
+        // Formula: OFFSET(Subcategories!$B$1, MATCH($D{row}, Subcategories!$A:$A, 0)-1, 0, COUNTIF(Subcategories!$A:$A, $D{row}), 1)
+        const offsetFormula = `OFFSET(Subcategories!$B$1, MATCH($D${row}, Subcategories!$A:$A, 0)-1, 0, COUNTIF(Subcategories!$A:$A, $D${row}), 1)`;
+        
+        cell.dataValidation = {
+          type: 'list',
+          allowBlank: true,
+          formulae: [offsetFormula],
+          showErrorMessage: true,
+          errorTitle: 'Invalid Subcategory',
+          error: 'Please select a valid subcategory for the selected category.',
+        };
+      }
+      
+      // Write workbook to buffer
+      const excelBuffer = await workbook.xlsx.writeBuffer();
       
       // Add metadata.xlsx to zip
       zip.file(`${rootFolder}/metadata.xlsx`, excelBuffer);
