@@ -90,11 +90,13 @@ export default function Page() {
       <SpotlightFeatures />
       
       <GallerySection />
-      <CardSlider 
-        title="Featured Designs" 
-        items={featuredDesigns} 
-        isLoading={isLoadingFeatured}
-      />
+      <section id="featured">
+        <CardSlider 
+          title="Featured Designs" 
+          items={featuredDesigns} 
+          isLoading={isLoadingFeatured}
+        />
+      </section>
       {/* <MagicBento enableStars enableSpotlight enableBorderGlow enableTilt enableMagnetism clickEffect glowColor="132, 0, 255" spotlightRadius={300} /> */}
       <JerseyShowcase />
       <PricingPlans />

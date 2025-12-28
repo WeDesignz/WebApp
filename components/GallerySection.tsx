@@ -49,7 +49,7 @@ export default function GallerySection() {
   }, []);
 
   return (
-    <section className="py-32 relative overflow-hidden">
+    <section id="gallery" className="py-32 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 md:px-8 mb-20">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
