@@ -57,10 +57,6 @@ export default function UploadDesignContent() {
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]); // Store tag names for chip display
   const [tagInput, setTagInput] = useState("");
-  const [showCreateCategory, setShowCreateCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [showCreateSubcategory, setShowCreateSubcategory] = useState(false);
-  const [newSubcategoryName, setNewSubcategoryName] = useState("");
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [files, setFiles] = useState<FileUploadStatus>({
     eps: null,
@@ -193,98 +189,6 @@ export default function UploadDesignContent() {
     }
   };
 
-  // Handle creating new category
-  const handleCreateCategory = async () => {
-    if (!newCategoryName.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a category name",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const response = await apiClient.createCategory(newCategoryName.trim());
-      if (response.error) {
-        toast({
-          title: "Error",
-          description: response.error || "Failed to create category",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (response.data?.category) {
-        const newCategory = response.data.category;
-        setCategoryId(newCategory.id);
-        setShowCreateCategory(false);
-        setNewCategoryName("");
-        // Refetch categories to include the newly created one
-        await refetchCategories();
-        toast({
-          title: "Success",
-          description: "Category created successfully",
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create category",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Handle creating new subcategory
-  const handleCreateSubcategory = async () => {
-    if (!newSubcategoryName.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a subcategory name",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!categoryId) {
-      toast({
-        title: "Error",
-        description: "Please select a category first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const response = await apiClient.createSubcategory(categoryId, newSubcategoryName.trim());
-      if (response.error) {
-        toast({
-          title: "Error",
-          description: response.error || "Failed to create subcategory",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (response.data?.subcategory) {
-        const newSubcategory = response.data.subcategory;
-        setSubcategoryId(newSubcategory.id);
-        setShowCreateSubcategory(false);
-        setNewSubcategoryName("");
-        toast({
-          title: "Success",
-          description: "Subcategory created successfully",
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create subcategory",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleFileUpload = (fileType: keyof FileUploadStatus, file: File) => {
     const extension = file.name.split('.').pop()?.toLowerCase();
@@ -326,6 +230,38 @@ export default function UploadDesignContent() {
   const downloadTemplate = async () => {
     setIsGeneratingTemplate(true);
     try {
+      // Fetch all categories and their subcategories
+      const categoriesResponse = await apiClient.getCategories();
+      const allCategories: Category[] = categoriesResponse.data?.categories || [];
+      
+      // Fetch subcategories for each category
+      const categoriesWithSubcategories = await Promise.all(
+        allCategories.map(async (category) => {
+          const subcategoriesResponse = await apiClient.getCategorySubcategories(category.id);
+          const subcategories = subcategoriesResponse.data?.subcategories || [];
+          return {
+            name: category.name,
+            subcategories: subcategories.map((sub: any) => sub.name),
+          };
+        })
+      );
+
+      // Build category list text
+      const categoryNames = categoriesWithSubcategories.map(cat => cat.name).join(', ');
+
+      // Build subcategory text - show all subcategories grouped by category with pipe separator
+      const subcategoryGroups = categoriesWithSubcategories
+        .filter(cat => cat.subcategories.length > 0)
+        .map(cat => `${cat.name}: ${cat.subcategories.join(', ')}`)
+        .join(' | ');
+
+      // Build header row with instructions
+      const categoryHeader = `category (Available: ${categoryNames})`;
+      const subcategoryHeader = subcategoryGroups 
+        ? `subcategory (${subcategoryGroups})`
+        : 'subcategory (Optional - leave empty if none)';
+      const tagsHeader = 'Tags (Comma-separated: tag1,tag2,tag3 - Add as many tags as needed)';
+
       const zip = new JSZip();
       const rootFolder = 'designs';
       
@@ -351,19 +287,77 @@ export default function UploadDesignContent() {
         }
       }
       
-      // Create metadata.xlsx
-      // Note: Price is now managed globally by admin via SystemConfig, so it's not included in the template
+      // Create metadata.xlsx with descriptive headers in row 1, data starts from row 2
+      // Note: Price, color, and visible are managed by system defaults (plan=4, visible=1, color=None)
       const metadataData = [
-        ['folder_name', 'title', 'description', 'category', 'subcategory', 'Plan', 'color', 'Visible', 'Tags'],
-        ['Design_001', 'Sample Design 1', 'This is a sample design', 'ecommerce', 'residential', '0', 'Red', '1', 'tag1,tag2'],
-        ['Design_002', 'Sample Design 2', 'This is a sample design', 'ecommerce', 'commercial', '1', 'Blue', '1', 'tag3,tag4'],
-        ['Design_003', 'Sample Design 3', 'This is a sample design', 'other', 'other', '2', 'Green', '1', 'tag5,tag6'],
+        ['folder_name', 'title', 'description', categoryHeader, subcategoryHeader, tagsHeader],
+        ['Design_001', 'Sample Design 1', 'This is a sample design', allCategories[0]?.name || 'ecommerce', categoriesWithSubcategories[0]?.subcategories[0] || 'residential', 'tag1,tag2'],
+        ['Design_002', 'Sample Design 2', 'This is a sample design', allCategories[0]?.name || 'ecommerce', categoriesWithSubcategories[0]?.subcategories[1] || 'commercial', 'tag3,tag4'],
+        ['Design_003', 'Sample Design 3', 'This is a sample design', allCategories[allCategories.length - 1]?.name || 'other', categoriesWithSubcategories[categoriesWithSubcategories.length - 1]?.subcategories[0] || 'other', 'tag5,tag6'],
       ];
       
-      // Create workbook and worksheet
+      // Create instructions sheet
+      const instructionsData = [
+        ['METADATA.XLSX INSTRUCTIONS'],
+        [''],
+        ['COLUMN DESCRIPTIONS:'],
+        [''],
+        ['1. folder_name'],
+        ['   - The exact name of the folder containing your design files'],
+        ['   - Must match the folder name in your zip file exactly'],
+        ['   - Example: "Design_001"'],
+        [''],
+        ['2. title'],
+        ['   - The title of your design (max 200 characters)'],
+        ['   - This will be displayed to customers'],
+        ['   - Example: "Modern Logo Design"'],
+        [''],
+        ['3. description'],
+        ['   - A detailed description of your design'],
+        ['   - Describe what the design is, its features, and use cases'],
+        ['   - Example: "A modern and clean logo design perfect for tech startups"'],
+        [''],
+        ['4. category'],
+        [`   - Must be one of the following: ${categoryNames}`],
+        ['   - Enter the exact category name (case-sensitive)'],
+        ['   - This field is MANDATORY'],
+        [''],
+        ['5. subcategory'],
+        ['   - The subcategory for your design (optional)'],
+        ['   - Leave empty if no subcategory applies'],
+        ['   - Available subcategories by category:'],
+        ...categoriesWithSubcategories
+          .filter(cat => cat.subcategories.length > 0)
+          .map(cat => [`   ${cat.name}: ${cat.subcategories.join(', ')}`]),
+        [''],
+        ['6. Tags'],
+        ['   - Enter tags separated by commas (no spaces after commas)'],
+        ['   - You can add as many tags as needed'],
+        ['   - Example: "logo,branding,modern,minimal,tech"'],
+        ['   - Tags help customers find your design'],
+        [''],
+        ['IMPORTANT NOTES:'],
+        ['- All columns must be in the exact order shown'],
+        ['- Do not add extra columns (Plan, color, price, Visible are not supported)'],
+        ['- Each design folder must contain: .eps, .cdr, .jpg, .png files'],
+        ['- Optional: You can include mockup.jpg or mockup.png in each folder'],
+        [''],
+        ['SAMPLE DATA:'],
+        ['The template includes 3 sample rows that you can modify or delete.'],
+      ];
+      
+      // Create workbook with two sheets
       const wb = XLSX.utils.book_new();
+      
+      // Main data sheet
       const ws = XLSX.utils.aoa_to_sheet(metadataData);
-      XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+      XLSX.utils.book_append_sheet(wb, ws, 'Metadata');
+      
+      // Instructions sheet
+      const instructionsWs = XLSX.utils.aoa_to_sheet(instructionsData);
+      // Set column widths for instructions sheet
+      instructionsWs['!cols'] = [{ wch: 80 }];
+      XLSX.utils.book_append_sheet(wb, instructionsWs, 'Instructions');
       
       // Convert workbook to binary string
       const excelBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
@@ -383,7 +377,7 @@ export default function UploadDesignContent() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
+
       toast({
         title: "Template downloaded successfully!",
         description: "The template zip file has been downloaded.",
@@ -401,6 +395,72 @@ export default function UploadDesignContent() {
   };
 
   // Validate bulk zip file (same logic as onboarding step 4)
+  // Helper function to normalize column names for comparison
+  // Extracts base column name from headers that may include instructions in parentheses
+  const normalizeColumnName = (name: string): string => {
+    const str = String(name).trim();
+    // Extract text before first opening parenthesis (removes instructions)
+    const baseName = str.split('(')[0].trim();
+    return baseName.toLowerCase().replace(/\s+/g, '_');
+  };
+
+  // Validate metadata column structure
+  const validateMetadataColumns = (headerRow: any[]): { valid: boolean; errors: string[]; folderNameColIndex: number } => {
+    const errors: string[] = [];
+    const expectedColumns = ['folder_name', 'title', 'description', 'category', 'subcategory', 'tags'];
+    
+    // Normalize header row (extracts base column names, ignoring instructions in parentheses)
+    const normalizedHeaders = headerRow.map(normalizeColumnName);
+    
+    // Check if we have the exact number of columns
+    if (normalizedHeaders.length !== expectedColumns.length) {
+      errors.push(`❌ Incorrect number of columns: Expected exactly ${expectedColumns.length} columns, but found ${normalizedHeaders.length}. The metadata.xlsx must have exactly these columns in order: ${expectedColumns.join(', ')}.`);
+    }
+    
+    // Check each expected column exists at the correct position
+    let folderNameColIndex = -1;
+    for (let i = 0; i < expectedColumns.length; i++) {
+      const expectedCol = expectedColumns[i];
+      const actualCol = normalizedHeaders[i] || '';
+      
+      if (actualCol !== expectedCol) {
+        if (i === 0) {
+          errors.push(`❌ Column ${i + 1} must be "folder_name" (case-insensitive), but found "${headerRow[i] || '(empty)'}". The columns must be in the exact order: ${expectedColumns.join(', ')}.`);
+        } else {
+          errors.push(`❌ Column ${i + 1} must be "${expectedCol}" (case-insensitive), but found "${headerRow[i] || '(empty)'}". The columns must be in the exact order: ${expectedColumns.join(', ')}.`);
+        }
+      }
+      
+      if (i === 0 && actualCol === expectedCol) {
+        folderNameColIndex = i;
+      }
+    }
+    
+    // Check for extra columns
+    if (normalizedHeaders.length > expectedColumns.length) {
+      const extraColumns = headerRow.slice(expectedColumns.length).filter((col: any) => col && String(col).trim());
+      if (extraColumns.length > 0) {
+        errors.push(`❌ Extra columns found: "${extraColumns.join('", "')}". The metadata.xlsx should only have these ${expectedColumns.length} columns in order: ${expectedColumns.join(', ')}. Extra columns like "Plan", "color", "price", and "Visible" are not supported and will cause data to be read incorrectly.`);
+      }
+    }
+    
+    // If folder_name wasn't found at position 0, try to find it anywhere (for better error message)
+    if (folderNameColIndex === -1) {
+      folderNameColIndex = normalizedHeaders.findIndex(col => col === 'folder_name');
+      if (folderNameColIndex === -1) {
+        errors.push('❌ Missing required column: The metadata.xlsx file must have a column named "folder_name" (case-insensitive) as the first column.');
+      } else {
+        errors.push(`❌ Column order incorrect: "folder_name" is found at position ${folderNameColIndex + 1}, but it must be the first column. The columns must be in the exact order: ${expectedColumns.join(', ')}.`);
+      }
+    }
+    
+    return {
+      valid: errors.length === 0,
+      errors,
+      folderNameColIndex,
+    };
+  };
+
   const validateZipFile = async (file: File): Promise<{ valid: boolean; errors: string[]; designCount: number }> => {
     const errors: string[] = [];
     let designCount = 0;
@@ -442,17 +502,16 @@ export default function UploadDesignContent() {
         const worksheet = workbook.Sheets[sheetName];
         const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
-        // Find folder_name column
+        // Validate column structure
         const headerRow = data[0] || [];
-        const folderNameColIndex = headerRow.findIndex((cell: any) => {
-          const normalized = String(cell).toLowerCase().trim().replace(/\s+/g, '_');
-          return normalized === 'folder_name';
-        });
-
-        if (folderNameColIndex === -1) {
-          errors.push('❌ Missing required column: The metadata.xlsx file must have a column named "folder_name" (case-insensitive).');
+        const columnValidation = validateMetadataColumns(headerRow);
+        
+        if (!columnValidation.valid) {
+          errors.push(...columnValidation.errors);
           return { valid: false, errors, designCount: 0 };
         }
+        
+        const folderNameColIndex = columnValidation.folderNameColIndex;
 
         // Extract folder names from Excel
         const excelFolders = new Set<string>();
@@ -946,23 +1005,9 @@ export default function UploadDesignContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Category */}
           <div className="space-y-2">
-              <div className="flex items-center justify-between h-6">
-                <Label htmlFor="category" className="text-sm font-medium leading-6">
-                  Category <span className="text-destructive">*</span>
-                </Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowCreateCategory(!showCreateCategory);
-                    setShowCreateSubcategory(false); // Close subcategory if open
-                  }}
-                  className="h-7 text-xs px-2 shrink-0"
-                >
-                  + New
-                </Button>
-              </div>
+              <Label htmlFor="category" className="text-sm font-medium leading-6">
+                Category <span className="text-destructive">*</span>
+              </Label>
             {isLoadingCategories ? (
                 <div className="flex items-center gap-2 h-10">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -979,10 +1024,9 @@ export default function UploadDesignContent() {
                     setCategoryId(parseInt(value));
                   }
                       setSubcategoryId(null); // Reset subcategory when category changes
-                      setShowCreateSubcategory(false); // Close create subcategory form
                   setValidationErrors({ ...validationErrors, category: "" });
                 }}
-                    disabled={isUploading || showCreateCategory}
+                    disabled={isUploading}
               >
                     <SelectTrigger id="category" className="w-full h-10">
                   <SelectValue placeholder="Select category" />
@@ -999,49 +1043,6 @@ export default function UploadDesignContent() {
                       )}
                 </SelectContent>
               </Select>
-                  {showCreateCategory && (
-                    <div className="space-y-2 p-3 border border-border rounded-md bg-muted/30 mt-2">
-                      <Label className="text-xs text-muted-foreground">Create New Category</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Enter category name"
-                          value={newCategoryName}
-                          onChange={(e) => setNewCategoryName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleCreateCategory();
-                            } else if (e.key === 'Escape') {
-                              setShowCreateCategory(false);
-                              setNewCategoryName("");
-                            }
-                          }}
-                          className="flex-1 h-9"
-                          autoFocus
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={handleCreateCategory}
-                          disabled={!newCategoryName.trim()}
-                          className="h-9 shrink-0"
-                        >
-                          Create
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setShowCreateCategory(false);
-                            setNewCategoryName("");
-                          }}
-                          className="h-9 shrink-0"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-            )}
             {validationErrors.category && (
                     <p className="text-sm text-destructive mt-1 min-h-[20px]">{validationErrors.category}</p>
                   )}
@@ -1051,27 +1052,9 @@ export default function UploadDesignContent() {
 
             {/* Subcategory */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between h-6">
-                <Label htmlFor="subcategory" className="text-sm font-medium leading-6">
-                  Subcategory <span className="text-muted-foreground text-xs font-normal">(Optional)</span>
-                </Label>
-                {categoryId ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setShowCreateSubcategory(!showCreateSubcategory);
-                      setShowCreateCategory(false); // Close category if open
-                    }}
-                    className="h-7 text-xs px-2 shrink-0"
-                  >
-                    + New
-                  </Button>
-                ) : (
-                  <div className="h-7 w-12 shrink-0" />
-                )}
-              </div>
+              <Label htmlFor="subcategory" className="text-sm font-medium leading-6">
+                Subcategory <span className="text-muted-foreground text-xs font-normal">(Optional)</span>
+              </Label>
               {!categoryId ? (
                 <div className="h-10 flex items-center px-3 text-sm text-muted-foreground border border-border rounded-md bg-muted/30">
                   Select category first
@@ -1094,7 +1077,7 @@ export default function UploadDesignContent() {
                         }
                         setValidationErrors({ ...validationErrors, subcategory: "" });
                       }}
-                      disabled={isUploading || showCreateSubcategory}
+                      disabled={isUploading}
                     >
                       <SelectTrigger id="subcategory" className="w-full h-10">
                         <SelectValue placeholder="Select subcategory (optional)" />
@@ -1138,49 +1121,6 @@ export default function UploadDesignContent() {
                       </button>
                     )}
                   </div>
-                  {showCreateSubcategory && (
-                    <div className="space-y-2 p-3 border border-border rounded-md bg-muted/30 mt-2">
-                      <Label className="text-xs text-muted-foreground">Create New Subcategory</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Enter subcategory name"
-                          value={newSubcategoryName}
-                          onChange={(e) => setNewSubcategoryName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleCreateSubcategory();
-                            } else if (e.key === 'Escape') {
-                              setShowCreateSubcategory(false);
-                              setNewSubcategoryName("");
-                            }
-                          }}
-                          className="flex-1 h-9"
-                          autoFocus
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={handleCreateSubcategory}
-                          disabled={!newSubcategoryName.trim()}
-                          className="h-9 shrink-0"
-                        >
-                          Create
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setShowCreateSubcategory(false);
-                            setNewSubcategoryName("");
-                          }}
-                          className="h-9 shrink-0"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
                   {validationErrors.subcategory && (
                     <p className="text-sm text-destructive mt-1 min-h-[20px]">{validationErrors.subcategory}</p>
                   )}

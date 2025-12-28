@@ -31,15 +31,10 @@ export default function OTPVerificationModal({ open, onClose, onVerified, onRese
       setOtp(['', '', '', '', '', '']);
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
       
-      // Send OTP when modal opens
-      if (onResend) {
-        setIsSendingOTP(true);
-        Promise.resolve(onResend()).finally(() => {
-          setIsSendingOTP(false);
-        });
-      }
+      // Note: OTP is now sent before modal opens, so we don't auto-send here
+      // onResend is only used for the "Resend OTP" button click
     }
-  }, [open, onResend]);
+  }, [open]);
 
   useEffect(() => {
     if (countdown > 0 && open) {

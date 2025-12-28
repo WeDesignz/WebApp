@@ -310,20 +310,6 @@ export default function MyDesignsContent() {
     }
   };
 
-  // Check for search parameter in URL query params and set search query
-  useEffect(() => {
-    const searchParam = searchParams.get('search');
-    if (searchParam) {
-      // Set the search query from URL parameter
-      setSearchQuery(searchParam);
-      // Remove search param from URL after setting it to clean up
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete('search');
-      const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
-      router.replace(newUrl, { scroll: false });
-    }
-  }, [searchParams]); // Only check when searchParams changes
-
   // Fetch design detail when selected
   const { data: designDetail } = useQuery({
     queryKey: ['designDetail', selectedDesign?.id],
