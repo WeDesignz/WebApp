@@ -136,7 +136,7 @@ export default function DesignerOnboardingWizard() {
         }
 
         // Check if user can access console (onboarding is complete)
-        if (response.data?.can_access_console || response.data?.onboarding_status?.onboarding_completed) {
+        if (response.data?.can_access_console) {
           // Onboarding already completed, redirect away
           
           // Priority 1: Use redirect query parameter if provided
