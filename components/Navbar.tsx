@@ -9,9 +9,9 @@ export default function Navbar() {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   const moreMenuItems = [
-    { label: 'About', href: '#about' },
-    { label: 'Contact', href: '#contact' },
-    { label: 'Blog', href: '#blog' },
+    { label: 'About', href: '/about' },
+    { label: 'Contact', href: '/contact' },
+    { label: 'Blog', href: '/blog' },
     { label: 'FAQ', href: '#faqs' },
   ];
 
@@ -47,7 +47,7 @@ export default function Navbar() {
               data-testid="button-customer-dashboard"
               asChild
             >
-              <a href="/customer-dashboard">Explore</a>
+              <a href="/customer-dashboard">Home</a>
             </Button>
 
             {/* Designer Console Button */}
@@ -57,7 +57,7 @@ export default function Navbar() {
               data-testid="button-designer-console"
               asChild
             >
-              <a href="/designer-console">Console</a>
+              <a href="/designer-console">Join as Freelancer</a>
             </Button>
 
             {/* More Button with Dropdown */}
@@ -139,7 +139,7 @@ export default function Navbar() {
                 data-testid="button-customer-dashboard-mobile"
                 asChild
               >
-                <a href="/customer-dashboard">Explore</a>
+                <a href="/customer-dashboard">Home</a>
               </Button>
               <Button
                 variant="outline"
@@ -147,7 +147,7 @@ export default function Navbar() {
                 data-testid="button-designer-console-mobile"
                 asChild
               >
-                <a href="/designer-console">Console</a>
+                <a href="/designer-console">Join as Freelancer</a>
               </Button>
             </div>
           </div>
