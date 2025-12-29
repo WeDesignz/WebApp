@@ -1384,6 +1384,8 @@ export const apiClient = {
     selected_products?: number[];
     search_filters?: any;
     use_subscription_mock_pdf?: boolean;
+    customer_name?: string;
+    customer_mobile?: string;
   }): Promise<ApiResponse<{
     download_id?: number;
     id?: number;
@@ -1547,6 +1549,46 @@ export const apiClient = {
         return { error: userMessage, errorDetails };
       }
 
+      // Try to get filename from custom X-Filename header first (easier and more reliable)
+      let filename: string | null = response.headers.get('x-filename');
+      if (!filename) {
+        // Fallback: Extract filename from Content-Disposition header if available
+        const contentDisposition = response.headers.get('content-disposition');
+        if (contentDisposition) {
+          // Try to extract filename* first (RFC 5987, UTF-8 encoded)
+          const filenameStarMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+          if (filenameStarMatch && filenameStarMatch[1]) {
+            try {
+              filename = decodeURIComponent(filenameStarMatch[1]);
+            } catch (e) {
+              // If decoding fails, try regular filename
+            }
+          }
+          
+          // If filename* didn't work, try regular filename
+          if (!filename) {
+            const patterns = [
+              /filename=["']([^"']+)["']/i,  // filename="value"
+              /filename=([^;]+)/i  // filename=value
+            ];
+            
+            for (const pattern of patterns) {
+              const match = contentDisposition.match(pattern);
+              if (match && match[1]) {
+                filename = match[1].replace(/['"]/g, '').trim();
+                // Handle URL-encoded filenames
+                try {
+                  filename = decodeURIComponent(filename);
+                } catch (e) {
+                  // If decoding fails, use as-is
+                }
+                break;
+              }
+            }
+          }
+        }
+      }
+
       // Check if response is JSON (error) or blob (file)
       const contentType = response.headers.get('content-type');
       if (contentType?.includes('application/json')) {
@@ -1555,9 +1597,9 @@ export const apiClient = {
         return { error: getUserFriendlyMessage(errorDetails), errorDetails, data };
       }
 
-      // Return blob for file download
+      // Return blob for file download with filename if available
       const blob = await response.blob();
-      return { data: blob };
+      return { data: blob, filename: filename || null };
     } catch (error: any) {
       const errorDetails = formatError(error, undefined);
       const userMessage = getUserFriendlyMessage(errorDetails);
