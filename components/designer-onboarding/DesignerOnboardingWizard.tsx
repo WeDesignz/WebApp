@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiClient } from '@/lib/api';
 import Step1BasicProfile from './Step1BasicProfile';
 import Step2BusinessDetails from './Step2BusinessDetails';
 import Step3LegalInfo from './Step3LegalInfo';
@@ -60,6 +62,8 @@ interface Step4Data {
 export default function DesignerOnboardingWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [step1Data, setStep1Data] = useState<Step1Data>({
     firstName: '',
@@ -106,6 +110,80 @@ export default function DesignerOnboardingWizard() {
     bankAccountHolderName: '',
     accountType: '',
   });
+
+  // Check if onboarding is already completed when component mounts
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      // Wait for auth to finish loading
+      if (authLoading) {
+        return;
+      }
+
+      // If not authenticated, allow them to proceed (they'll need to login during onboarding)
+      if (!isAuthenticated) {
+        setIsCheckingOnboarding(false);
+        return;
+      }
+
+      try {
+        setIsCheckingOnboarding(true);
+        const response = await apiClient.getDesignerOnboardingStatus();
+        
+        if (response.error) {
+          // If there's an error, allow them to proceed with onboarding
+          setIsCheckingOnboarding(false);
+          return;
+        }
+
+        // Check if user can access console (onboarding is complete)
+        if (response.data?.can_access_console || response.data?.onboarding_status?.onboarding_completed) {
+          // Onboarding already completed, redirect away
+          
+          // Priority 1: Use redirect query parameter if provided
+          const redirectParam = searchParams.get('redirect');
+          if (redirectParam) {
+            router.replace(decodeURIComponent(redirectParam));
+            return;
+          }
+          
+          // Priority 2: Check if they came from somewhere (referrer)
+          // Only use referrer if it's a valid internal path (not external site)
+          if (typeof window !== 'undefined' && document.referrer) {
+            try {
+              const referrerUrl = new URL(document.referrer);
+              const currentUrl = new URL(window.location.href);
+              
+              // Only use referrer if it's from the same origin
+              if (referrerUrl.origin === currentUrl.origin) {
+                const referrerPath = referrerUrl.pathname + referrerUrl.search;
+                // Don't redirect back to onboarding or auth pages
+                if (!referrerPath.includes('/designer-onboarding') && 
+                    !referrerPath.includes('/auth/')) {
+                  router.replace(referrerPath);
+                  return;
+                }
+              }
+            } catch (e) {
+              // Invalid referrer URL, continue to default
+            }
+          }
+          
+          // Priority 3: Default to designer console
+          router.replace('/designer-console');
+          return;
+        }
+
+        // Onboarding not complete, allow them to proceed
+        setIsCheckingOnboarding(false);
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+        // On error, allow them to proceed with onboarding
+        setIsCheckingOnboarding(false);
+      }
+    };
+
+    checkOnboardingStatus();
+  }, [isAuthenticated, authLoading, router, searchParams]);
 
   // Determine which step to show based on isIndividual
   const getNextStep = (fromStep: number, isIndividual: boolean) => {
@@ -188,6 +266,18 @@ export default function DesignerOnboardingWizard() {
   };
 
   const progressSteps = getProgressSteps();
+
+  // Show loading state while checking onboarding status
+  if (isCheckingOnboarding || authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Checking onboarding status...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">

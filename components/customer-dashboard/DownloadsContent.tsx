@@ -354,7 +354,9 @@ export default function DownloadsContent() {
             const url = window.URL.createObjectURL(response.data);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `designs_${pdfId}.pdf`;
+            // Use filename from response if available, otherwise use default
+            const downloadFilename = (response as any).filename || `designs_${pdfId}.pdf`;
+            a.download = downloadFilename;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);

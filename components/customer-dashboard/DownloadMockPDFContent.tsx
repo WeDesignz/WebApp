@@ -74,6 +74,10 @@ export default function DownloadMockPDFContent() {
   } | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
+  // Customer information for mock PDF
+  const [customerName, setCustomerName] = useState("");
+  const [customerMobile, setCustomerMobile] = useState("");
+
   const isAuthenticated = !!user;
   // Use first value of paid_pdf_designs_options as free designs count
   const freeDesignsCount = pdfConfig?.paid_pdf_designs_options?.[0] || pdfConfig?.free_pdf_designs_count || 50;
@@ -191,17 +195,6 @@ export default function DownloadMockPDFContent() {
   // Use categories directly like DownloadsContent does
   const categories = categoriesData || [];
   
-  // Debug logging
-  useEffect(() => {
-    if (categoriesData) {
-      console.log('Categories data:', categoriesData);
-      console.log('Categories length:', categoriesData.length);
-      if (categoriesData.length > 0) {
-        console.log('First category:', categoriesData[0]);
-        console.log('First category keys:', Object.keys(categoriesData[0]));
-      }
-    }
-  }, [categoriesData]);
 
   // Fetch designs
   const {
@@ -393,6 +386,40 @@ export default function DownloadMockPDFContent() {
       return;
     }
 
+    // Determine download type early for validation
+    const downloadType = isFreeDownload ? "free" : "paid";
+    
+    // Validate customer information for paid downloads
+    if (downloadType === "paid" && price > 0) {
+      if (!customerName.trim()) {
+        toast({
+          title: "Customer name required",
+          description: "Please enter customer name before proceeding",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!customerMobile.trim()) {
+        toast({
+          title: "Customer mobile required",
+          description: "Please enter customer mobile number before proceeding",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Validate mobile number: must be exactly 10 digits
+      const mobileNumber = customerMobile.trim().replace(/\D/g, ''); // Remove non-digits
+      if (mobileNumber.length !== 10) {
+        toast({
+          title: "Invalid mobile number",
+          description: "Please enter a valid 10-digit mobile number",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     // Check if enough designs are available/selected
     const requiredCount = isFreeDownload ? freeDesignsCount : selectedDesignCount;
     const selectedCount = selectionMode === "firstN" 
@@ -433,7 +460,6 @@ export default function DownloadMockPDFContent() {
     setIsDownloading(true);
 
     try {
-      const downloadType = isFreeDownload ? "free" : "paid";
       let downloadId: number | null | undefined = null;
 
       if (selectionMode === "firstN") {
@@ -452,8 +478,6 @@ export default function DownloadMockPDFContent() {
           throw new Error(`Not enough products available. Required: ${productCount}, Available: ${productIdsToUse.length}`);
         }
 
-        // Log the order for debugging (can be removed in production)
-        console.log('Product IDs in display order:', productIdsToUse);
 
         // Create PDF request - for "firstN" mode, use "specific" selection type to preserve exact order
         const createResponse = await apiClient.createPDFRequest({
@@ -466,6 +490,8 @@ export default function DownloadMockPDFContent() {
             category: selectedCategory !== 'all' ? selectedCategory : undefined,
           },
           use_subscription_mock_pdf: useSubscriptionMockPDF,
+          customer_name: customerName.trim(),
+          customer_mobile: customerMobile.trim().replace(/\D/g, ''), // Ensure only digits
         });
 
         if (createResponse.error || !createResponse.data) {
@@ -490,6 +516,8 @@ export default function DownloadMockPDFContent() {
           selection_type: "specific", // Specific product selection
           selected_products: designIds,
           use_subscription_mock_pdf: useSubscriptionMockPDF,
+          customer_name: customerName.trim(),
+          customer_mobile: customerMobile.trim().replace(/\D/g, ''), // Ensure only digits
         });
 
         if (createResponse.error || !createResponse.data) {
@@ -1062,6 +1090,53 @@ export default function DownloadMockPDFContent() {
             </>
           )}
         </div>
+
+        {/* Customer Information Inputs - Show only for paid downloads */}
+        {!isFreeDownload && price > 0 && (
+          <Card className="p-6 mb-6 border-2 border-primary/20">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Metadata Information for PDF
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              enter the details that will appear on each page of the mock pdf
+            </p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Your Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="Enter your name"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Contact Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={customerMobile}
+                  onChange={(e) => {
+                    // Only allow digits and limit to 10 digits
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setCustomerMobile(value);
+                  }}
+                  placeholder="Enter 10-digit contact number"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+                  required
+                  maxLength={10}
+                  pattern="[0-9]{10}"
+                />
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Download Button - Sticky at bottom */}
         <div className="sticky bottom-0 bg-background border-t border-border p-4 -mx-4 md:-mx-6 mt-6 z-10">

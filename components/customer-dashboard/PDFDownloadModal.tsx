@@ -695,7 +695,8 @@ export default function PDFDownloadModal({
                               const url = window.URL.createObjectURL(response.data);
                               const a = document.createElement('a');
                               a.href = url;
-                              a.download = `designs_${currentDownloadId}.pdf`;
+                              const downloadFilename = (response as any).filename || `designs_${currentDownloadId}.pdf`;
+                              a.download = downloadFilename;
                               document.body.appendChild(a);
                               a.click();
                               window.URL.revokeObjectURL(url);
