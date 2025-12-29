@@ -117,22 +117,22 @@ export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebar
           {!collapsed ? (
             <div className="flex items-center gap-2">
               <img 
-                src="/Logos/ONLY LOGO.png" 
+                src="/Logos/ONLY LOGO.svg" 
                 alt="WeDesign Logo" 
-                className={`h-8 w-8 object-contain ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                className={`h-8 w-8 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
               />
               <img 
-                src="/Logos/ONLY TEXT.png" 
+                src="/Logos/ONLY TEXT.svg" 
                 alt="WeDesign" 
-                className={`h-5 w-auto object-contain ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                className={`h-5 w-auto ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
               />
             </div>
           ) : (
             <div className="flex items-center justify-center mx-auto">
               <img 
-                src="/Logos/ONLY LOGO.png" 
+                src="/Logos/ONLY LOGO.svg" 
                 alt="WeDesign Logo" 
-                className={`h-8 w-8 object-contain ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                className={`h-8 w-8 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
               />
             </div>
           )}
