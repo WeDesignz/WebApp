@@ -152,7 +152,7 @@ export default function HeroSection() {
                 href="/customer-dashboard"
                 className="group inline-flex items-center gap-2 px-8 py-4 rounded-full bg-white text-black font-medium text-base hover:bg-white/90 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-white/20"
               >
-                Explore
+                Home
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </a>
               <a 
@@ -198,7 +198,7 @@ export default function HeroSection() {
                         <img 
                           src="/Logos/ONLY LOGO.png" 
                           alt="WeDesign Logo"
-                          className="w-8 h-8 object-contain brightness-0 invert"
+                          className="h-8 w-auto object-contain brightness-0 invert"
                         />
                       </div>
                     </div>

@@ -199,7 +199,7 @@ export default function DesignerOnboardingWizard() {
             <img 
               src="/Logos/ONLY LOGO.png" 
               alt="WeDesignz Logo" 
-              className="h-12 w-12 w-auto brightness-0 invert"
+              className="h-12 w-auto brightness-0 invert"
             />
             <img 
               src="/Logos/ONLY TEXT.png" 

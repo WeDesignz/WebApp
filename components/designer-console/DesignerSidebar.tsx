@@ -119,7 +119,7 @@ export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebar
               <img 
                 src="/Logos/ONLY LOGO.png" 
                 alt="WeDesign Logo" 
-                className={`h-8 w-8 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                className={`h-8 w-auto ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
               />
               <img 
                 src="/Logos/ONLY TEXT.png" 
@@ -132,7 +132,7 @@ export default function DesignerSidebar({ collapsed, onToggle }: DesignerSidebar
               <img 
                 src="/Logos/ONLY LOGO.png" 
                 alt="WeDesign Logo" 
-                className={`h-8 w-8 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                className={`h-8 w-auto ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
               />
             </div>
           )}

@@ -88,7 +88,7 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
                 <img 
                   src="/Logos/ONLY LOGO.png" 
                   alt="WeDesign Logo" 
-                  className={`h-10 w-10 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                  className={`h-10 w-auto ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
                 />
                 <img 
                   src="/Logos/ONLY TEXT.png" 
@@ -107,7 +107,7 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
                 <img 
                   src="/Logos/ONLY LOGO.png" 
                   alt="WeDesign Logo" 
-                  className={`h-10 w-10 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                  className={`h-10 w-auto ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
                 />
               </motion.div>
             )}
@@ -245,7 +245,7 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
                   <img 
                     src="/Logos/ONLY LOGO.png" 
                     alt="WeDesign Logo" 
-                    className={`h-10 w-10 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                    className={`h-10 w-auto ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
                   />
                   <img 
                     src="/Logos/ONLY TEXT.png" 
