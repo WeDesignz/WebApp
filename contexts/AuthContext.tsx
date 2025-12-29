@@ -227,7 +227,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const response = await apiClient.login(emailOrUsername, password, rememberMe);
       
       if (response.error) {
-        throw new Error(response.error);
+        // Create error with proper message
+        const error = new Error(response.error);
+        // Preserve any additional error details
+        if (response.fieldErrors) {
+          (error as any).fieldErrors = response.fieldErrors;
+        }
+        if (response.errorDetails) {
+          (error as any).errorDetails = response.errorDetails;
+        }
+        // Also attach the full response for debugging
+        (error as any).response = { error: response.error, data: response.data };
+        throw error;
       }
 
       if (!response.data) {
@@ -246,7 +257,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('wedesign_refresh_token', tokens.refresh);
       localStorage.setItem('wedesign_user', JSON.stringify(transformedUser));
     } catch (error: any) {
-      // Error is already handled and displayed to user, no need to log to console
+      // Re-throw error so it can be handled by the calling component
+      // The error should already have a proper message from the API response
       throw error;
     }
   };

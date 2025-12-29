@@ -19,23 +19,25 @@ const footerLinks = {
     { name: 'Browse Designs', href: '/customer-dashboard' },
     { name: 'Pricing', href: '#pricing' },
     { name: 'Categories', href: '#gallery' },
-    { name: 'Featured', href: '#featured' },
+    { name: 'Featured', href: '#' },
   ],
   creators: [
+    { name: 'Become a Designer', href: '/designer-onboarding' },
     { name: 'Designer Console', href: '/designer-console' },
     { name: 'Upload Design', href: '/designer-console/upload' },
+    { name: 'Earnings', href: '/designer-console/earnings' },
   ],
   company: [
     { name: 'About Us', href: '/about' },
     { name: 'Blog', href: '/blog' },
-    { name: 'Careers', href: '/contact' },
+    { name: 'Careers', href: '#' },
     { name: 'Contact', href: '/contact' },
   ],
   legal: [
     { name: 'Terms of Service', href: '/terms' },
     { name: 'Privacy Policy', href: '/privacy' },
     { name: 'Refund Policy', href: '/refund' },
-    { name: 'Cookie Policy', href: '/cookie-policy' },
+    { name: 'Cookie Policy', href: '#' },
   ],
 };
 
@@ -55,14 +57,14 @@ export default function Footer() {
             <div className="lg:col-span-2 space-y-6">
               <Link href="/" className="inline-flex items-center gap-2.5 flex-shrink-0">
                 <img 
-                  src="/Logos/ONLY LOGO.png" 
+                  src="/Logos/ONLY LOGO.svg" 
                   alt="WeDesignz Logo" 
-                  className="h-10 w-auto object-contain brightness-0 invert"
+                  className="h-10 w-auto brightness-0 invert"
                 />
                 <img 
-                  src="/Logos/ONLY TEXT.png" 
+                  src="/Logos/ONLY TEXT.svg" 
                   alt="WeDesignz" 
-                  className="h-7 w-auto object-contain brightness-0 invert"
+                  className="h-7 w-auto brightness-0 invert"
                 />
               </Link>
               

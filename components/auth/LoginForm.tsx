@@ -55,8 +55,56 @@ export default function LoginForm() {
         }
       }, 500);
     } catch (err: any) {
-      // Error is already handled and displayed to user via toast, no need to log to console
-      const errorMessage = err?.message || err?.error || 'Login failed. Please check your credentials.';
+      // Extract error message from various possible formats
+      let errorMessage = 'Invalid credentials. Please check your email/username and password.';
+      
+      // Try to extract error message from different possible locations
+      if (err?.message) {
+        // Error object with message property (most common)
+        errorMessage = err.message;
+      } else if (err?.error) {
+        // Direct error property
+        errorMessage = err.error;
+      } else if (err?.response?.error) {
+        // Nested response error
+        errorMessage = err.response.error;
+      } else if (err?.response?.data) {
+        // API response error format
+        const data = err.response.data;
+        if (data.error) {
+          errorMessage = data.error;
+        } else if (data.non_field_errors && Array.isArray(data.non_field_errors) && data.non_field_errors.length > 0) {
+          // Django REST Framework format
+          errorMessage = data.non_field_errors[0];
+        } else if (data.detail) {
+          errorMessage = data.detail;
+        } else if (typeof data === 'string') {
+          errorMessage = data;
+        } else if (typeof data === 'object' && data !== null) {
+          // Try to extract from any field in the error object
+          for (const key in data) {
+            if (Array.isArray(data[key]) && data[key].length > 0) {
+              errorMessage = data[key][0];
+              break;
+            } else if (typeof data[key] === 'string' && data[key]) {
+              errorMessage = data[key];
+              break;
+            }
+          }
+        }
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err && typeof err === 'object') {
+        // Last resort: try to find any string value in the error object
+        for (const key in err) {
+          if (typeof err[key] === 'string' && err[key]) {
+            errorMessage = err[key];
+            break;
+          }
+        }
+      }
+      
+      // Show the error toast
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);

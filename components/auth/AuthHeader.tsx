@@ -28,14 +28,14 @@ export default function AuthHeader() {
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
           <img 
-            src="/Logos/ONLY LOGO.png" 
+            src="/Logos/ONLY LOGO.svg" 
             alt="WeDesign Logo" 
-            className="h-8 w-auto object-contain brightness-0 invert"
+            className="h-8 w-auto brightness-0 invert"
           />
           <img 
-            src="/Logos/ONLY TEXT.png" 
+            src="/Logos/ONLY TEXT.svg" 
             alt="WeDesign" 
-            className="h-6 w-auto object-contain brightness-0 invert"
+            className="h-6 w-auto brightness-0 invert"
           />
         </Link>
 

@@ -3,6 +3,7 @@
 import { ReactNode, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { CartWishlistProvider } from "@/contexts/CartWishlistContext";
@@ -41,6 +42,7 @@ export default function Providers({ children }: { children: ReactNode }) {
               <TooltipProvider>
                 {children}
                 <Toaster />
+                <SonnerToaster position="top-center" richColors />
               </TooltipProvider>
             </CartWishlistProvider>
           </AuthProvider>

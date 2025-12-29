@@ -9,9 +9,9 @@ export default function Navbar() {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   const moreMenuItems = [
-    { label: 'About', href: '/about' },
-    { label: 'Contact', href: '/contact' },
-    { label: 'Blog', href: '/blog' },
+    { label: 'About', href: '#about' },
+    { label: 'Contact', href: '#contact' },
+    { label: 'Blog', href: '#blog' },
     { label: 'FAQ', href: '#faqs' },
   ];
 
@@ -22,14 +22,14 @@ export default function Navbar() {
           {/* Logo */}
           <a href="/" className="flex items-center gap-2.5 flex-shrink-0" data-testid="link-home">
             <img 
-              src="/Logos/ONLY LOGO.png" 
+              src="/Logos/ONLY LOGO.svg" 
               alt="WeDesign Logo" 
-              className="h-8 md:h-10 w-auto object-contain brightness-0 invert"
+              className="h-8 md:h-10 w-auto brightness-0 invert"
             />
             <img 
-              src="/Logos/ONLY TEXT.png" 
+              src="/Logos/ONLY TEXT.svg" 
               alt="WeDesign" 
-              className="h-6 md:h-7 w-auto object-contain brightness-0 invert"
+              className="h-6 md:h-7 w-auto brightness-0 invert"
             />
           </a>
 
@@ -47,7 +47,7 @@ export default function Navbar() {
               data-testid="button-customer-dashboard"
               asChild
             >
-              <a href="/customer-dashboard">Home</a>
+              <a href="/customer-dashboard">Explore</a>
             </Button>
 
             {/* Designer Console Button */}
@@ -57,7 +57,7 @@ export default function Navbar() {
               data-testid="button-designer-console"
               asChild
             >
-              <a href="/designer-console">Join as Freelancer</a>
+              <a href="/designer-console">Console</a>
             </Button>
 
             {/* More Button with Dropdown */}
@@ -139,7 +139,7 @@ export default function Navbar() {
                 data-testid="button-customer-dashboard-mobile"
                 asChild
               >
-                <a href="/customer-dashboard">Home</a>
+                <a href="/customer-dashboard">Explore</a>
               </Button>
               <Button
                 variant="outline"
@@ -147,7 +147,7 @@ export default function Navbar() {
                 data-testid="button-designer-console-mobile"
                 asChild
               >
-                <a href="/designer-console">Join as Freelancer</a>
+                <a href="/designer-console">Console</a>
               </Button>
             </div>
           </div>
