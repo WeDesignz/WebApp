@@ -62,11 +62,48 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
   const product = productData?.transformed || initialProduct;
   const rawProduct = productData?.raw || null;
 
+  // Helper to get AVIF URL from original URL
+  const getAvifUrl = (url: string): string | null => {
+    if (!url) return null;
+    const urlLower = url.toLowerCase();
+    // Check if it's already an AVIF file
+    if (urlLower.endsWith('.avif')) {
+      return url;
+    }
+    // For MOCKUP files: WDG00000001_MOCKUP.jpg -> WDG00000001_MOCKUP.avif
+    if (urlLower.includes('_mockup.')) {
+      return url.replace(/\.(jpg|jpeg|png)$/i, '.avif');
+    }
+    // For regular files: WDG00000001.jpg -> WDG00000001_JPG.avif
+    if (urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg')) {
+      return url.replace(/\.(jpg|jpeg)$/i, '_JPG.avif');
+    } else if (urlLower.endsWith('.png')) {
+      return url.replace(/\.png$/i, '_PNG.avif');
+    }
+    return null;
+  };
+
+  // Helper to get original (non-AVIF) URL
+  const getOriginalUrl = (url: string): string => {
+    if (!url) return url;
+    const urlLower = url.toLowerCase();
+    // If already original, return as is
+    if (!urlLower.endsWith('.avif')) return url;
+    // For MOCKUP files: WDG00000001_MOCKUP.avif -> WDG00000001_MOCKUP.jpg
+    if (urlLower.includes('_mockup.avif')) {
+      return url.replace(/\.avif$/i, '.jpg');
+    }
+    // For regular files: WDG00000001_JPG.avif -> WDG00000001.jpg
+    return url.replace(/_JPG\.avif$/i, '.jpg')
+               .replace(/_PNG\.avif$/i, '.png')
+               .replace(/\.avif$/i, '.jpg'); // Fallback
+  };
+
   // Organize media by type: mockup vs design (JPG/PNG)
   const organizeMediaByType = () => {
     const mediaArray = rawProduct?.media || product.media || [];
-    const mockupImages: { url: string; index: number }[] = [];
-    const designImages: { url: string; index: number }[] = [];
+    const mockupImages: { url: string; avifUrl: string | null; originalUrl: string; index: number }[] = [];
+    const designImages: { url: string; avifUrl: string | null; originalUrl: string; index: number }[] = [];
 
     mediaArray.forEach((mediaItem: any, index: number) => {
       let url = '';
@@ -97,10 +134,16 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
       }
 
       if (url && url.trim() !== '') {
+        // Get AVIF URL if available, otherwise use original
+        const avifUrl = getAvifUrl(url);
+        const originalUrl = url.endsWith('.avif') ? getOriginalUrl(url) : url;
+        // Prefer AVIF for display, but keep original for preview
+        const displayUrl = avifUrl || url;
+        
         if (isMockup) {
-          mockupImages.push({ url, index });
+          mockupImages.push({ url: displayUrl, avifUrl, originalUrl, index });
         } else if (isDesign) {
-          designImages.push({ url, index });
+          designImages.push({ url: displayUrl, avifUrl, originalUrl, index });
         }
       }
     });
@@ -746,13 +789,24 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                               alt={`${product.title} - ${selectedImageType === 'mockup' ? 'Mockup' : 'Design'} ${selectedImageIndex + 1}`}
                               className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
                               onError={(e) => {
-                                (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                                // Fallback to original if AVIF fails
+                                const originalUrl = currentImages[selectedImageIndex].originalUrl;
+                                if (originalUrl && originalUrl !== (e.target as HTMLImageElement).src) {
+                                  (e.target as HTMLImageElement).src = originalUrl;
+                                } else {
+                                  (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                                }
                               }}
                             />
                             
                             {/* Hover Overlay with Eye Icon */}
                             <button
-                              onClick={() => setPreviewImage(currentImages[selectedImageIndex].url)}
+                              onClick={() => {
+                                // Use original URL for full preview (high quality)
+                                const originalUrl = currentImages[selectedImageIndex].originalUrl || 
+                                                   currentImages[selectedImageIndex].url;
+                                setPreviewImage(originalUrl);
+                              }}
                               className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center transition-all duration-200 z-10 ${
                                 isMainImageHovered 
                                   ? 'opacity-100 pointer-events-auto' 
@@ -816,7 +870,9 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setPreviewImage(image.url);
+                                    // Use original URL for full preview (high quality)
+                                    const originalUrl = image.originalUrl || image.url;
+                                    setPreviewImage(originalUrl);
                                   }}
                                   className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center transition-all duration-200 z-10 ${
                                     hoveredThumbnailIndex === index 
