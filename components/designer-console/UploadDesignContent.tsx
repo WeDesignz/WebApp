@@ -607,6 +607,8 @@ export default function UploadDesignContent() {
 
         // Extract actual design folders from zip
         const zipFolders = new Map<string, Set<string>>();
+        const foldersWithWrongStructure: string[] = [];
+        
         for (const fileName of allFiles) {
           if (fileName === metadataFileName || fileName.endsWith('/')) {
             continue;
@@ -615,63 +617,171 @@ export default function UploadDesignContent() {
           if (fileName.includes('/')) {
             const parts = fileName.split('/');
             
-            if (parts.length < 3) {
+            // Handle both cases:
+            // 1. root_folder/design_folder/file.ext (3 parts) - e.g., "123/WD01/WD01.eps"
+            // 2. design_folder/file.ext (2 parts) - e.g., "WD01/WD01.eps" (if zip created from inside root folder)
+            
+            if (parts.length < 2) {
+              // Skip files at root level (not in any folder)
               continue;
             }
 
-            const rootFolderName = parts[0].toLowerCase();
-            const folderName = parts[1];
-            const fileNameOnly = parts[parts.length - 1];
+            // Determine folder name and file info based on path length
+            let folderName: string;
+            let fileNameOnly: string;
+            
+            if (parts.length === 2) {
+              // Case 2: design_folder/file.ext (zip created from inside root folder)
+              folderName = parts[0];
+              fileNameOnly = parts[1];
+            } else if (parts.length === 3) {
+              // Case 1: root_folder/design_folder/file.ext (normal case)
+              const rootFolderName = parts[0].toLowerCase();
+              folderName = parts[1];
+              fileNameOnly = parts[2];
+              
+              // Skip system folders
+              if (SYSTEM_FOLDERS.includes(rootFolderName) || SYSTEM_FOLDERS.includes(folderName.toLowerCase())) {
+                continue;
+              }
+            } else {
+              // More than 3 parts - wrong structure
+              if (parts.length >= 2) {
+                folderName = parts[1]; // Still use second part as folder name for error reporting
+                fileNameOnly = parts[parts.length - 1];
+              } else {
+                continue;
+              }
+            }
+
             const ext = fileNameOnly.substring(fileNameOnly.lastIndexOf('.')).toLowerCase();
 
-            if (SYSTEM_FOLDERS.includes(rootFolderName) || SYSTEM_FOLDERS.includes(folderName.toLowerCase())) {
+            // Skip system folders (check folder name)
+            if (SYSTEM_FOLDERS.includes(folderName.toLowerCase())) {
               continue;
             }
 
-            if (parts.length === 3 && REQUIRED_FILES.includes(ext)) {
-              if (!zipFolders.has(folderName)) {
-                zipFolders.set(folderName, new Set());
+            // Check for optional mockup file (case insensitive - any case of "mockup")
+            const fileNameLower = fileNameOnly.toLowerCase();
+            const isMockupFile = fileNameLower === 'mockup.jpg' || fileNameLower === 'mockup.png';
+
+            // Process files in design folders
+            if (parts.length === 2 || parts.length === 3) {
+              if (REQUIRED_FILES.includes(ext) || isMockupFile) {
+                if (!zipFolders.has(folderName)) {
+                  zipFolders.set(folderName, new Set());
+                }
+                if (REQUIRED_FILES.includes(ext)) {
+                  zipFolders.get(folderName)!.add(ext);
+                }
+                // Note: mockup files are optional, so we don't add them to the required files set
               }
-              zipFolders.get(folderName)!.add(ext);
+            } else if (parts.length > 3) {
+              // Track folders with too many levels (only if it's a design-related file)
+              if (REQUIRED_FILES.includes(ext) || isMockupFile) {
+                if (!foldersWithWrongStructure.includes(folderName)) {
+                  foldersWithWrongStructure.push(folderName);
+                }
+              }
             }
           }
         }
 
-        // Filter folders that have all required files
-        const validDesignFolders = new Map<string, Set<string>>();
-        for (const [folderName, files] of zipFolders.entries()) {
-          const hasAllRequired = REQUIRED_FILES.every(ext => files.has(ext));
-          if (hasAllRequired) {
-            validDesignFolders.set(folderName, files);
-    }
+        // Check for folder structure issues first
+        if (foldersWithWrongStructure.length > 0) {
+          const structureExamples = foldersWithWrongStructure.slice(0, 5);
+          const moreCount = foldersWithWrongStructure.length > 5 ? foldersWithWrongStructure.length - 5 : 0;
+          errors.push(`❌ Incorrect folder structure detected: Some folders have the wrong path structure. Expected format: root_folder/design_folder/file.ext (exactly 3 levels). Found issues in: ${structureExamples.join(', ')}${moreCount > 0 ? ` (and ${moreCount} more)` : ''}. Please ensure your zip has the structure: root_folder/design_folder/file.ext`);
         }
 
-        designCount = validDesignFolders.size;
+        // Filter folders that have all required files (declare outside if/else for scope)
+        const validDesignFolders = new Map<string, Set<string>>();
+        
+        // Check if any folders were detected at all
+        if (zipFolders.size === 0) {
+          errors.push('❌ No design folders detected: The system could not find any design folders in your zip file. Please ensure: (1) Your zip has the structure: root_folder/design_folder/file.ext (exactly 3 levels), (2) Each folder contains files with extensions: .eps, .cdr, .jpg, .png');
+        } else {
+          // Analyze which folders are missing which files BEFORE filtering
+          interface InvalidFolderInfo {
+            folder: string;
+            missing: string[];
+            has: string[];
+          }
+          
+          const invalidFoldersDetailed: InvalidFolderInfo[] = [];
+          for (const [folderName, files] of zipFolders.entries()) {
+            const missingFiles = REQUIRED_FILES.filter(ext => !files.has(ext));
+            if (missingFiles.length > 0) {
+              invalidFoldersDetailed.push({
+                folder: folderName,
+                missing: missingFiles,
+                has: Array.from(files)
+              });
+            }
+          }
 
-        // Validate folder_name mapping
-        const zipFolderNames = new Set(validDesignFolders.keys());
-        const missingInZip = Array.from(excelFolders).filter(f => !zipFolderNames.has(f));
-        const missingInExcel = Array.from(zipFolderNames).filter(f => !excelFolders.has(f));
+          // Filter folders that have all required files
+          for (const [folderName, files] of zipFolders.entries()) {
+            const hasAllRequired = REQUIRED_FILES.every(ext => files.has(ext));
+            if (hasAllRequired) {
+              validDesignFolders.set(folderName, files);
+            }
+          }
+
+          designCount = validDesignFolders.size;
+
+          // Provide detailed feedback about missing files
+          if (invalidFoldersDetailed.length > 0) {
+            const totalInvalid = invalidFoldersDetailed.length;
+            const totalDetected = zipFolders.size;
+
+            // Show first few examples with details
+            const examples = invalidFoldersDetailed.slice(0, 5);
+            const exampleTexts = examples.map(item => 
+              `${item.folder} (missing: ${item.missing.join(', ')}, has: ${item.has.length > 0 ? item.has.join(', ') : 'none'})`
+            );
+
+            const moreCount = totalInvalid > 5 ? totalInvalid - 5 : 0;
+
+            if (validDesignFolders.size === 0) {
+              // All folders are invalid - provide comprehensive error
+              errors.push(`❌ All ${totalDetected} design folders are missing required files: Each folder must contain all 4 file types (.eps, .cdr, .jpg, .png). Examples: ${exampleTexts.join('; ')}${moreCount > 0 ? ` (and ${moreCount} more folders with similar issues)` : ''}. Please add the missing file types to each folder.`);
+            } else {
+              // Some folders are valid, some are not
+              errors.push(`❌ ${totalInvalid} out of ${totalDetected} design folders are missing required files. Each folder must contain all 4 file types (.eps, .cdr, .jpg, .png). Examples: ${exampleTexts.join('; ')}${moreCount > 0 ? ` (and ${moreCount} more)` : ''}`);
+            }
+          }
+        }
+
+        // Validate folder_name mapping (only if we have valid folders)
+        if (validDesignFolders.size > 0) {
+          const zipFolderNames = new Set(validDesignFolders.keys());
+          const missingInZip = Array.from(excelFolders).filter((f: string) => !zipFolderNames.has(f));
+          const missingInExcel = Array.from(zipFolderNames).filter((f: string) => !excelFolders.has(f));
 
         if (missingInZip.length > 0) {
           const missingList = missingInZip.slice(0, 10);
           const moreCount = missingInZip.length > 10 ? missingInZip.length - 10 : 0;
-          errors.push(`❌ Folders listed in metadata.xlsx but not found in zip file: ${missingList.join(', ')}${moreCount > 0 ? ` (and ${moreCount} more)` : ''}.`);
+            errors.push(`❌ Folders listed in metadata.xlsx but not found in zip file: ${missingList.join(', ')}${moreCount > 0 ? ` (and ${moreCount} more)` : ''}. Please ensure these folders exist in your zip file and contain all required files (.eps, .cdr, .jpg, .png).`);
         }
 
         if (missingInExcel.length > 0) {
           const missingList = missingInExcel.slice(0, 10);
           const moreCount = missingInExcel.length > 10 ? missingInExcel.length - 10 : 0;
-          errors.push(`❌ Folders found in zip file but not listed in metadata.xlsx: ${missingList.join(', ')}${moreCount > 0 ? ` (and ${moreCount} more)` : ''}.`);
+            errors.push(`❌ Folders found in zip file but not listed in metadata.xlsx: ${missingList.join(', ')}${moreCount > 0 ? ` (and ${moreCount} more)` : ''}. Please add these folders to the "folder_name" column in your metadata.xlsx file.`);
+          }
         }
 
         // Validate each design folder has required files
         const invalidFolders: string[] = [];
-        for (const [folderName, files] of validDesignFolders.entries()) {
-          const missingFiles = REQUIRED_FILES.filter(ext => !files.has(ext));
-          if (missingFiles.length > 0) {
-            invalidFolders.push(`${folderName} (missing: ${missingFiles.join(', ')})`);
-            if (invalidFolders.length >= 10) break;
+        // Only check if validDesignFolders has been populated
+        if (validDesignFolders.size > 0) {
+          for (const [folderName, files] of validDesignFolders.entries()) {
+            const missingFiles = REQUIRED_FILES.filter(ext => !files.has(ext));
+            if (missingFiles.length > 0) {
+              invalidFolders.push(`${folderName} (missing: ${missingFiles.join(', ')})`);
+              if (invalidFolders.length >= 10) break;
+            }
           }
         }
 
