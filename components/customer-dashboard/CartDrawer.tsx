@@ -160,12 +160,12 @@ export default function CartDrawer({ isOpen, onClose, onViewCart }: CartDrawerPr
                       <div className="flex gap-4">
                         <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
                         <img
-                            src={makeAbsoluteUrl(item.image) || '/generated_images/Brand_Identity_Design_67fa7e1f.png'}
+                            src={makeAbsoluteUrl(item.image) || ''}
                           alt={item.title}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
-                              target.src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                              target.style.display = 'none';
                             }}
                         />
                         </div>

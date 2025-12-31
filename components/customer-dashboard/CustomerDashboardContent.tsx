@@ -54,7 +54,7 @@ const getAvifUrl = (url: string): string | null => {
 // Helper function to get image URL, ALWAYS preferring AVIF files
 const getImageUrl = (product: Product, preferAvif = true): string => {
   if (!product.media || product.media.length === 0) {
-    return '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+    return '';
   }
   
   const mediaArray = product.media || [];
@@ -65,9 +65,11 @@ const getImageUrl = (product: Product, preferAvif = true): string => {
     return item?.url || item?.file || '';
   };
   
-  // Helper to check if URL is AVIF
-  const isAvif = (url: string): boolean => {
-    return url.toLowerCase().endsWith('.avif');
+  // Helper to check if item is AVIF
+  const isAvif = (url: string, item: any): boolean => {
+    if (url.toLowerCase().endsWith('.avif')) return true;
+    if (typeof item === 'object' && item?.is_avif) return true;
+    return false;
   };
   
   // Helper to check if URL is mockup
@@ -79,37 +81,49 @@ const getImageUrl = (product: Product, preferAvif = true): string => {
   };
   
   if (preferAvif) {
-    // Collect all image URLs with their mockup status
-    const imageUrls: Array<{ url: string; isMockup: boolean }> = [];
+    // First pass: Look for AVIF files (prioritize mockup AVIF)
+    const avifFiles: Array<{ url: string; isMockup: boolean }> = [];
+    const nonAvifFiles: Array<{ url: string; isMockup: boolean }> = [];
     
     for (const item of mediaArray) {
       const url = getUrl(item);
       if (!url) continue;
       
       const urlLower = url.toLowerCase();
-      // Skip if already AVIF
-      if (isAvif(url)) continue;
+      const isImageFile = urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg') || 
+                         urlLower.endsWith('.png') || urlLower.endsWith('.avif');
+      if (!isImageFile) continue;
       
-      // Check if it's an image file
-      const isImageFile = urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg') || urlLower.endsWith('.png');
-      if (isImageFile) {
-        const mockupStatus = isMockup(url, item);
-        imageUrls.push({
-          url,
-          isMockup: mockupStatus
-        });
+      const mockupStatus = isMockup(url, item);
+      const avifStatus = isAvif(url, item);
+      
+      if (avifStatus) {
+        avifFiles.push({ url, isMockup: mockupStatus });
+      } else {
+        nonAvifFiles.push({ url, isMockup: mockupStatus });
       }
     }
     
-    // Sort: mockups first
-    imageUrls.sort((a, b) => {
+    // Sort AVIF files: mockup first
+    avifFiles.sort((a, b) => {
       if (a.isMockup && !b.isMockup) return -1;
       if (!a.isMockup && b.isMockup) return 1;
       return 0;
     });
     
-    // Try to construct AVIF URL for each image, prioritizing mockups
-    for (const { url, isMockup: isMockupFile } of imageUrls) {
+    // Return AVIF file if available (prioritize mockup)
+    if (avifFiles.length > 0) {
+      return avifFiles[0].url;
+    }
+    
+    // Fallback: Try to construct AVIF URL from non-AVIF files (only if no AVIF exists)
+    nonAvifFiles.sort((a, b) => {
+      if (a.isMockup && !b.isMockup) return -1;
+      if (!a.isMockup && b.isMockup) return 1;
+      return 0;
+    });
+    
+    for (const { url } of nonAvifFiles) {
       const avifUrl = getAvifUrl(url);
       if (avifUrl && avifUrl !== url) {
         return avifUrl;
@@ -117,18 +131,9 @@ const getImageUrl = (product: Product, preferAvif = true): string => {
     }
   }
   
-  // Fallback: Only return original JPG/PNG if preferAvif is false
-  // This should rarely be reached if preferAvif is true
-  for (const item of mediaArray) {
-    const url = getUrl(item);
-    if (url && isMockup(url, item) && !isAvif(url)) {
-      return url;
-    }
-  }
-  
-  // Final fallback
+  // Final fallback: Return first image (should rarely be reached)
   const firstUrl = getUrl(mediaArray[0]);
-  return firstUrl || '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+  return firstUrl || '';
 };
 
 // Helper function to get original (non-AVIF) URL for preview
