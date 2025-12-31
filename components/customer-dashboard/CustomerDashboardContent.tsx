@@ -93,9 +93,10 @@ const getImageUrl = (product: Product, preferAvif = true): string => {
       // Check if it's an image file
       const isImageFile = urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg') || urlLower.endsWith('.png');
       if (isImageFile) {
+        const mockupStatus = isMockup(url, item);
         imageUrls.push({
           url,
-          isMockup: isMockup(url, item)
+          isMockup: mockupStatus
         });
       }
     }
