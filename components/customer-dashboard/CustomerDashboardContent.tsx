@@ -65,23 +65,39 @@ const getImageUrl = (product: Product, preferAvif = true): string => {
   // Helper to check if URL is mockup
   const isMockup = (url: string, item: any): boolean => {
     if (typeof item === 'object' && item?.is_mockup) return true;
-    return url.toLowerCase().includes('mockup');
+    const urlLower = url.toLowerCase();
+    // Check for _MOCKUP pattern (e.g., WDG00000046_MOCKUP.jpg)
+    return urlLower.includes('_mockup') || urlLower.includes('mockup');
   };
   
   if (preferAvif) {
-    // First, try to find MOCKUP and construct AVIF URL
+    // Priority 1: Find MOCKUP JPG/PNG and construct MOCKUP AVIF URL
+    // This ensures MOCKUP.avif is used for products with mockup images
+    // We check this FIRST to prioritize mockup AVIF over regular AVIF
     for (const item of mediaArray) {
       const url = getUrl(item);
-      if (url && isMockup(url, item) && !isAvif(url)) {
+      if (!url) continue;
+      
+      const urlLower = url.toLowerCase();
+      // Check if it's a mockup file (not AVIF)
+      if (isMockup(url, item) && !isAvif(url) && 
+          (urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg') || urlLower.endsWith('.png'))) {
+        // Construct AVIF URL: WDG00000046_MOCKUP.jpg -> WDG00000046_MOCKUP.avif
         const avifUrl = getAvifUrl(url);
-        if (avifUrl) return avifUrl;
+        if (avifUrl) {
+          return avifUrl; // Return MOCKUP AVIF URL immediately
+        }
       }
     }
     
-    // Then, try to find any JPG/PNG and construct AVIF URL
+    // Priority 2: Find any JPG/PNG (non-mockup) and construct AVIF URL
     for (const item of mediaArray) {
       const url = getUrl(item);
-      if (url && !isAvif(url) && (url.toLowerCase().endsWith('.jpg') || url.toLowerCase().endsWith('.jpeg') || url.toLowerCase().endsWith('.png'))) {
+      if (!url) continue;
+      
+      const urlLower = url.toLowerCase();
+      if (!isAvif(url) && !isMockup(url, item) && 
+          (urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg') || urlLower.endsWith('.png'))) {
         const avifUrl = getAvifUrl(url);
         if (avifUrl) return avifUrl;
       }
