@@ -137,7 +137,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
         // Get AVIF URL if available, otherwise use original
         const avifUrl = getAvifUrl(url);
         const originalUrl = url.endsWith('.avif') ? getOriginalUrl(url) : url;
-        // Prefer AVIF for display, but keep original for preview
+        // ALWAYS prefer AVIF for display in modal (not original)
         const displayUrl = avifUrl || url;
         
         if (isMockup) {
@@ -785,13 +785,14 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                         {currentImages.length > 0 && currentImages[selectedImageIndex] ? (
                           <>
                             <img
-                              src={currentImages[selectedImageIndex].url}
+                              src={currentImages[selectedImageIndex].url} // This will be AVIF
                               alt={`${product.title} - ${selectedImageType === 'mockup' ? 'Mockup' : 'Design'} ${selectedImageIndex + 1}`}
                               className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
                               onError={(e) => {
                                 // Fallback to original if AVIF fails
                                 const originalUrl = currentImages[selectedImageIndex].originalUrl;
-                                if (originalUrl && originalUrl !== (e.target as HTMLImageElement).src) {
+                                const currentSrc = (e.target as HTMLImageElement).src;
+                                if (originalUrl && originalUrl !== currentSrc && currentSrc.endsWith('.avif')) {
                                   (e.target as HTMLImageElement).src = originalUrl;
                                 } else {
                                   (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
@@ -857,11 +858,18 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                                   }`}
                                 >
                                   <img
-                                    src={image.url}
+                                    src={image.url} // This will be AVIF
                                     alt={`${product.title} - ${selectedImageType === 'mockup' ? 'Mockup' : 'Design'} ${index + 1}`}
                                     className="w-full h-full object-cover"
                                     onError={(e) => {
-                                      (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                                      // Fallback to original if AVIF fails
+                                      const originalUrl = image.originalUrl;
+                                      const currentSrc = (e.target as HTMLImageElement).src;
+                                      if (originalUrl && originalUrl !== currentSrc && currentSrc.endsWith('.avif')) {
+                                        (e.target as HTMLImageElement).src = originalUrl;
+                                      } else {
+                                        (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                                      }
                                     }}
                                   />
                                 </button>
