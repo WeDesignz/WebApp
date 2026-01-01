@@ -62,45 +62,86 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
   const product = productData?.transformed || initialProduct;
   const rawProduct = productData?.raw || null;
 
-  // Organize media by type: mockup vs design (JPG/PNG)
+  // Helper function to convert AVIF URL to JPG/PNG URL for full preview
+  const convertAvifToJpg = (avifUrl: string): string => {
+    if (!avifUrl) return avifUrl;
+    
+    const urlLower = avifUrl.toLowerCase();
+    
+    // If it's not an AVIF file, return as-is
+    if (!urlLower.endsWith('.avif')) {
+      return avifUrl;
+    }
+    
+    // Convert WDG00000001_MOCKUP.avif to WDG00000001_MOCKUP.jpg
+    if (urlLower.includes('_mockup.avif')) {
+      return avifUrl.replace(/_mockup\.avif$/i, '_MOCKUP.jpg');
+    }
+    
+    // Convert WDG00000001_JPG.avif to WDG00000001.jpg
+    if (urlLower.includes('_jpg.avif')) {
+      return avifUrl.replace(/_jpg\.avif$/i, '.jpg');
+    }
+    
+    // Convert WDG00000001_PNG.avif to WDG00000001.png
+    if (urlLower.includes('_png.avif')) {
+      return avifUrl.replace(/_png\.avif$/i, '.png');
+    }
+    
+    // Fallback: try to replace .avif with .jpg
+    return avifUrl.replace(/\.avif$/i, '.jpg');
+  };
+
+  // Organize media by type: mockup vs design (AVIF only for tab display)
   const organizeMediaByType = () => {
     const mediaArray = rawProduct?.media || product.media || [];
-    const mockupImages: { url: string; index: number }[] = [];
-    const designImages: { url: string; index: number }[] = [];
+    const mockupImages: { url: string; index: number; originalUrl?: string }[] = [];
+    const designImages: { url: string; index: number; originalUrl?: string }[] = [];
 
     mediaArray.forEach((mediaItem: any, index: number) => {
       let url = '';
       let isMockup = false;
       let isDesign = false;
+      let isAvif = false;
 
       if (typeof mediaItem === 'string') {
         url = mediaItem;
+        const urlLower = url.toLowerCase();
+        isAvif = urlLower.endsWith('.avif');
+        isMockup = isAvif && urlLower.includes('mockup.avif');
+        isDesign = isAvif && (urlLower.includes('_jpg.avif') || urlLower.includes('_png.avif'));
       } else {
         url = mediaItem?.url || mediaItem?.file || '';
         const fileName = (mediaItem?.file_name || '').toLowerCase();
         const urlLower = url.toLowerCase();
         
-        // Check if it's a mockup
-        isMockup = mediaItem?.is_mockup === true || 
-                   mediaItem?.is_mockup === 'true' || 
-                   mediaItem?.is_mockup === 1 ||
-                   fileName.includes('mockup') ||
-                   urlLower.includes('mockup');
+        // Check if it's AVIF
+        isAvif = mediaItem?.is_avif === true || fileName.endsWith('.avif') || urlLower.endsWith('.avif');
         
-        // Check if it's a design image (JPG or PNG)
-        isDesign = fileName.endsWith('.jpg') || 
-                   fileName.endsWith('.jpeg') || 
-                   fileName.endsWith('.png') ||
-                   urlLower.includes('.jpg') ||
-                   urlLower.includes('.jpeg') ||
-                   urlLower.includes('.png');
+        // Check if it's a mockup AVIF file
+        isMockup = isAvif && (
+                   (mediaItem?.is_mockup === true && mediaItem?.is_avif === true) ||
+                   fileName.includes('mockup.avif') ||
+                   urlLower.includes('mockup.avif')
+                 );
+        
+        // Check if it's a design AVIF file (JPG or PNG variants)
+        // For design tab, we want AVIF files that are JPG/PNG variants (design_JPG.avif or design_PNG.avif)
+        isDesign = isAvif && (
+                   fileName.includes('_jpg.avif') || 
+                   fileName.includes('_png.avif') ||
+                   urlLower.includes('_jpg.avif') ||
+                   urlLower.includes('_png.avif') ||
+                   (mediaItem?.is_jpg_png === true && mediaItem?.is_avif === true && !mediaItem?.is_mockup)
+                 );
       }
 
-      if (url && url.trim() !== '') {
+      if (url && url.trim() !== '' && isAvif) {
+        // Only add AVIF files to the tabs
         if (isMockup) {
-          mockupImages.push({ url, index });
+          mockupImages.push({ url, index, originalUrl: url });
         } else if (isDesign) {
-          designImages.push({ url, index });
+          designImages.push({ url, index, originalUrl: url });
         }
       }
     });
@@ -752,7 +793,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                             
                             {/* Hover Overlay with Eye Icon */}
                             <button
-                              onClick={() => setPreviewImage(currentImages[selectedImageIndex].url)}
+                              onClick={() => setPreviewImage(convertAvifToJpg(currentImages[selectedImageIndex].url))}
                               className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center transition-all duration-200 z-10 ${
                                 isMainImageHovered 
                                   ? 'opacity-100 pointer-events-auto' 
@@ -816,7 +857,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setPreviewImage(image.url);
+                                    setPreviewImage(convertAvifToJpg(image.url));
                                   }}
                                   className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center transition-all duration-200 z-10 ${
                                     hoveredThumbnailIndex === index 
