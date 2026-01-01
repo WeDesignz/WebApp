@@ -276,11 +276,16 @@ export default function CategoriesContent() {
                       className="group relative aspect-[3/4] rounded-xl overflow-hidden bg-muted cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-border/50 hover:border-primary/30 dark:hover:border-primary/40"
                     >
                       <img
-                        src={product.media[0] || '/generated_images/Brand_Identity_Design_67fa7e1f.png'}
+                        src={(() => {
+                          const mediaItem = product.media[0];
+                          if (!mediaItem) return '';
+                          if (typeof mediaItem === 'string') return mediaItem;
+                          return mediaItem.url || mediaItem.file || '';
+                        })()}
                         alt={product.title}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
+                          (e.target as HTMLImageElement).style.display = 'none';
                         }}
                       />
                       

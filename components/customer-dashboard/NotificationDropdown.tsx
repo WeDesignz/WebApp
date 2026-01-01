@@ -72,32 +72,52 @@ export default function NotificationDropdown() {
   const { data: countData } = useQuery({
     queryKey: ['customerNotificationCount'],
     queryFn: async () => {
-      const response = await apiClient.getCustomerNotificationCount();
-      if (response.error) {
-        throw new Error(response.error);
+      try {
+        const response = await apiClient.getCustomerNotificationCount();
+        if (response.error) {
+          // Log error but don't throw - return default value instead
+          console.warn('Failed to fetch notification count:', response.error);
+          return { unread_count: 0 };
+        }
+        return response.data || { unread_count: 0 };
+      } catch (error) {
+        // Handle any unexpected errors gracefully
+        console.warn('Error fetching notification count:', error);
+        return { unread_count: 0 };
       }
-      return response.data;
     },
     enabled: !!user,
     staleTime: 30 * 1000, // 30 seconds
     refetchInterval: 60 * 1000, // Refetch every minute
+    retry: 1, // Only retry once on failure
+    retryDelay: 2000, // Wait 2 seconds before retry
   });
 
   // Fetch latest 5 notifications
   const { data: notificationsData, isLoading } = useQuery({
     queryKey: ['customerNotifications', 'latest'],
     queryFn: async () => {
-      const response = await apiClient.getCustomerNotifications({
-        status: 'all',
-        limit: 5,
-      });
-      if (response.error) {
-        throw new Error(response.error);
+      try {
+        const response = await apiClient.getCustomerNotifications({
+          status: 'all',
+          limit: 5,
+        });
+        if (response.error) {
+          // Log error but don't throw - return empty array instead
+          console.warn('Failed to fetch notifications:', response.error);
+          return { notifications: [], unread_count: 0, total_count: 0 };
+        }
+        return response.data || { notifications: [], unread_count: 0, total_count: 0 };
+      } catch (error) {
+        // Handle any unexpected errors gracefully
+        console.warn('Error fetching notifications:', error);
+        return { notifications: [], unread_count: 0, total_count: 0 };
       }
-      return response.data;
     },
     enabled: !!user && isOpen,
     staleTime: 30 * 1000, // 30 seconds
+    retry: 1, // Only retry once on failure
+    retryDelay: 2000, // Wait 2 seconds before retry
   });
 
   // Mark as read mutation

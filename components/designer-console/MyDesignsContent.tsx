@@ -152,7 +152,7 @@ const makeAbsoluteUrl = (url: string | null | undefined): string | null => {
   return url;
 };
 
-// Helper function to get image URL from design, prioritizing JPG images
+// Helper function to get image URL from design, prioritizing AVIF files
 const getDesignImageUrl = (design: Design): string | null => {
   // Use media array (from ProductSerializer) or fallback to media_files
   const mediaArray = design.media || design.media_files || [];
@@ -165,27 +165,192 @@ const getDesignImageUrl = (design: Design): string | null => {
     return null;
   }
 
-  // First pass: Look for JPG/JPEG images
+  // Helper to check if item is AVIF
+  const isAvif = (item: any): boolean => {
+    const url = item?.url || item?.file_url || item?.file || '';
+    if (url.toLowerCase().endsWith('.avif')) return true;
+    return item?.is_avif === true;
+  };
+
+  // Helper to check if item is mockup
+  const isMockup = (item: any): boolean => {
+    return item?.is_mockup === true || 
+           (item?.url || item?.file_url || item?.file || '').toLowerCase().includes('mockup');
+  };
+
+  // First pass: Look for AVIF files (prioritize mockup AVIF)
+  const avifFiles: any[] = [];
+  const nonAvifFiles: any[] = [];
+  
   for (const media of mediaArray) {
     if (media.media_type === 'image' || !media.media_type) {
       const url = media.url || media.file_url || media.file;
       if (url) {
-        const urlLower = url.toLowerCase();
-        // Check if it's a JPG/JPEG file
-        if (urlLower.includes('.jpg') || urlLower.includes('.jpeg')) {
-          return makeAbsoluteUrl(url);
+        if (isAvif(media)) {
+          avifFiles.push(media);
+        } else {
+          nonAvifFiles.push(media);
         }
       }
     }
   }
+  
+  // Sort AVIF files: mockup first
+  avifFiles.sort((a, b) => {
+    if (isMockup(a) && !isMockup(b)) return -1;
+    if (!isMockup(a) && isMockup(b)) return 1;
+    return 0;
+  });
+  
+  // Return AVIF file if available
+  if (avifFiles.length > 0) {
+    const url = avifFiles[0].url || avifFiles[0].file_url || avifFiles[0].file;
+    return makeAbsoluteUrl(url);
+  }
 
-  // Second pass: Get first image (any format)
+  // Second pass: Look for JPG/JPEG images (non-AVIF)
+  for (const media of nonAvifFiles) {
+    const url = media.url || media.file_url || media.file;
+    if (url) {
+      const urlLower = url.toLowerCase();
+      if (urlLower.includes('.jpg') || urlLower.includes('.jpeg')) {
+        return makeAbsoluteUrl(url);
+      }
+    }
+  }
+
+  // Third pass: Get first image (any format)
+  for (const media of nonAvifFiles) {
+    const url = media.url || media.file_url || media.file;
+    if (url) {
+      return makeAbsoluteUrl(url);
+    }
+  }
+
+  // Fallback to thumbnail
+  if (design.thumbnail) {
+    return makeAbsoluteUrl(design.thumbnail);
+  }
+
+  return null;
+};
+
+// Helper function to get original JPG/PNG URL from design (for main previews)
+const getDesignOriginalImageUrl = (design: Design): string | null => {
+  // Use media array (from ProductSerializer) or fallback to media_files
+  const mediaArray = design.media || design.media_files || [];
+  
+  if (mediaArray.length === 0) {
+    // Fallback to thumbnail if available
+    if (design.thumbnail) {
+      return makeAbsoluteUrl(design.thumbnail);
+    }
+    return null;
+  }
+
+  // Helper to check if item is AVIF
+  const isAvif = (item: any): boolean => {
+    const url = item?.url || item?.file_url || item?.file || '';
+    if (url.toLowerCase().endsWith('.avif')) return true;
+    return item?.is_avif === true;
+  };
+
+  // Helper to check if item is mockup
+  const isMockup = (item: any): boolean => {
+    return item?.is_mockup === true || 
+           (item?.url || item?.file_url || item?.file || '').toLowerCase().includes('mockup');
+  };
+
+  // Helper to find original JPG/PNG for an AVIF file
+  const findOriginalForAvif = (avifItem: any, allMedia: any[]): string | null => {
+    const avifUrl = avifItem?.url || avifItem?.file_url || avifItem?.file || '';
+    if (!avifUrl.toLowerCase().endsWith('.avif')) return null;
+    
+    const avifFileName = avifUrl.split('/').pop() || '';
+    let baseName = avifFileName.replace(/\.avif$/i, '').replace(/_JPG$/i, '').replace(/_PNG$/i, '');
+    const isMockupAvif = avifFileName.toLowerCase().includes('_mockup');
+    
+    // Search for corresponding original file
+    for (const mediaItem of allMedia) {
+      const itemUrl = mediaItem?.url || mediaItem?.file_url || mediaItem?.file || '';
+      const itemFileName = itemUrl.split('/').pop() || '';
+      const itemUrlLower = itemUrl.toLowerCase();
+      const itemFileNameLower = itemFileName.toLowerCase();
+      
+      // Skip AVIF files
+      if (itemUrlLower.endsWith('.avif')) continue;
+      
+      // Check if it's the original file
+      if (isMockupAvif) {
+        if (itemFileNameLower.includes('_mockup') && 
+            (itemFileNameLower.endsWith('.jpg') || itemFileNameLower.endsWith('.jpeg') || itemFileNameLower.endsWith('.png'))) {
+          const itemBaseName = itemFileNameLower.replace(/\.(jpg|jpeg|png)$/, '');
+          if (itemBaseName === baseName.toLowerCase()) {
+            return makeAbsoluteUrl(itemUrl);
+          }
+        }
+      } else {
+        if ((itemFileNameLower.endsWith('.jpg') || itemFileNameLower.endsWith('.jpeg') || itemFileNameLower.endsWith('.png')) &&
+            !itemFileNameLower.includes('_mockup')) {
+          const itemBaseName = itemFileNameLower.replace(/\.(jpg|jpeg|png)$/, '');
+          if (itemBaseName === baseName.toLowerCase()) {
+            return makeAbsoluteUrl(itemUrl);
+          }
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  // Separate AVIF and non-AVIF files
+  const avifFiles: any[] = [];
+  const nonAvifFiles: any[] = [];
+  
   for (const media of mediaArray) {
     if (media.media_type === 'image' || !media.media_type) {
       const url = media.url || media.file_url || media.file;
       if (url) {
+        if (isAvif(media)) {
+          avifFiles.push(media);
+        } else {
+          nonAvifFiles.push(media);
+        }
+      }
+    }
+  }
+  
+  // Sort AVIF files: mockup first
+  avifFiles.sort((a, b) => {
+    if (isMockup(a) && !isMockup(b)) return -1;
+    if (!isMockup(a) && isMockup(b)) return 1;
+    return 0;
+  });
+  
+  // If we have AVIF files, find their original JPG/PNG
+  if (avifFiles.length > 0) {
+    const originalUrl = findOriginalForAvif(avifFiles[0], mediaArray);
+    if (originalUrl) {
+      return originalUrl;
+    }
+  }
+
+  // Fallback: Look for JPG/JPEG images (non-AVIF)
+  for (const media of nonAvifFiles) {
+    const url = media.url || media.file_url || media.file;
+    if (url) {
+      const urlLower = url.toLowerCase();
+      if (urlLower.includes('.jpg') || urlLower.includes('.jpeg') || urlLower.includes('.png')) {
         return makeAbsoluteUrl(url);
       }
+    }
+  }
+
+  // Final fallback: Get first image (any format)
+  for (const media of nonAvifFiles) {
+    const url = media.url || media.file_url || media.file;
+    if (url) {
+      return makeAbsoluteUrl(url);
     }
   }
 
@@ -1012,20 +1177,26 @@ export default function MyDesignsContent() {
 
               {/* Image Preview */}
               <div className="aspect-video bg-gradient-to-br from-primary/20 to-purple-500/20 rounded-lg mb-6 overflow-hidden">
-                {getDesignImageUrl(designDetail || selectedDesign) ? (
+                {getDesignOriginalImageUrl(designDetail || selectedDesign) ? (
                   <img 
-                    src={getDesignImageUrl(designDetail || selectedDesign) || ''} 
+                    src={getDesignOriginalImageUrl(designDetail || selectedDesign) || ''} 
                     alt={(designDetail || selectedDesign).title}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const parent = target.parentElement;
-                      if (parent && !parent.querySelector('.placeholder')) {
-                        const placeholder = document.createElement('div');
-                        placeholder.className = 'placeholder w-full h-full flex items-center justify-center';
-                        placeholder.innerHTML = '<svg class="w-16 h-16 text-muted-foreground/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>';
-                        parent.appendChild(placeholder);
+                      // Fallback to AVIF if original fails
+                      const avifUrl = getDesignImageUrl(designDetail || selectedDesign);
+                      if (avifUrl) {
+                        (e.target as HTMLImageElement).src = avifUrl;
+                      } else {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent && !parent.querySelector('.placeholder')) {
+                          const placeholder = document.createElement('div');
+                          placeholder.className = 'placeholder w-full h-full flex items-center justify-center';
+                          placeholder.innerHTML = '<svg class="w-16 h-16 text-muted-foreground/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>';
+                          parent.appendChild(placeholder);
+                        }
                       }
                     }}
                   />

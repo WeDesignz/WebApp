@@ -22,6 +22,200 @@ interface ContentProps {
 
 type Product = TransformedProduct;
 
+// Helper to construct AVIF URL from original URL
+const getAvifUrl = (url: string): string | null => {
+  if (!url) return null;
+  const urlLower = url.toLowerCase();
+  // Check if it's already an AVIF file
+  if (urlLower.endsWith('.avif')) {
+    return url;
+  }
+  
+  // For MOCKUP files: WDG00000001_MOCKUP.jpg -> WDG00000001_MOCKUP.avif
+  // Check for _mockup pattern (case insensitive) - must be before filename extension
+  if (urlLower.includes('_mockup')) {
+    // Replace the extension with .avif, preserving case of filename
+    const avifUrl = url.replace(/\.(jpg|jpeg|png)$/i, '.avif');
+    return avifUrl;
+  }
+  
+  // For regular files: WDG00000001.jpg -> WDG00000001_JPG.avif
+  if (urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg')) {
+    const avifUrl = url.replace(/\.(jpg|jpeg)$/i, '_JPG.avif');
+    return avifUrl;
+  } else if (urlLower.endsWith('.png')) {
+    const avifUrl = url.replace(/\.png$/i, '_PNG.avif');
+    return avifUrl;
+  }
+  
+  return null;
+};
+
+// Helper function to get image URL, ALWAYS preferring AVIF files
+const getImageUrl = (product: Product, preferAvif = true): string => {
+  // 🔍 DEBUG: Log product ID and media array
+  console.log(`[AVIF-DEBUG] getImageUrl called for product ${product.id}:`, {
+    mediaArrayLength: product.media?.length || 0,
+    firstMediaItem: product.media?.[0],
+    firstMediaItemType: typeof product.media?.[0],
+  });
+
+  if (!product.media || product.media.length === 0) {
+    console.log(`[AVIF-DEBUG] Product ${product.id}: No media found`);
+    return '';
+  }
+  
+  const mediaArray = product.media || [];
+  
+  // Helper to extract URL from media item (can be string or object)
+  const getUrl = (item: any): string => {
+    if (typeof item === 'string') return item;
+    return item?.url || item?.file || '';
+  };
+  
+  // Helper to check if item is AVIF
+  const isAvif = (url: string, item: any): boolean => {
+    const urlEndsWithAvif = url.toLowerCase().endsWith('.avif');
+    const itemHasIsAvif = typeof item === 'object' && item?.is_avif;
+    const result = urlEndsWithAvif || itemHasIsAvif;
+    
+    // 🔍 DEBUG: Log AVIF detection details
+    if (product.id <= 5) { // Only log for first few products to avoid spam
+      console.log(`[AVIF-DEBUG] isAvif check for product ${product.id}:`, {
+        url,
+        urlEndsWithAvif,
+        itemHasIsAvif,
+        itemType: typeof item,
+        itemIsAvif: item?.is_avif,
+        result,
+      });
+    }
+    
+    return result;
+  };
+  
+  // Helper to check if URL is mockup
+  const isMockup = (url: string, item: any): boolean => {
+    if (typeof item === 'object' && item?.is_mockup) return true;
+    const urlLower = url.toLowerCase();
+    // Check for _MOCKUP pattern (e.g., WDG00000046_MOCKUP.jpg)
+    return urlLower.includes('_mockup') || urlLower.includes('mockup');
+  };
+  
+  if (preferAvif) {
+    // First pass: Look for AVIF files (prioritize mockup AVIF)
+    const avifFiles: Array<{ url: string; isMockup: boolean }> = [];
+    const nonAvifFiles: Array<{ url: string; isMockup: boolean }> = [];
+    
+    for (const item of mediaArray) {
+      const url = getUrl(item);
+      if (!url) continue;
+      
+      const urlLower = url.toLowerCase();
+      const isImageFile = urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg') || 
+                         urlLower.endsWith('.png') || urlLower.endsWith('.avif');
+      if (!isImageFile) continue;
+      
+      const mockupStatus = isMockup(url, item);
+      const avifStatus = isAvif(url, item);
+      
+      if (avifStatus) {
+        avifFiles.push({ url, isMockup: mockupStatus });
+      } else {
+        nonAvifFiles.push({ url, isMockup: mockupStatus });
+      }
+    }
+    
+    // 🔍 DEBUG: Log AVIF detection results
+    if (product.id <= 5) {
+      console.log(`[AVIF-DEBUG] Product ${product.id} AVIF detection results:`, {
+        avifFilesCount: avifFiles.length,
+        avifFiles: avifFiles.map(f => ({ url: f.url, isMockup: f.isMockup })),
+        nonAvifFilesCount: nonAvifFiles.length,
+        nonAvifFiles: nonAvifFiles.slice(0, 3).map(f => ({ url: f.url, isMockup: f.isMockup })),
+      });
+    }
+    
+    // Sort AVIF files: mockup first
+    avifFiles.sort((a, b) => {
+      if (a.isMockup && !b.isMockup) return -1;
+      if (!a.isMockup && b.isMockup) return 1;
+      return 0;
+    });
+    
+    // Return AVIF file if available (prioritize mockup)
+    if (avifFiles.length > 0) {
+      const selectedUrl = avifFiles[0].url;
+      console.log(`[AVIF-DEBUG] Product ${product.id}: Selected AVIF URL:`, selectedUrl);
+      return selectedUrl;
+    }
+    
+    // Fallback: Try to construct AVIF URL from non-AVIF files (only if no AVIF exists)
+    nonAvifFiles.sort((a, b) => {
+      if (a.isMockup && !b.isMockup) return -1;
+      if (!a.isMockup && b.isMockup) return 1;
+      return 0;
+    });
+    
+    for (const { url } of nonAvifFiles) {
+      const avifUrl = getAvifUrl(url);
+      if (avifUrl && avifUrl !== url) {
+        console.log(`[AVIF-DEBUG] Product ${product.id}: Constructed AVIF URL:`, avifUrl);
+        return avifUrl;
+      }
+    }
+  }
+  
+  // Final fallback: Return first image (should rarely be reached)
+  const firstUrl = getUrl(mediaArray[0]);
+  console.log(`[AVIF-DEBUG] Product ${product.id}: Using fallback URL:`, firstUrl);
+  return firstUrl || '';
+};
+
+// Helper function to get original (non-AVIF) URL for preview
+const getOriginalImageUrl = (product: Product, currentUrl: string): string => {
+  if (!product.media || product.media.length === 0) {
+    return currentUrl;
+  }
+  
+  const mediaArray = product.media || [];
+  
+  // Helper to extract URL from media item
+  const getUrl = (item: any): string => {
+    if (typeof item === 'string') return item;
+    return item?.url || item?.file || '';
+  };
+  
+  // If current URL is AVIF, find the corresponding original
+  if (currentUrl.toLowerCase().endsWith('.avif')) {
+    // Extract base name (e.g., WDG00000001_MOCKUP.avif -> WDG00000001_MOCKUP)
+    const baseName = currentUrl.replace(/\.avif$/i, '');
+    
+    // Look for corresponding JPG or PNG
+    for (const item of mediaArray) {
+      const url = getUrl(item);
+      if (url && !url.toLowerCase().endsWith('.avif')) {
+        // Check if it matches the base name
+        const urlBase = url.replace(/\.(jpg|jpeg|png)$/i, '');
+        if (urlBase === baseName || urlBase.includes(baseName.split('_')[0])) {
+          return url;
+        }
+      }
+    }
+    
+    // Fallback: try to construct original URL
+    if (currentUrl.includes('_MOCKUP.avif')) {
+      return currentUrl.replace('_MOCKUP.avif', '_MOCKUP.jpg');
+    } else if (currentUrl.includes('_JPG.avif')) {
+      return currentUrl.replace('_JPG.avif', '.jpg');
+    } else if (currentUrl.includes('_PNG.avif')) {
+      return currentUrl.replace('_PNG.avif', '.png');
+    }
+  }
+  
+  return currentUrl;
+};
+
 // Helper function to check if a product is free
 const isProductFree = (product: Product): boolean => {
   // Check product_plan_type first
@@ -483,14 +677,22 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
                     onClick={() => handleProductClick(product)}
                     className="group relative aspect-[3/4] rounded-xl overflow-hidden bg-muted cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-border/50 hover:border-primary/30 dark:hover:border-primary/40"
                   >
-                    {product.media && product.media.length > 0 && product.media[0] ? (
+                    {product.media && product.media.length > 0 ? (
                       <img
-                        src={product.media[0]}
+                        src={getImageUrl(product, true)}
                         alt={product.title}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         onError={(e) => {
-                          // Hide image if it fails to load
-                          (e.target as HTMLImageElement).style.display = 'none';
+                          // Only fallback if AVIF truly fails to load
+                          const currentSrc = (e.target as HTMLImageElement).src;
+                          const fallbackUrl = getImageUrl(product, false);
+                          // Only switch if we're currently trying AVIF and fallback is different
+                          if (currentSrc.endsWith('.avif') && fallbackUrl !== currentSrc) {
+                            (e.target as HTMLImageElement).src = fallbackUrl;
+                          } else {
+                            // If fallback also fails, hide the image
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }
                         }}
                       />
                     ) : (
