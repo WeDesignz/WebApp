@@ -1038,7 +1038,7 @@ export default function DownloadMockPDFContent() {
                             const mediaItem = product.media[0];
                             if (!mediaItem) return '';
                             if (typeof mediaItem === 'string') return mediaItem;
-                            return mediaItem.url || mediaItem.file || '';
+                            return mediaItem.url || '';
                           })()}
                           alt={product.title}
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
