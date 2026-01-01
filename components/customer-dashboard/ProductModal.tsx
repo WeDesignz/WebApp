@@ -633,6 +633,13 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
       return;
     }
 
+    // Helper to get URL from media item (handles both string and object)
+    const getMediaUrl = (mediaItem: any): string => {
+      if (!mediaItem) return '';
+      if (typeof mediaItem === 'string') return mediaItem;
+      return mediaItem.url || mediaItem.file || '';
+    };
+
     const cartItem = {
       id: subProduct ? `${product.id}-${subProduct.id}` : `${product.id}`,
       productId: String(product.id),
@@ -640,7 +647,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
       designer: product.created_by,
       category: product.category,
       price: subProduct ? subProduct.price : product.sub_products[0]?.price || 0,
-      image: product.media[0] || '',
+      image: getMediaUrl(product.media[0]),
       tags: [product.category, product.product_plan_type],
       license: 'Standard License',
       subProductId: subProduct?.id,
@@ -774,6 +781,13 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
       return;
     }
 
+    // Helper to get URL from media item (handles both string and object)
+    const getMediaUrl = (mediaItem: any): string => {
+      if (!mediaItem) return '';
+      if (typeof mediaItem === 'string') return mediaItem;
+      return mediaItem.url || mediaItem.file || '';
+    };
+
     const wishlistItem = {
       id: String(product.id),
       productId: String(product.id),
@@ -781,7 +795,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
       designer: product.created_by,
       category: product.category,
       price: product.sub_products[0]?.price || 0,
-      image: product.media[0] || '',
+      image: getMediaUrl(product.media[0]),
       tags: [product.category, product.product_plan_type],
       isPremium: product.product_plan_type.toLowerCase().includes('premium'),
     };
