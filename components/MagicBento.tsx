@@ -36,7 +36,7 @@ const cardData: (BentoCardProps & { image?: string })[] = [
   { color: '#060010', title: 'Dashboard', description: 'Centralized data view', label: 'Overview', image: '/generated_images/Website_Mockup_Design_f379e810.png' },
   { color: '#060010', title: 'Collaboration', description: 'Work together seamlessly', label: 'Teamwork', image: '/generated_images/Creative_Character_Illustration_04c3e6df.png' },
   { color: '#060010', title: 'Automation', description: 'Streamline workflows', label: 'Efficiency', image: '/generated_images/3D_Product_Rendering_3967b01e.png' },
-  { color: '#060010', title: 'Integration', description: 'Connect favorite tools', label: 'Connectivity', image: '/generated_images/3D_Product_Rendering_3967b01e.png' },
+  { color: '#060010', title: 'Integration', description: 'Connect favorite tools', label: 'Connectivity', image: '/generated_images/Brand_Identity_Design_67fa7e1f.png' },
   { color: '#060010', title: 'Security', description: 'Enterprise-grade protection', label: 'Protection', image: '/generated_images/Typography_Poster_Design_be3980bc.png' }
 ];
 

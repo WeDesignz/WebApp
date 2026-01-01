@@ -1034,12 +1034,7 @@ export default function DownloadMockPDFContent() {
                     >
                       {product.media && product.media.length > 0 && product.media[0] ? (
                         <img
-                          src={(() => {
-                            const mediaItem = product.media[0];
-                            if (!mediaItem) return '';
-                            if (typeof mediaItem === 'string') return mediaItem;
-                            return mediaItem.url || '';
-                          })()}
+                          src={product.media[0]}
                           alt={product.title}
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                           onError={(e) => {

@@ -567,12 +567,12 @@ export default function CartContent() {
                     
                     <div className="w-32 h-32 rounded-lg overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
                     <img
-                        src={makeAbsoluteUrl(item.image) || ''}
+                        src={makeAbsoluteUrl(item.image) || '/generated_images/Brand_Identity_Design_67fa7e1f.png'}
                       alt={item.title}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
+                          target.src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
                         }}
                     />
                     </div>

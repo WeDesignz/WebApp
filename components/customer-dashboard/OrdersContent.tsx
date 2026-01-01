@@ -1027,39 +1027,22 @@ export default function OrdersContent() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {orderProductsData.products.map((product: any, index: number) => {
-                    // Extract product image from media array (prioritize AVIF files)
-                    let productImage = '';
+                    // Extract product image from media array (sorted: mockup first, then jpg/png, then others)
+                    let productImage = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
                     if (product.media && Array.isArray(product.media) && product.media.length > 0) {
-                      // First, look for AVIF files (prioritize mockup AVIF)
-                      const avifFiles = product.media.filter((m: any) => {
-                        const url = m.file_url || m.url || m.file || '';
-                        return m.is_avif === true || url.toLowerCase().endsWith('.avif');
-                      });
-                      
-                      if (avifFiles.length > 0) {
-                        // Sort AVIF files: mockup first
-                        avifFiles.sort((a: any, b: any) => {
-                          if (a.is_mockup && !b.is_mockup) return -1;
-                          if (!a.is_mockup && b.is_mockup) return 1;
-                          return 0;
-                        });
-                        const firstAvif = avifFiles[0];
-                        productImage = firstAvif.file_url || firstAvif.url || firstAvif.file || productImage;
-                      } else {
-                        // Fallback to first media (already sorted by ProductSerializer)
-                        const firstMedia = product.media[0];
-                        productImage = firstMedia.file_url || 
-                                      firstMedia.url || 
-                                      firstMedia.file ||
-                                      productImage;
-                      }
+                      // Media is already sorted by ProductSerializer (mockup first, then jpg/png)
+                      const firstMedia = product.media[0];
+                      productImage = firstMedia.file_url || 
+                                    firstMedia.url || 
+                                    firstMedia.file ||
+                                    productImage;
                     } else if (product.image) {
                       productImage = product.image;
                     }
                     
                     // Make absolute URL if needed
                     const makeAbsoluteUrl = (url: string): string => {
-                      if (!url) return '';
+                      if (!url) return '/generated_images/Brand_Identity_Design_67fa7e1f.png';
                       if (url.startsWith('http://') || url.startsWith('https://')) {
                         return url;
                       }
@@ -1090,7 +1073,7 @@ export default function OrdersContent() {
                               alt={productTitle}
                               className="w-full h-full object-cover"
                               onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
                               }}
                             />
                           </div>
