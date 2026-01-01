@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import CardSwap, { Card } from './CardSwap';
 import { apiClient } from '@/lib/api';
+import { preferAvifForDisplay } from '@/lib/utils/transformers';
 
 interface HeroDesign {
   id: number;
@@ -208,14 +209,19 @@ export default function HeroSection() {
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/70 z-10" />
                       {design.image ? (
                         <img 
-                          src={design.image} 
+                          src={preferAvifForDisplay(design.image) || design.image} 
                           alt={design.title}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
-                            // Use a data URI placeholder to prevent 404 loops
-                            target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%231a1a1a" width="400" height="400"/%3E%3Ctext fill="%23ffffff" font-family="Arial" font-size="18" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage not available%3C/text%3E%3C/svg%3E';
-                            target.onerror = null; // Prevent infinite loop
+                            // Fallback to original URL if AVIF fails
+                            if (target.src !== design.image && design.image) {
+                              target.src = design.image;
+                            } else {
+                              // Use a data URI placeholder to prevent 404 loops
+                              target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%231a1a1a" width="400" height="400"/%3E%3Ctext fill="%23ffffff" font-family="Arial" font-size="18" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage not available%3C/text%3E%3C/svg%3E';
+                              target.onerror = null; // Prevent infinite loop
+                            }
                           }}
                         />
                       ) : (

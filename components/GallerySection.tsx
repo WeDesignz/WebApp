@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import DomeGallery from './DomeGallery';
 import { apiClient } from '@/lib/api';
+import { preferAvifForDisplay } from '@/lib/utils/transformers';
 
 interface GalleryImage {
   src: string;
@@ -22,7 +23,11 @@ export default function GallerySection() {
         if (apiClient.catalogAPI?.getDomeGalleryImages) {
           response = await apiClient.catalogAPI.getDomeGalleryImages();
           if (response.data?.images) {
-            setGalleryImages(response.data.images);
+            const transformedImages = response.data.images.map((img: GalleryImage) => ({
+              ...img,
+              src: preferAvifForDisplay(img.src) || img.src
+            }));
+            setGalleryImages(transformedImages);
             setIsLoading(false);
             return;
           }
@@ -34,7 +39,11 @@ export default function GallerySection() {
         const data = await fetchResponse.json();
         
         if (data.images) {
-          setGalleryImages(data.images);
+          const transformedImages = data.images.map((img: GalleryImage) => ({
+            ...img,
+            src: preferAvifForDisplay(img.src) || img.src
+          }));
+          setGalleryImages(transformedImages);
         }
       } catch (error) {
         console.error('Error fetching gallery images:', error);

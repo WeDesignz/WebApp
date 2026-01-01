@@ -17,6 +17,7 @@ import SpotlightFeatures from "@/components/SpotlightFeatures";
 import CardSlider from "@/components/CardSlider";
 import Particles from "@/components/Particles";
 import { apiClient } from "@/lib/api";
+import { preferAvifForDisplay } from "@/lib/utils/transformers";
 
 interface FeaturedDesign {
   id: number;
@@ -50,7 +51,7 @@ export default function Page() {
             creator: design.creator,
             price: design.price,
             category: design.category,
-            image: design.image || undefined,
+            image: design.image ? preferAvifForDisplay(design.image) || design.image : undefined,
           }));
           setFeaturedDesigns(transformedDesigns);
         } else {
