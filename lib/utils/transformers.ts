@@ -14,7 +14,13 @@ export interface TransformedProduct {
   created_at: string;
   updated_by: string;
   updated_at: string;
-  media: string[];
+  media: Array<string | {
+    url: string;
+    is_mockup?: boolean;
+    is_png?: boolean;
+    is_avif?: boolean;
+    file_name?: string;
+  }>;
   sub_products: {
     id: number;
     product_number: string;
@@ -55,12 +61,12 @@ export function transformProduct(apiProduct: any): TransformedProduct {
   };
   const transformedStatus = statusMap[apiProduct.status?.toLowerCase()] || 'Active';
   
-  // Extract media URLs from media array with priority: mockup > .png > others
+  // Extract media URLs from media array with priority: AVIF mockup > AVIF JPG/PNG > mockup > .png > others
   const mediaItems = (apiProduct.media || []).map((mediaItem: any) => {
     if (typeof mediaItem === 'string') {
-      return { url: mediaItem, is_mockup: false, is_png: false, file_name: '' };
+      return { url: mediaItem, is_mockup: false, is_png: false, is_avif: false, file_name: '' };
     }
-    // Handle media object structure: backend returns {file: url, url: url, file_name: ...}
+    // Handle media object structure: backend returns {file: url, url: url, file_name: ..., is_avif: ...}
     // file and url are both strings (absolute URLs) from the backend
     const url = mediaItem?.url || mediaItem?.file || (typeof mediaItem?.file === 'string' ? mediaItem.file : '') || '';
     const file_name = mediaItem?.file_name || '';
@@ -72,27 +78,38 @@ export function transformProduct(apiProduct: any): TransformedProduct {
     // Check if it's a .png file
     const is_png = mediaItem?.is_jpg_png || (file_name && fileNameLower.endsWith('.png'));
     
+    // PRESERVE is_avif flag from backend
+    const is_avif = mediaItem?.is_avif || (file_name && fileNameLower.endsWith('.avif'));
+    
     return {
       url,
       is_mockup,
       is_png,
+      is_avif,
       file_name,
     };
   }).filter((item: any) => item.url && item.url.trim() !== '');
 
-  // Sort media: mockup first, then .png, then others
+  // Sort media: AVIF mockup first, then AVIF JPG/PNG, then mockup, then png, then others
   mediaItems.sort((a: any, b: any) => {
-    // Priority 1: Mockup files
+    // Priority 1: AVIF mockup files
+    if (a.is_avif && a.is_mockup && !(b.is_avif && b.is_mockup)) return -1;
+    if (!(a.is_avif && a.is_mockup) && b.is_avif && b.is_mockup) return 1;
+    // Priority 2: AVIF JPG/PNG files
+    if (a.is_avif && !b.is_avif) return -1;
+    if (!a.is_avif && b.is_avif) return 1;
+    // Priority 3: Mockup files
     if (a.is_mockup && !b.is_mockup) return -1;
     if (!a.is_mockup && b.is_mockup) return 1;
-    // Priority 2: PNG files
+    // Priority 4: PNG files
     if (a.is_png && !b.is_png) return -1;
     if (!a.is_png && b.is_png) return 1;
     return 0;
   });
 
-  // Extract URLs in priority order - only include valid URLs
-  const mediaUrls = mediaItems.map((item: any) => item.url).filter((url: string) => url && url.trim() !== '');
+  // DON'T extract just URLs - preserve the full objects for getImageUrl to use
+  // This allows the frontend to properly detect AVIF files
+  const mediaUrls = mediaItems; // Keep full objects with metadata
 
   // Transform sub_products if they exist, otherwise create empty array
   // Note: Backend might not have sub_products, so we'll create a default one from the product
@@ -141,7 +158,7 @@ export function transformProduct(apiProduct: any): TransformedProduct {
     created_at: apiProduct.created_at || new Date().toISOString(),
     updated_by: updatedBy,
     updated_at: apiProduct.updated_at || new Date().toISOString(),
-    media: mediaUrls, // No fallback - only show actual media URLs
+    media: mediaUrls, // Contains objects with metadata (url, is_avif, is_mockup, etc.)
     sub_products: subProducts,
   };
 }
