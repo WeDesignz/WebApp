@@ -55,10 +55,12 @@ export function transformProduct(apiProduct: any): TransformedProduct {
   };
   const transformedStatus = statusMap[apiProduct.status?.toLowerCase()] || 'Active';
   
-  // Extract media URLs from media array with priority: mockup > .png > others
+  // Extract media URLs from media array with priority: AVIF mockup > AVIF JPG/PNG > mockup > JPG/PNG > others
   const mediaItems = (apiProduct.media || []).map((mediaItem: any) => {
     if (typeof mediaItem === 'string') {
-      return { url: mediaItem, is_mockup: false, is_png: false, file_name: '' };
+      const urlLower = mediaItem.toLowerCase();
+      const is_avif = urlLower.endsWith('.avif');
+      return { url: mediaItem, is_mockup: false, is_png: false, is_jpg_png: false, is_avif, file_name: '' };
     }
     // Handle media object structure: backend returns {file: url, url: url, file_name: ...}
     // file and url are both strings (absolute URLs) from the backend
@@ -69,25 +71,39 @@ export function transformProduct(apiProduct: any): TransformedProduct {
     const fileNameLower = file_name.toLowerCase();
     const is_mockup = mediaItem?.is_mockup || (file_name && fileNameLower.includes('mockup'));
     
-    // Check if it's a .png file
+    // Check if it's a JPG or PNG file
+    const is_jpg_png = mediaItem?.is_jpg_png || (file_name && (fileNameLower.endsWith('.jpg') || fileNameLower.endsWith('.jpeg') || fileNameLower.endsWith('.png')));
+    
+    // Check if it's a PNG file (for backward compatibility)
     const is_png = mediaItem?.is_jpg_png || (file_name && fileNameLower.endsWith('.png'));
+    
+    // Check if it's an AVIF file
+    const is_avif = mediaItem?.is_avif || (file_name && fileNameLower.endsWith('.avif')) || (url.toLowerCase().endsWith('.avif'));
     
     return {
       url,
       is_mockup,
       is_png,
+      is_jpg_png,
+      is_avif,
       file_name,
     };
   }).filter((item: any) => item.url && item.url.trim() !== '');
 
-  // Sort media: mockup first, then .png, then others
+  // Sort media: AVIF mockup first, then AVIF JPG/PNG, then mockup, then JPG/PNG, then others
   mediaItems.sort((a: any, b: any) => {
-    // Priority 1: Mockup files
+    // Priority 1: AVIF mockup files
+    if (a.is_avif && a.is_mockup && !(b.is_avif && b.is_mockup)) return -1;
+    if (b.is_avif && b.is_mockup && !(a.is_avif && a.is_mockup)) return 1;
+    // Priority 2: AVIF JPG/PNG files
+    if (a.is_avif && a.is_jpg_png && !(b.is_avif && b.is_jpg_png)) return -1;
+    if (b.is_avif && b.is_jpg_png && !(a.is_avif && a.is_jpg_png)) return 1;
+    // Priority 3: Regular mockup files (non-AVIF)
     if (a.is_mockup && !b.is_mockup) return -1;
     if (!a.is_mockup && b.is_mockup) return 1;
-    // Priority 2: PNG files
-    if (a.is_png && !b.is_png) return -1;
-    if (!a.is_png && b.is_png) return 1;
+    // Priority 4: Regular JPG/PNG files (non-AVIF)
+    if (a.is_jpg_png && !b.is_jpg_png) return -1;
+    if (!a.is_jpg_png && b.is_jpg_png) return 1;
     return 0;
   });
 
