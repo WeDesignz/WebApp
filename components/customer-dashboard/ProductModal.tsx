@@ -62,334 +62,23 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
   const product = productData?.transformed || initialProduct;
   const rawProduct = productData?.raw || null;
 
-  // Helper to get AVIF URL from original URL
-  const getAvifUrl = (url: string): string | null => {
-    if (!url) return null;
-    const urlLower = url.toLowerCase();
-    // Check if it's already an AVIF file
-    if (urlLower.endsWith('.avif')) {
-      return url;
-    }
-    // For MOCKUP files: WDG00000001_MOCKUP.jpg -> WDG00000001_MOCKUP.avif
-    if (urlLower.includes('_mockup.')) {
-      return url.replace(/\.(jpg|jpeg|png)$/i, '.avif');
-    }
-    // For regular files: WDG00000001.jpg -> WDG00000001_JPG.avif
-    if (urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg')) {
-      return url.replace(/\.(jpg|jpeg)$/i, '_JPG.avif');
-    } else if (urlLower.endsWith('.png')) {
-      return url.replace(/\.png$/i, '_PNG.avif');
-    }
-    return null;
-  };
-
-  // Helper to get original (non-AVIF) URL
-  const getOriginalUrl = (url: string): string => {
-    if (!url) return url;
-    const urlLower = url.toLowerCase();
-    // If already original, return as is
-    if (!urlLower.endsWith('.avif')) return url;
-    
-    // Extract directory and filename
-    const lastSlash = url.lastIndexOf('/');
-    const dir = lastSlash >= 0 ? url.substring(0, lastSlash + 1) : '';
-    const filename = lastSlash >= 0 ? url.substring(lastSlash + 1) : url;
-    
-    // For MOCKUP files: WDG00000001_MOCKUP.avif -> WDG00000001_MOCKUP.jpg
-    if (urlLower.includes('_mockup.avif')) {
-      // Try .jpg first, then .png
-      return dir + filename.replace(/\.avif$/i, '.jpg');
-    }
-    
-    // For files with _JPG suffix: WDG00000001_JPG.avif -> WDG00000001.jpg
-    if (urlLower.includes('_jpg.avif')) {
-      return dir + filename.replace(/_JPG\.avif$/i, '.jpg');
-    }
-    
-    // For files with _PNG suffix: WDG00000001_PNG.avif -> WDG00000001.png
-    if (urlLower.includes('_png.avif')) {
-      return dir + filename.replace(/_PNG\.avif$/i, '.png');
-    }
-    
-    // For regular files: WDG00000001.avif -> WDG00000001.jpg (fallback)
-    return dir + filename.replace(/\.avif$/i, '.jpg');
-  };
-
-  // Helper to find original JPG/PNG file for an AVIF file
-  const findOriginalFile = (avifItem: any, mediaArray: any[], avifIndex?: number): string | null => {
-    if (!avifItem) return null;
-    
-    const avifUrl = typeof avifItem === 'string' ? avifItem : (avifItem?.url || avifItem?.file || '');
-    if (!avifUrl.toLowerCase().endsWith('.avif')) return null;
-    
-    const avifFileName = avifUrl.split('/').pop() || '';
-    const avifFileNameLower = avifFileName.toLowerCase();
-    const isMockupAvif = avifFileNameLower.includes('_mockup');
-    
-    // Extract the full base name (including any suffixes before .avif)
-    // e.g., WDG00000001_MOCKUP.avif -> WDG00000001_MOCKUP
-    // e.g., WDG00000001_JPG.avif -> WDG00000001_JPG
-    let baseName = avifFileName.replace(/\.avif$/i, '');
-    
-    // Get the directory path to help with matching
-    const avifDir = avifUrl.substring(0, avifUrl.lastIndexOf('/'));
-    
-    // Get AVIF media item ID if available (for more precise matching)
-    const avifMediaId = typeof avifItem === 'object' ? avifItem?.id : null;
-    
-    // Try exact match first (most precise) - match by full path and filename
-    // Also try to match by position in array if IDs are not available
-    const candidates: Array<{ url: string; score: number }> = [];
-    
-    for (let i = 0; i < mediaArray.length; i++) {
-      const mediaItem = mediaArray[i];
-      const itemUrl = typeof mediaItem === 'string' ? mediaItem : (mediaItem?.url || mediaItem?.file || '');
-      const itemUrlLower = itemUrl.toLowerCase();
-      
-      // Skip AVIF files
-      if (itemUrlLower.endsWith('.avif')) continue;
-      
-      const itemFileName = itemUrl.split('/').pop() || '';
-      const itemFileNameLower = itemFileName.toLowerCase();
-      const itemDir = itemUrl.substring(0, itemUrl.lastIndexOf('/'));
-      const itemMediaId = typeof mediaItem === 'object' ? mediaItem?.id : null;
-      
-      let score = 0;
-      let isMatch = false;
-      
-      // For mockup AVIF, look for exact mockup match
-      if (isMockupAvif) {
-        if (itemFileNameLower.includes('_mockup') && 
-            (itemFileNameLower.endsWith('.jpg') || itemFileNameLower.endsWith('.jpeg') || itemFileNameLower.endsWith('.png'))) {
-          // Try exact match: WDG00000001_MOCKUP.avif -> WDG00000001_MOCKUP.jpg
-          const itemBaseName = itemFileNameLower.replace(/\.(jpg|jpeg|png)$/, '');
-          if (itemBaseName === baseName.toLowerCase()) {
-            isMatch = true;
-            score = 100; // Base match score
-            
-            // Bonus points for same directory
-            if (itemDir === avifDir) {
-              score += 50;
-            }
-            
-            // Bonus points if media IDs match (if available)
-            if (avifMediaId && itemMediaId && avifMediaId === itemMediaId) {
-              score += 100;
-            }
-            
-            // Bonus points for being close in array position (if indices are similar)
-            if (avifIndex !== undefined && Math.abs(i - avifIndex) < 3) {
-              score += 10;
-            }
-          }
-        }
-      } else {
-        // For regular design AVIF
-        if ((itemFileNameLower.endsWith('.jpg') || itemFileNameLower.endsWith('.jpeg') || itemFileNameLower.endsWith('.png')) &&
-            !itemFileNameLower.includes('_mockup')) {
-          const itemBaseName = itemFileNameLower.replace(/\.(jpg|jpeg|png)$/, '');
-          
-          // Remove _JPG or _PNG from AVIF base name for comparison
-          const avifBaseForMatch = baseName.replace(/_JPG$/i, '').replace(/_PNG$/i, '');
-          const itemBaseForMatch = itemBaseName.replace(/_JPG$/i, '').replace(/_PNG$/i, '');
-          
-          if (itemBaseForMatch === avifBaseForMatch.toLowerCase()) {
-            isMatch = true;
-            score = 100; // Base match score
-            
-            // Bonus points for same directory
-            if (itemDir === avifDir) {
-              score += 50;
-            }
-            
-            // Bonus points if media IDs match (if available)
-            if (avifMediaId && itemMediaId && avifMediaId === itemMediaId) {
-              score += 100;
-            }
-            
-            // Bonus points for being close in array position
-            if (avifIndex !== undefined && Math.abs(i - avifIndex) < 3) {
-              score += 10;
-            }
-          }
-        }
-      }
-      
-      if (isMatch) {
-        candidates.push({ url: itemUrl, score });
-      }
-    }
-    
-    // Return the candidate with the highest score
-    if (candidates.length > 0) {
-      candidates.sort((a, b) => b.score - a.score);
-      return candidates[0].url;
-    }
-    
-    // Fallback: try to construct URL from AVIF filename
-    return getOriginalUrl(avifUrl);
-  };
-
-  // Organize media by type: prioritize AVIF files
+  // Organize media by type: mockup vs design (JPG/PNG)
   const organizeMediaByType = () => {
     const mediaArray = rawProduct?.media || product.media || [];
-    const mockupImages: { url: string; avifUrl: string | null; originalUrl: string; index: number }[] = [];
-    const designImages: { url: string; avifUrl: string | null; originalUrl: string; index: number }[] = [];
-
-    // Build maps for efficient lookup
-    // Map AVIF URLs to their corresponding original JPG/PNG URLs from the media array
-    const avifToOriginalMap = new Map<string, string>();
-    
-    // Helper function to extract base name from filename (removing random suffixes)
-    const getBaseName = (filename: string, isAvif: boolean = false): string => {
-      let baseName = filename.toLowerCase();
-      
-      // Remove extension
-      if (isAvif) {
-        baseName = baseName.replace(/\.avif$/, '');
-      } else {
-        baseName = baseName.replace(/\.(jpg|jpeg|png)$/, '');
-      }
-      
-      // Remove random suffix pattern (e.g., _eNarIlh, _nfIoUmh, _oVHZGT7) - 6-8 alphanumeric chars
-      // Handle _MOCKUP suffix specially
-      if (baseName.includes('_mockup')) {
-        // Keep _MOCKUP, remove random suffix after it
-        baseName = baseName.replace(/_mockup_[a-z0-9]{6,8}$/i, '_mockup');
-      } else {
-        // Remove random suffix at the end (but preserve _JPG/_PNG if present in AVIF)
-        if (isAvif) {
-          // For AVIF, remove _JPG/_PNG first, then remove random suffix
-          baseName = baseName.replace(/_jpg$/i, '').replace(/_png$/i, '');
-        }
-        // Remove random suffix (6-8 alphanumeric chars after underscore)
-        baseName = baseName.replace(/_[a-z0-9]{6,8}$/i, '');
-      }
-      
-      return baseName;
-    };
-    
-    // First, collect all non-AVIF JPG/PNG files with their base names for matching
-    const originalFilesByBaseName = new Map<string, Array<{ url: string; mediaItem: any }>>();
-    
-    // Process all media to build relationships
-    mediaArray.forEach((mediaItem: any, index: number) => {
-      const url = typeof mediaItem === 'string' ? mediaItem : (mediaItem?.url || mediaItem?.file || mediaItem?.file_url || '');
-      if (!url) return;
-      
-      const urlLower = url.toLowerCase();
-      const fileName = typeof mediaItem === 'string' ? url.split('/').pop() || '' : (mediaItem?.file_name || url.split('/').pop() || '');
-      
-      // If it's a JPG/PNG (not AVIF), store it for matching
-      if (!urlLower.endsWith('.avif') && 
-          (urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg') || urlLower.endsWith('.png'))) {
-        const baseName = getBaseName(fileName, false);
-        
-        // Store multiple files with same base name (in case there are duplicates)
-        if (!originalFilesByBaseName.has(baseName)) {
-          originalFilesByBaseName.set(baseName, []);
-        }
-        originalFilesByBaseName.get(baseName)!.push({ url, mediaItem });
-      }
-    });
-    
-    // Now match AVIF files to their originals
-    // Track which originals have been matched to avoid duplicates
-    const matchedOriginals = new Set<string>();
-    
-    mediaArray.forEach((mediaItem: any, index: number) => {
-      const url = typeof mediaItem === 'string' ? mediaItem : (mediaItem?.url || mediaItem?.file || mediaItem?.file_url || '');
-      if (!url) return;
-      
-      const urlLower = url.toLowerCase();
-      
-      if (urlLower.endsWith('.avif')) {
-        // This is an AVIF file, find its original
-        const fileName = typeof mediaItem === 'string' ? url.split('/').pop() || '' : (mediaItem?.file_name || url.split('/').pop() || '');
-        const baseName = getBaseName(fileName, true);
-        const avifMediaId = typeof mediaItem === 'object' ? mediaItem?.id : null;
-        
-        // Try to find matching original file(s)
-        const matchingOriginals = originalFilesByBaseName.get(baseName);
-        if (matchingOriginals && matchingOriginals.length > 0) {
-          let bestMatch = null;
-          let bestScore = -1;
-          
-          // Score each potential match
-          for (const original of matchingOriginals) {
-            // Skip if this original has already been matched (unless it's the only match)
-            if (matchedOriginals.has(original.url) && matchingOriginals.length > 1) {
-              continue;
-            }
-            
-            let score = 0;
-            const originalMediaId = typeof original.mediaItem === 'object' ? original.mediaItem?.id : null;
-            
-            // Check metadata for relationship (e.g., original_media_path in AVIF metadata)
-            if (typeof mediaItem === 'object' && mediaItem?.meta) {
-              const meta = typeof mediaItem.meta === 'string' ? JSON.parse(mediaItem.meta) : mediaItem.meta;
-              if (meta?.original_media_path === original.url) {
-                score += 1000; // Very high score for explicit relationship
-              }
-            }
-            
-            // Check if media IDs are related (e.g., AVIF was created from this original)
-            // This would require checking Relation table, but we can use position as proxy
-            // Files created together are usually close in the array
-            const originalIndex = mediaArray.findIndex((item: any) => {
-              const itemUrl = typeof item === 'string' ? item : (item?.url || item?.file || '');
-              return itemUrl === original.url;
-            });
-            
-            if (originalIndex !== -1) {
-              // Closer in array = more likely to be related
-              const distance = Math.abs(index - originalIndex);
-              score += Math.max(0, 100 - distance * 10);
-            }
-            
-            // Prefer files in the same directory
-            const avifDir = url.substring(0, url.lastIndexOf('/'));
-            const originalDir = original.url.substring(0, original.url.lastIndexOf('/'));
-            if (avifDir === originalDir) {
-              score += 50;
-            }
-            
-            // If this is the best match so far, use it
-            if (score > bestScore) {
-              bestScore = score;
-              bestMatch = original;
-            }
-          }
-          
-          // If we found a match, use it and mark it as matched
-          if (bestMatch) {
-            avifToOriginalMap.set(url, bestMatch.url);
-            matchedOriginals.add(bestMatch.url);
-          } else if (matchingOriginals.length > 0) {
-            // If all originals are already matched, use the first one anyway
-            // (better than no match)
-            avifToOriginalMap.set(url, matchingOriginals[0].url);
-          }
-        }
-      }
-    });
+    const mockupImages: { url: string; index: number }[] = [];
+    const designImages: { url: string; index: number }[] = [];
 
     mediaArray.forEach((mediaItem: any, index: number) => {
       let url = '';
       let isMockup = false;
       let isDesign = false;
-      let isAvif = false;
 
       if (typeof mediaItem === 'string') {
         url = mediaItem;
-        isAvif = url.toLowerCase().endsWith('.avif');
       } else {
-        url = mediaItem?.url || mediaItem?.file || mediaItem?.file_url || '';
+        url = mediaItem?.url || mediaItem?.file || '';
         const fileName = (mediaItem?.file_name || '').toLowerCase();
         const urlLower = url.toLowerCase();
-        
-        // Check if it's AVIF
-        isAvif = mediaItem?.is_avif === true || urlLower.endsWith('.avif');
         
         // Check if it's a mockup
         isMockup = mediaItem?.is_mockup === true || 
@@ -408,55 +97,10 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
       }
 
       if (url && url.trim() !== '') {
-        // If it's already AVIF, use it directly
-        // Otherwise, try to get AVIF URL
-        const avifUrl = isAvif ? url : getAvifUrl(url);
-        
-        // Find original file: if AVIF, find corresponding JPG/PNG; otherwise use current URL
-        let originalUrl: string;
-        if (isAvif) {
-          // First try the pre-built map (most reliable - uses actual file URLs)
-          if (avifToOriginalMap.has(url)) {
-            originalUrl = avifToOriginalMap.get(url)!;
-          } else {
-            // Try to find from media array using findOriginalFile (more precise matching)
-            const foundOriginal = findOriginalFile(mediaItem, mediaArray, index);
-            if (foundOriginal && !foundOriginal.toLowerCase().endsWith('.avif')) {
-              originalUrl = foundOriginal;
-              // Also add it to the map for future reference
-              avifToOriginalMap.set(url, foundOriginal);
-            } else {
-              // Try to construct URL from AVIF filename as last resort
-              const constructedOriginal = getOriginalUrl(url);
-              if (constructedOriginal && !constructedOriginal.toLowerCase().endsWith('.avif')) {
-                originalUrl = constructedOriginal;
-                avifToOriginalMap.set(url, constructedOriginal);
-              } else {
-                // Last resort: use AVIF as fallback (prevents 404 errors)
-                originalUrl = url;
-              }
-            }
-          }
-        } else {
-          // For non-AVIF files, the current URL is the original
-          // But make sure it's a JPG/PNG, not other formats
-          const urlLower = url.toLowerCase();
-          if (urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg') || urlLower.endsWith('.png')) {
-            originalUrl = url;
-          } else {
-            // For other formats, keep as is
-            originalUrl = url;
-          }
-        }
-        
-        // For thumbnails: use AVIF if available, otherwise use original
-        // For main preview: we'll use originalUrl directly
-        const displayUrl = isAvif ? url : (avifUrl || url);
-        
         if (isMockup) {
-          mockupImages.push({ url: displayUrl, avifUrl: isAvif ? url : avifUrl, originalUrl, index });
-        } else if (isDesign || isAvif) {
-          designImages.push({ url: displayUrl, avifUrl: isAvif ? url : avifUrl, originalUrl, index });
+          mockupImages.push({ url, index });
+        } else if (isDesign) {
+          designImages.push({ url, index });
         }
       }
     });
@@ -633,13 +277,6 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
       return;
     }
 
-    // Helper to get URL from media item (handles both string and object)
-    const getMediaUrl = (mediaItem: any): string => {
-      if (!mediaItem) return '';
-      if (typeof mediaItem === 'string') return mediaItem;
-      return mediaItem.url || mediaItem.file || '';
-    };
-
     const cartItem = {
       id: subProduct ? `${product.id}-${subProduct.id}` : `${product.id}`,
       productId: String(product.id),
@@ -647,7 +284,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
       designer: product.created_by,
       category: product.category,
       price: subProduct ? subProduct.price : product.sub_products[0]?.price || 0,
-      image: getMediaUrl(product.media[0]),
+      image: product.media[0] || '/generated_images/Brand_Identity_Design_67fa7e1f.png',
       tags: [product.category, product.product_plan_type],
       license: 'Standard License',
       subProductId: subProduct?.id,
@@ -781,13 +418,6 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
       return;
     }
 
-    // Helper to get URL from media item (handles both string and object)
-    const getMediaUrl = (mediaItem: any): string => {
-      if (!mediaItem) return '';
-      if (typeof mediaItem === 'string') return mediaItem;
-      return mediaItem.url || mediaItem.file || '';
-    };
-
     const wishlistItem = {
       id: String(product.id),
       productId: String(product.id),
@@ -795,7 +425,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
       designer: product.created_by,
       category: product.category,
       price: product.sub_products[0]?.price || 0,
-      image: getMediaUrl(product.media[0]),
+      image: product.media[0] || '/generated_images/Brand_Identity_Design_67fa7e1f.png',
       tags: [product.category, product.product_plan_type],
       isPremium: product.product_plan_type.toLowerCase().includes('premium'),
     };
@@ -1112,103 +742,17 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                         {currentImages.length > 0 && currentImages[selectedImageIndex] ? (
                           <>
                             <img
-                              key={`main-preview-${selectedImageIndex}-${selectedImageType}`}
-                              src={(() => {
-                                // Use AVIF for modal main preview (optimized for web)
-                                const selectedImage = currentImages[selectedImageIndex];
-                                if (!selectedImage) {
-                                  return '';
-                                }
-                                
-                                // Prioritize AVIF URL if available
-                                const avifUrl = selectedImage.avifUrl || selectedImage.url;
-                                if (avifUrl && avifUrl.toLowerCase().endsWith('.avif')) {
-                                  return avifUrl;
-                                }
-                                
-                                // Fallback to regular URL (should be AVIF from organizeMediaByType)
-                                return selectedImage.url || '';
-                              })()}
+                              src={currentImages[selectedImageIndex].url}
                               alt={`${product.title} - ${selectedImageType === 'mockup' ? 'Mockup' : 'Design'} ${selectedImageIndex + 1}`}
                               className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
                               onError={(e) => {
-                                // Fallback to AVIF if original fails, then to default
-                                const currentSrc = (e.target as HTMLImageElement).src;
-                                const selectedImage = currentImages[selectedImageIndex];
-                                if (selectedImage) {
-                                  const avifUrl = selectedImage.avifUrl || selectedImage.url;
-                                  if (avifUrl && avifUrl !== currentSrc && avifUrl.toLowerCase().endsWith('.avif')) {
-                                    (e.target as HTMLImageElement).src = avifUrl;
-                                  } else {
-                                    // Hide image on error instead of showing placeholder
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                  }
-                                }
+                                (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
                               }}
                             />
                             
                             {/* Hover Overlay with Eye Icon */}
                             <button
-                              onClick={() => {
-                                // Use original URL for full preview (high quality JPG/PNG, never AVIF)
-                                const selectedImage = currentImages[selectedImageIndex];
-                                let originalUrl = selectedImage.originalUrl;
-                                
-                                // Ensure we have a non-AVIF URL for full screen preview
-                                if (!originalUrl || originalUrl.toLowerCase().endsWith('.avif')) {
-                                  const currentUrl = selectedImage.url;
-                                  const urlLower = currentUrl.toLowerCase();
-                                  
-                                  // If current URL is already JPG/PNG, use it
-                                  if (urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg') || urlLower.endsWith('.png')) {
-                                    originalUrl = currentUrl;
-                                  } else if (urlLower.endsWith('.avif')) {
-                                    // Construct original URL from AVIF - try multiple methods
-                                    originalUrl = getOriginalUrl(currentUrl);
-                                    
-                                    // If construction failed, try to find original in media array
-                                    if (!originalUrl || originalUrl.toLowerCase().endsWith('.avif')) {
-                                      const mediaArray = rawProduct?.media || product.media || [];
-                                      const avifFileName = currentUrl.split('/').pop() || '';
-                                      
-                                      // Try to find corresponding JPG/PNG in media array
-                                      for (const mediaItem of mediaArray) {
-                                        const itemUrl = typeof mediaItem === 'string' 
-                                          ? mediaItem 
-                                          : (mediaItem?.url || mediaItem?.file || '');
-                                        if (!itemUrl) continue;
-                                        
-                                        const itemUrlLower = itemUrl.toLowerCase();
-                                        // Skip AVIF files
-                                        if (itemUrlLower.endsWith('.avif')) continue;
-                                        
-                                        // Check if it matches the AVIF file (same base name)
-                                        const itemFileName = itemUrl.split('/').pop() || '';
-                                        const baseName = avifFileName.replace(/\.avif$/i, '').replace(/_jpg$/i, '').replace(/_png$/i, '').replace(/_mockup$/i, '');
-                                        const itemBaseName = itemFileName.replace(/\.(jpg|jpeg|png)$/i, '').replace(/_mockup$/i, '');
-                                        
-                                        if (baseName === itemBaseName && (itemUrlLower.endsWith('.jpg') || itemUrlLower.endsWith('.jpeg') || itemUrlLower.endsWith('.png'))) {
-                                          originalUrl = itemUrl;
-                                          break;
-                                        }
-                                      }
-                                    }
-                                  } else {
-                                    originalUrl = currentUrl;
-                                  }
-                                }
-                                
-                                // Final check: ensure we're not using AVIF
-                                if (originalUrl && originalUrl.toLowerCase().endsWith('.avif')) {
-                                  // Last resort: try getOriginalUrl one more time
-                                  const fallback = getOriginalUrl(originalUrl);
-                                  if (fallback && !fallback.toLowerCase().endsWith('.avif')) {
-                                    originalUrl = fallback;
-                                  }
-                                }
-                                
-                                setPreviewImage(originalUrl);
-                              }}
+                              onClick={() => setPreviewImage(currentImages[selectedImageIndex].url)}
                               className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center transition-all duration-200 z-10 ${
                                 isMainImageHovered 
                                   ? 'opacity-100 pointer-events-auto' 
@@ -1251,11 +795,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                                 onMouseLeave={() => setHoveredThumbnailIndex(null)}
                               >
                                 <button
-                                  onClick={() => {
-                                    setSelectedImageIndex(index);
-                                    // Ensure the main preview updates to show the correct image
-                                    // The main image src will automatically update via the selectedImageIndex
-                                  }}
+                                  onClick={() => setSelectedImageIndex(index)}
                                   className={`w-full h-full relative ${
                                     selectedImageIndex === index 
                                       ? 'border-primary ring-2 ring-primary/20 scale-105' 
@@ -1263,19 +803,11 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                                   }`}
                                 >
                                   <img
-                                    src={image.url} // This will be AVIF
+                                    src={image.url}
                                     alt={`${product.title} - ${selectedImageType === 'mockup' ? 'Mockup' : 'Design'} ${index + 1}`}
                                     className="w-full h-full object-cover"
                                     onError={(e) => {
-                                      // Fallback to original if AVIF fails
-                                      const originalUrl = image.originalUrl;
-                                      const currentSrc = (e.target as HTMLImageElement).src;
-                                      if (originalUrl && originalUrl !== currentSrc && currentSrc.endsWith('.avif')) {
-                                        (e.target as HTMLImageElement).src = originalUrl;
-                                      } else {
-                                        // Hide image on error instead of showing placeholder
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                      }
+                                      (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
                                     }}
                                   />
                                 </button>
@@ -1284,64 +816,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    // Use original URL for full preview (high quality)
-                                    // Always ensure we get JPG/PNG, not AVIF
-                                    let originalUrl = image.originalUrl;
-                                    
-                                    // If originalUrl is not set or is AVIF, construct it
-                                    if (!originalUrl || originalUrl.toLowerCase().endsWith('.avif')) {
-                                      const currentUrl = image.url;
-                                      const urlLower = currentUrl.toLowerCase();
-                                      
-                                    // If current URL is already JPG/PNG, use it
-                                    if (urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg') || urlLower.endsWith('.png')) {
-                                      originalUrl = currentUrl;
-                                    } else if (urlLower.endsWith('.avif')) {
-                                      // Construct original URL from AVIF - try multiple methods
-                                      originalUrl = getOriginalUrl(currentUrl);
-                                      
-                                      // If construction failed, try to find original in media array
-                                      if (!originalUrl || originalUrl.toLowerCase().endsWith('.avif')) {
-                                        const mediaArray = rawProduct?.media || product.media || [];
-                                        const avifFileName = currentUrl.split('/').pop() || '';
-                                        
-                                        // Try to find corresponding JPG/PNG in media array
-                                        for (const mediaItem of mediaArray) {
-                                          const itemUrl = typeof mediaItem === 'string' 
-                                            ? mediaItem 
-                                            : (mediaItem?.url || mediaItem?.file || '');
-                                          if (!itemUrl) continue;
-                                          
-                                          const itemUrlLower = itemUrl.toLowerCase();
-                                          // Skip AVIF files
-                                          if (itemUrlLower.endsWith('.avif')) continue;
-                                          
-                                          // Check if it matches the AVIF file (same base name)
-                                          const itemFileName = itemUrl.split('/').pop() || '';
-                                          const baseName = avifFileName.replace(/\.avif$/i, '').replace(/_jpg$/i, '').replace(/_png$/i, '').replace(/_mockup$/i, '');
-                                          const itemBaseName = itemFileName.replace(/\.(jpg|jpeg|png)$/i, '').replace(/_mockup$/i, '');
-                                          
-                                          if (baseName === itemBaseName && (itemUrlLower.endsWith('.jpg') || itemUrlLower.endsWith('.jpeg') || itemUrlLower.endsWith('.png'))) {
-                                            originalUrl = itemUrl;
-                                            break;
-                                          }
-                                        }
-                                      }
-                                    } else {
-                                      originalUrl = currentUrl;
-                                    }
-                                  }
-                                  
-                                  // Final check: ensure we're not using AVIF
-                                  if (originalUrl && originalUrl.toLowerCase().endsWith('.avif')) {
-                                    // Last resort: try getOriginalUrl one more time
-                                    const fallback = getOriginalUrl(originalUrl);
-                                    if (fallback && !fallback.toLowerCase().endsWith('.avif')) {
-                                      originalUrl = fallback;
-                                    }
-                                  }
-                                  
-                                  setPreviewImage(originalUrl);
+                                    setPreviewImage(image.url);
                                   }}
                                   className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center transition-all duration-200 z-10 ${
                                     hoveredThumbnailIndex === index 
@@ -1511,7 +986,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                       alt={`${product.title} - Full Preview`}
                       className="max-w-full max-h-full object-contain rounded-lg"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).src = '/generated_images/Brand_Identity_Design_67fa7e1f.png';
                       }}
                     />
                   </motion.div>

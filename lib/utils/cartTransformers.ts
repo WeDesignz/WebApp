@@ -64,7 +64,7 @@ export function transformCartItem(apiCartItem: any): CartItem {
     designer,
     category: categoryName,
     price: parseFloat(product.price || 0),
-    image: mediaUrls[0] || '',
+    image: mediaUrls[0] || '/generated_images/Brand_Identity_Design_67fa7e1f.png',
     tags: tags.length > 0 ? tags : [categoryName],
     license: 'Standard License', // Default license
     subProductId: undefined, // Backend doesn't have sub-products in cart
@@ -117,7 +117,7 @@ export function transformWishlistItem(apiCartItem: any): WishlistItem {
     designer,
     category: categoryName,
     price: parseFloat(product.price || 0),
-    image: mediaUrls[0] || '',
+    image: mediaUrls[0] || '/generated_images/Brand_Identity_Design_67fa7e1f.png',
     tags: tags.length > 0 ? tags : [categoryName],
     isPremium,
     isPurchased: apiCartItem.is_purchased || false,
