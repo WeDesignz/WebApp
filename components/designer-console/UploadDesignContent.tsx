@@ -614,6 +614,12 @@ export default function UploadDesignContent() {
             continue;
           }
 
+          // Skip Mac resource fork files (files starting with ._)
+          const fileNameOnlyCheck = fileName.split('/').pop() || '';
+          if (fileNameOnlyCheck.startsWith('._')) {
+            continue;
+          }
+
           if (fileName.includes('/')) {
             const parts = fileName.split('/');
             
@@ -646,6 +652,12 @@ export default function UploadDesignContent() {
               }
             } else {
               // More than 3 parts - wrong structure
+              // First check if root folder is a system folder (e.g., __MACOSX)
+              const rootFolderName = parts[0].toLowerCase();
+              if (SYSTEM_FOLDERS.includes(rootFolderName)) {
+                continue; // Skip __MACOSX and other system folders
+              }
+              
               if (parts.length >= 2) {
                 folderName = parts[1]; // Still use second part as folder name for error reporting
                 fileNameOnly = parts[parts.length - 1];

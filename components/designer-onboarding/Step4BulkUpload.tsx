@@ -425,6 +425,12 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
             continue;
           }
 
+          // Skip Mac resource fork files (files starting with ._)
+          const fileNameOnlyCheck = fileName.split('/').pop() || '';
+          if (fileNameOnlyCheck.startsWith('._')) {
+            continue;
+          }
+
           // Extract folder structure
           if (fileName.includes('/')) {
             const parts = fileName.split('/');
@@ -454,6 +460,11 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
               
               // Skip system folders for 3+ part paths
               if (parts.length === 3 && (SYSTEM_FOLDERS.includes(rootFolderName) || SYSTEM_FOLDERS.includes(folderName.toLowerCase()))) {
+                continue;
+              }
+              
+              // For paths with more than 3 parts, check if root folder is a system folder
+              if (parts.length > 3 && SYSTEM_FOLDERS.includes(rootFolderName)) {
                 continue;
               }
             }
