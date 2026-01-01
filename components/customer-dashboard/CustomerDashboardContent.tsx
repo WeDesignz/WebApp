@@ -53,7 +53,15 @@ const getAvifUrl = (url: string): string | null => {
 
 // Helper function to get image URL, ALWAYS preferring AVIF files
 const getImageUrl = (product: Product, preferAvif = true): string => {
+  // 🔍 DEBUG: Log product ID and media array
+  console.log(`[AVIF-DEBUG] getImageUrl called for product ${product.id}:`, {
+    mediaArrayLength: product.media?.length || 0,
+    firstMediaItem: product.media?.[0],
+    firstMediaItemType: typeof product.media?.[0],
+  });
+
   if (!product.media || product.media.length === 0) {
+    console.log(`[AVIF-DEBUG] Product ${product.id}: No media found`);
     return '';
   }
   
@@ -67,9 +75,23 @@ const getImageUrl = (product: Product, preferAvif = true): string => {
   
   // Helper to check if item is AVIF
   const isAvif = (url: string, item: any): boolean => {
-    if (url.toLowerCase().endsWith('.avif')) return true;
-    if (typeof item === 'object' && item?.is_avif) return true;
-    return false;
+    const urlEndsWithAvif = url.toLowerCase().endsWith('.avif');
+    const itemHasIsAvif = typeof item === 'object' && item?.is_avif;
+    const result = urlEndsWithAvif || itemHasIsAvif;
+    
+    // 🔍 DEBUG: Log AVIF detection details
+    if (product.id <= 5) { // Only log for first few products to avoid spam
+      console.log(`[AVIF-DEBUG] isAvif check for product ${product.id}:`, {
+        url,
+        urlEndsWithAvif,
+        itemHasIsAvif,
+        itemType: typeof item,
+        itemIsAvif: item?.is_avif,
+        result,
+      });
+    }
+    
+    return result;
   };
   
   // Helper to check if URL is mockup
@@ -104,6 +126,16 @@ const getImageUrl = (product: Product, preferAvif = true): string => {
       }
     }
     
+    // 🔍 DEBUG: Log AVIF detection results
+    if (product.id <= 5) {
+      console.log(`[AVIF-DEBUG] Product ${product.id} AVIF detection results:`, {
+        avifFilesCount: avifFiles.length,
+        avifFiles: avifFiles.map(f => ({ url: f.url, isMockup: f.isMockup })),
+        nonAvifFilesCount: nonAvifFiles.length,
+        nonAvifFiles: nonAvifFiles.slice(0, 3).map(f => ({ url: f.url, isMockup: f.isMockup })),
+      });
+    }
+    
     // Sort AVIF files: mockup first
     avifFiles.sort((a, b) => {
       if (a.isMockup && !b.isMockup) return -1;
@@ -113,7 +145,9 @@ const getImageUrl = (product: Product, preferAvif = true): string => {
     
     // Return AVIF file if available (prioritize mockup)
     if (avifFiles.length > 0) {
-      return avifFiles[0].url;
+      const selectedUrl = avifFiles[0].url;
+      console.log(`[AVIF-DEBUG] Product ${product.id}: Selected AVIF URL:`, selectedUrl);
+      return selectedUrl;
     }
     
     // Fallback: Try to construct AVIF URL from non-AVIF files (only if no AVIF exists)
@@ -126,6 +160,7 @@ const getImageUrl = (product: Product, preferAvif = true): string => {
     for (const { url } of nonAvifFiles) {
       const avifUrl = getAvifUrl(url);
       if (avifUrl && avifUrl !== url) {
+        console.log(`[AVIF-DEBUG] Product ${product.id}: Constructed AVIF URL:`, avifUrl);
         return avifUrl;
       }
     }
@@ -133,6 +168,7 @@ const getImageUrl = (product: Product, preferAvif = true): string => {
   
   // Final fallback: Return first image (should rarely be reached)
   const firstUrl = getUrl(mediaArray[0]);
+  console.log(`[AVIF-DEBUG] Product ${product.id}: Using fallback URL:`, firstUrl);
   return firstUrl || '';
 };
 

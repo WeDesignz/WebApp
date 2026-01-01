@@ -63,6 +63,17 @@ export function transformProduct(apiProduct: any): TransformedProduct {
   
   // Extract media URLs from media array with priority: AVIF mockup > AVIF JPG/PNG > mockup > .png > others
   const mediaItems = (apiProduct.media || []).map((mediaItem: any) => {
+    // 🔍 DEBUG: Log first few media items for first product
+    if (apiProduct.id <= 5 && (apiProduct.media || []).indexOf(mediaItem) < 2) {
+      console.log(`[AVIF-DEBUG] transformProduct - Product ${apiProduct.id} media item:`, {
+        originalType: typeof mediaItem,
+        originalItem: mediaItem,
+        hasIsAvif: mediaItem?.is_avif,
+        hasFile: !!mediaItem?.file,
+        hasUrl: !!mediaItem?.url,
+      });
+    }
+
     if (typeof mediaItem === 'string') {
       return { url: mediaItem, is_mockup: false, is_png: false, is_avif: false, file_name: '' };
     }
@@ -81,13 +92,20 @@ export function transformProduct(apiProduct: any): TransformedProduct {
     // PRESERVE is_avif flag from backend
     const is_avif = mediaItem?.is_avif || (file_name && fileNameLower.endsWith('.avif'));
     
-    return {
+    const transformedItem = {
       url,
       is_mockup,
       is_png,
       is_avif,
       file_name,
     };
+
+    // 🔍 DEBUG: Log transformed item
+    if (apiProduct.id <= 5 && (apiProduct.media || []).indexOf(mediaItem) < 2) {
+      console.log(`[AVIF-DEBUG] transformProduct - Product ${apiProduct.id} transformed item:`, transformedItem);
+    }
+    
+    return transformedItem;
   }).filter((item: any) => item.url && item.url.trim() !== '');
 
   // Sort media: AVIF mockup first, then AVIF JPG/PNG, then mockup, then png, then others
@@ -110,6 +128,17 @@ export function transformProduct(apiProduct: any): TransformedProduct {
   // DON'T extract just URLs - preserve the full objects for getImageUrl to use
   // This allows the frontend to properly detect AVIF files
   const mediaUrls = mediaItems; // Keep full objects with metadata
+
+  // 🔍 DEBUG: Log final media array for first product
+  if (apiProduct.id <= 5) {
+    console.log(`[AVIF-DEBUG] transformProduct - Product ${apiProduct.id} final media array:`, {
+      totalItems: mediaUrls.length,
+      firstItem: mediaUrls[0],
+      firstItemType: typeof mediaUrls[0],
+      avifItems: mediaUrls.filter((item: any) => item.is_avif).length,
+      avifItemsDetails: mediaUrls.filter((item: any) => item.is_avif).slice(0, 3),
+    });
+  }
 
   // Transform sub_products if they exist, otherwise create empty array
   // Note: Backend might not have sub_products, so we'll create a default one from the product
