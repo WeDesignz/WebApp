@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useCallback } from 'react';
 import { useGesture } from '@use-gesture/react';
+import { convertAvifToJpg } from '@/lib/utils/transformers';
 
 type ImageItem = string | { src: string; alt?: string };
 
@@ -575,7 +576,7 @@ export default function DomeGallery({
     const rawSrc = parent.dataset.src || (el.querySelector('img') as HTMLImageElement)?.src || '';
     const rawAlt = parent.dataset.alt || (el.querySelector('img') as HTMLImageElement)?.alt || '';
     const img = document.createElement('img');
-    img.src = rawSrc;
+    img.src = convertAvifToJpg(rawSrc) || rawSrc; // Convert AVIF to JPG for preview
     img.alt = rawAlt;
     img.style.cssText = `width:100%; height:100%; object-fit:cover; filter:${grayscale ? 'grayscale(1)' : 'none'};`;
     overlay.appendChild(img);

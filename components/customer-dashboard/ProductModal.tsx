@@ -19,6 +19,7 @@ import { catalogAPI, apiClient } from "@/lib/api";
 import { transformProduct, type TransformedProduct } from "@/lib/utils/transformers";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { convertAvifToJpg as convertAvifToJpgUtil } from "@/lib/utils/transformers";
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -62,35 +63,8 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
   const product = productData?.transformed || initialProduct;
   const rawProduct = productData?.raw || null;
 
-  // Helper function to convert AVIF URL to JPG/PNG URL for full preview
-  const convertAvifToJpg = (avifUrl: string): string => {
-    if (!avifUrl) return avifUrl;
-    
-    const urlLower = avifUrl.toLowerCase();
-    
-    // If it's not an AVIF file, return as-is
-    if (!urlLower.endsWith('.avif')) {
-      return avifUrl;
-    }
-    
-    // Convert WDG00000001_MOCKUP.avif to WDG00000001_MOCKUP.jpg
-    if (urlLower.includes('_mockup.avif')) {
-      return avifUrl.replace(/_mockup\.avif$/i, '_MOCKUP.jpg');
-    }
-    
-    // Convert WDG00000001_JPG.avif to WDG00000001.jpg
-    if (urlLower.includes('_jpg.avif')) {
-      return avifUrl.replace(/_jpg\.avif$/i, '.jpg');
-    }
-    
-    // Convert WDG00000001_PNG.avif to WDG00000001.png
-    if (urlLower.includes('_png.avif')) {
-      return avifUrl.replace(/_png\.avif$/i, '.png');
-    }
-    
-    // Fallback: try to replace .avif with .jpg
-    return avifUrl.replace(/\.avif$/i, '.jpg');
-  };
+  // Use the utility function from transformers
+  const convertAvifToJpg = convertAvifToJpgUtil;
 
   // Organize media by type: mockup vs design (AVIF only for tab display)
   const organizeMediaByType = () => {

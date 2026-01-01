@@ -267,3 +267,73 @@ export function transformCategories(apiCategories: any[], iconMap?: Record<strin
   return apiCategories.map(cat => transformCategory(cat, iconMap));
 }
 
+/**
+ * Convert JPG/PNG URL to AVIF equivalent for display
+ * Converts design.jpg -> design_JPG.avif (for design images)
+ * Leaves other URLs as-is
+ */
+export function preferAvifForDisplay(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null;
+  
+  const urlLower = imageUrl.toLowerCase();
+  
+  // If already AVIF, return as-is
+  if (urlLower.endsWith('.avif')) {
+    return imageUrl;
+  }
+  
+  // Convert design.jpg to design_JPG.avif
+  if (urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg')) {
+    // Check if it's a design file (not mockup)
+    if (!urlLower.includes('mockup')) {
+      // Replace .jpg/.jpeg with _JPG.avif
+      return imageUrl.replace(/\.(jpg|jpeg)$/i, '_JPG.avif');
+    }
+  }
+  
+  // Convert design.png to design_PNG.avif
+  if (urlLower.endsWith('.png')) {
+    if (!urlLower.includes('mockup')) {
+      return imageUrl.replace(/\.png$/i, '_PNG.avif');
+    }
+  }
+  
+  // Return original if no conversion needed
+  return imageUrl;
+}
+
+/**
+ * Convert AVIF URL back to JPG/PNG for preview
+ * Converts design_JPG.avif -> design.jpg
+ * Converts design_PNG.avif -> design.png
+ * Converts mockup.avif -> mockup.jpg
+ */
+export function convertAvifToJpg(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null;
+  
+  const urlLower = imageUrl.toLowerCase();
+  
+  // If it's not an AVIF file, return as-is
+  if (!urlLower.endsWith('.avif')) {
+    return imageUrl;
+  }
+  
+  // Convert WDG00000001_MOCKUP.avif to WDG00000001_MOCKUP.jpg
+  if (urlLower.includes('_mockup.avif')) {
+    return imageUrl.replace(/_mockup\.avif$/i, '_MOCKUP.jpg');
+  }
+  
+  // Convert WDG00000001_JPG.avif to WDG00000001.jpg
+  if (urlLower.includes('_jpg.avif')) {
+    return imageUrl.replace(/_jpg\.avif$/i, '.jpg');
+  }
+  
+  // Convert WDG00000001_PNG.avif to WDG00000001.png
+  if (urlLower.includes('_png.avif')) {
+    return imageUrl.replace(/_png\.avif$/i, '.png');
+  }
+  
+  // Fallback: try to replace .avif with .jpg
+  return imageUrl.replace(/\.avif$/i, '.jpg');
+}
+
