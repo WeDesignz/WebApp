@@ -2,9 +2,34 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { Mail, Phone, MapPin, Clock } from 'lucide-react';
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wedesignz.com';
+
 export const metadata: Metadata = {
-  title: 'Contact Us - WeDesignz',
-  description: 'Contact WeDesignz for support, inquiries, and assistance',
+  title: 'Contact Us',
+  description: 'Contact WeDesignz for support, inquiries, and assistance. Reach us via email, phone, or visit our office in Bhilwara, Rajasthan. We respond within 24-48 hours.',
+  keywords: ['contact wedesignz', 'customer support', 'get in touch', 'wedesignz contact'],
+  alternates: {
+    canonical: `${siteUrl}/contact`,
+  },
+  openGraph: {
+    title: 'Contact Us - WeDesignz',
+    description: 'Contact WeDesignz for support, inquiries, and assistance. Reach us via email, phone, or visit our office.',
+    url: `${siteUrl}/contact`,
+    type: 'website',
+    images: [
+      {
+        url: '/Logos/WD LOGO2048BLACK.png',
+        width: 1200,
+        height: 630,
+        alt: 'WeDesignz - Contact Us',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Contact Us - WeDesignz',
+    description: 'Contact WeDesignz for support, inquiries, and assistance',
+  },
 };
 
 export default function ContactPage() {

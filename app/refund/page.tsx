@@ -1,9 +1,25 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wedesignz.com';
+
 export const metadata: Metadata = {
-  title: 'Refund & Cancellation Policy - WeDesignz',
-  description: 'Refund and Cancellation Policy for WeDesignz platform',
+  title: 'Refund & Cancellation Policy',
+  description: 'Read the Refund and Cancellation Policy for WeDesignz platform. Understand our refund process, cancellation terms, and money-back guarantee.',
+  keywords: ['refund policy', 'cancellation policy', 'wedesignz refund', 'money back guarantee'],
+  alternates: {
+    canonical: `${siteUrl}/refund`,
+  },
+  openGraph: {
+    title: 'Refund & Cancellation Policy - WeDesignz',
+    description: 'Read the Refund and Cancellation Policy for WeDesignz platform',
+    url: `${siteUrl}/refund`,
+    type: 'website',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RefundPage() {

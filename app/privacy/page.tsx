@@ -1,9 +1,25 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wedesignz.com';
+
 export const metadata: Metadata = {
-  title: 'Privacy Policy - WeDesignz',
-  description: 'Privacy Policy for WeDesignz platform',
+  title: 'Privacy Policy',
+  description: 'Read the Privacy Policy for WeDesignz platform. Learn how we collect, use, and protect your personal information and data.',
+  keywords: ['privacy policy', 'data protection', 'privacy', 'wedesignz privacy'],
+  alternates: {
+    canonical: `${siteUrl}/privacy`,
+  },
+  openGraph: {
+    title: 'Privacy Policy - WeDesignz',
+    description: 'Read the Privacy Policy for WeDesignz platform',
+    url: `${siteUrl}/privacy`,
+    type: 'website',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function PrivacyPage() {

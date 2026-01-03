@@ -1,9 +1,34 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wedesignz.com';
+
 export const metadata: Metadata = {
-  title: 'About Us - WeDesignz',
-  description: 'Learn about WeDesignz - The premier marketplace connecting talented designers with customers worldwide',
+  title: 'About Us',
+  description: 'Learn about WeDesignz - The premier marketplace connecting talented designers with customers worldwide. Discover our mission, values, and commitment to quality design.',
+  keywords: ['about wedesignz', 'design marketplace', 'company information', 'our mission'],
+  alternates: {
+    canonical: `${siteUrl}/about`,
+  },
+  openGraph: {
+    title: 'About Us - WeDesignz',
+    description: 'Learn about WeDesignz - The premier marketplace connecting talented designers with customers worldwide',
+    url: `${siteUrl}/about`,
+    type: 'website',
+    images: [
+      {
+        url: '/Logos/WD LOGO2048BLACK.png',
+        width: 1200,
+        height: 630,
+        alt: 'WeDesignz - About Us',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'About Us - WeDesignz',
+    description: 'Learn about WeDesignz - The premier marketplace connecting talented designers with customers worldwide',
+  },
 };
 
 export default function AboutPage() {

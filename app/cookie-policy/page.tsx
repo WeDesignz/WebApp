@@ -1,9 +1,25 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wedesignz.com';
+
 export const metadata: Metadata = {
-  title: 'Cookie Policy - WeDesignz',
-  description: 'Learn about how WeDesignz uses cookies on our website',
+  title: 'Cookie Policy',
+  description: 'Learn about how WeDesignz uses cookies on our website. Understand cookie types, purposes, and how to manage your cookie preferences.',
+  keywords: ['cookie policy', 'cookies', 'wedesignz cookies', 'cookie management'],
+  alternates: {
+    canonical: `${siteUrl}/cookie-policy`,
+  },
+  openGraph: {
+    title: 'Cookie Policy - WeDesignz',
+    description: 'Learn about how WeDesignz uses cookies on our website',
+    url: `${siteUrl}/cookie-policy`,
+    type: 'website',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function CookiePolicyPage() {
