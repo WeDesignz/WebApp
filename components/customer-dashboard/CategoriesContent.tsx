@@ -16,6 +16,7 @@ import {
   Crown,
   Loader2,
 } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -159,7 +160,17 @@ export default function CategoriesContent() {
         ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {categories.map((category, index) => {
-              const Icon = category.icon || Box; // Default icon
+            // Resolve icon: first try iconName from API, then fallback to iconMap, then Box
+            let Icon = Box;
+            if (category.iconName) {
+              const IconComponent = (LucideIcons as any)[category.iconName];
+              if (IconComponent) {
+                Icon = IconComponent;
+              }
+            } else if (category.icon) {
+              Icon = category.icon;
+            }
+            
             return (
               <motion.div
                 key={category.id}

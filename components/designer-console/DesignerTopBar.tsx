@@ -4,6 +4,10 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import LogoutModal from "./LogoutModal";
 import DesignerNotificationDropdown from "./DesignerNotificationDropdown";
 
@@ -19,8 +23,30 @@ export default function DesignerTopBar({
   breadcrumb = "Console"
 }: DesignerTopBarProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+
+  // Fetch user profile to get profile image
+  const { data: userProfileData } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: async () => {
+      const response = await apiClient.getUserProfile();
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    enabled: !!user,
+    staleTime: 30 * 1000,
+  });
+
+  const profileImageUrl = userProfileData?.profile_photo_url;
+  const userInitials = user 
+    ? (user.firstName?.charAt(0) && user.lastName?.charAt(0)
+        ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
+        : user.firstName?.charAt(0)?.toUpperCase() || user.lastName?.charAt(0)?.toUpperCase() || user.username?.charAt(0)?.toUpperCase() || 'U')
+    : 'U';
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border bg-background/95 backdrop-blur">
@@ -49,9 +75,12 @@ export default function DesignerTopBar({
               className="flex items-center gap-2 p-1.5 hover:bg-accent rounded-lg transition-colors"
               aria-label="User menu"
             >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
-                V
-              </div>
+              <Avatar className="w-8 h-8">
+                <AvatarImage src={profileImageUrl || undefined} alt={user?.firstName || user?.username || 'User'} />
+                <AvatarFallback className="bg-gradient-to-br from-primary to-purple-600 text-white font-semibold text-sm">
+                  {userInitials}
+                </AvatarFallback>
+              </Avatar>
               <ChevronDown className="w-4 h-4" />
             </button>
 

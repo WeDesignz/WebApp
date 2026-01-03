@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Download, Crown, FileText, Loader2, Gift, Box, Shirt, Image, Star, Frame, Palette } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ProductModal from "./ProductModal";
 import PDFDownloadModal, { PDFPurchase } from "./PDFDownloadModal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -67,6 +69,7 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
   const observerRef = useRef<HTMLDivElement>(null);
   const [downloadedProductIds, setDownloadedProductIds] = useState<Set<number>>(new Set());
   const [downloadingProductId, setDownloadingProductId] = useState<number | null>(null);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const { toast } = useToast();
 
   const isAuthenticated = !!user;
@@ -85,6 +88,23 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
   });
 
   const categories = categoriesData || [];
+
+  // Fetch subcategories for selected category
+  const { data: subcategoriesData, isLoading: isLoadingSubcategories } = useQuery({
+    queryKey: ['subcategories', selectedCategory],
+    queryFn: async () => {
+      if (!selectedCategory || selectedCategory === 'all') return [];
+      const response = await catalogAPI.getCategorySubcategories(parseInt(selectedCategory));
+      if (response.error) {
+        return [];
+      }
+      return transformCategories(response.data?.subcategories || [], iconMap);
+    },
+    enabled: !!selectedCategory && selectedCategory !== 'all',
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+  });
+
+  const subcategories = subcategoriesData || [];
 
   // Fetch user's downloaded products
   const { data: downloadsData, isLoading: isLoadingDownloads } = useQuery({
@@ -122,13 +142,14 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
     isLoading,
     error,
   } = useInfiniteQuery({
-    queryKey: ['homeFeed', searchQuery, selectedCategory],
+    queryKey: ['homeFeed', searchQuery, selectedCategory, selectedSubcategory],
     queryFn: async ({ pageParam = 1 }) => {
-      // If there's a search query or category filter, use search endpoint
-      if (searchQuery || (selectedCategory && selectedCategory !== 'all')) {
-        const categoryId = selectedCategory && selectedCategory !== 'all' 
-          ? parseInt(selectedCategory) 
-          : undefined;
+      // If there's a search query or category/subcategory filter, use search endpoint
+      if (searchQuery || (selectedCategory && selectedCategory !== 'all') || selectedSubcategory) {
+        // Use subcategory if selected, otherwise use category
+        const categoryId = selectedSubcategory 
+          ? parseInt(selectedSubcategory)
+          : (selectedCategory && selectedCategory !== 'all' ? parseInt(selectedCategory) : undefined);
         
         const response = await catalogAPI.searchProducts({
           q: searchQuery || undefined,
@@ -306,6 +327,8 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
   };
 
   const handleCategoryClick = (categoryId: string) => {
+    // Reset subcategory when category changes
+    setSelectedSubcategory(null);
     // Update URL with selected category
     const params = new URLSearchParams(window.location.search);
     if (categoryId && categoryId !== 'all') {
@@ -313,6 +336,7 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
     } else {
       params.delete('category');
     }
+    params.delete('subcategory'); // Remove subcategory from URL
     const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
     router.push(newUrl);
   };
@@ -352,7 +376,17 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
           ) : (
             <div className="flex gap-4 min-w-max py-2">
               {categories.map((category, idx) => {
-                const Icon = category.icon || Box;
+                // Resolve icon: first try iconName from API, then fallback to iconMap, then Box
+                let Icon = Box;
+                if (category.iconName) {
+                  const IconComponent = (LucideIcons as any)[category.iconName];
+                  if (IconComponent) {
+                    Icon = IconComponent;
+                  }
+                } else if (category.icon) {
+                  Icon = category.icon;
+                }
+                
                 return (
                   <motion.div
                     key={category.id}
@@ -366,7 +400,7 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
                       selectedCategory === category.id ? "ring-2 ring-primary" : ""
                     }`}>
                       <div className="flex items-center justify-center mb-2">
-                        {category.icon ? (
+                        {(category.iconName || category.icon) ? (
                           <Icon className="w-8 h-8" />
                         ) : (
                           <div className="text-4xl">📁</div>
@@ -385,6 +419,33 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
             </div>
           )}
         </div>
+
+        {/* Subcategory Filter Dropdown */}
+        {selectedCategory && selectedCategory !== 'all' && subcategories.length > 0 && (
+          <div className="flex items-center gap-3 px-4">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+              Filter by subcategory:
+            </span>
+            <Select
+              value={selectedSubcategory || 'all'}
+              onValueChange={(value) => {
+                setSelectedSubcategory(value === 'all' ? null : value);
+              }}
+            >
+              <SelectTrigger className="w-[250px]">
+                <SelectValue placeholder="All Subcategories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Subcategories</SelectItem>
+                {subcategories.map((subcat) => (
+                  <SelectItem key={subcat.id} value={subcat.id}>
+                    {subcat.title} {subcat.productCount !== undefined && `(${subcat.productCount})`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <Card className="p-6 bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 border-primary/20">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
