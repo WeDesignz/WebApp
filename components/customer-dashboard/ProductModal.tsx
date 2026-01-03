@@ -312,7 +312,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
     try {
       await handleAddToCart();
       // Redirect to cart page after adding to cart
-      router.push('/customer-dashboard/cart');
+      router.push('/customer-dashboard?view=cart');
       onClose(); // Close the modal
     } catch (error) {
       console.error('Error adding to cart:', error);
@@ -965,6 +965,31 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                     </div>
                   </div>
                   </div>
+
+                  {/* Footer with Buy Now button (if not free and not downloaded) */}
+                  {!isDownloaded && !isFree() && (
+                    <div className="sticky bottom-0 bg-card border-t border-border p-4 md:p-6 rounded-b-2xl z-10">
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Button
+                          onClick={() => handleAddToCart()}
+                          variant="outline"
+                          className="flex-1 h-12 rounded-full"
+                          size="lg"
+                        >
+                          <ShoppingCart className="w-5 h-5 mr-2" />
+                          Add to Cart
+                        </Button>
+                        <Button
+                          onClick={handleBuyNow}
+                          className="flex-1 h-12 rounded-full"
+                          size="lg"
+                        >
+                          <Zap className="w-5 h-5 mr-2" />
+                          Buy Now
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </motion.div>
