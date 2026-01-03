@@ -107,8 +107,18 @@ export function transformProduct(apiProduct: any): TransformedProduct {
     return 0;
   });
 
+  // Filter out raw JPG/PNG files that aren't mockups - only keep AVIF files and mockups
+  const filteredMediaItems = mediaItems.filter((item: any) => {
+    // Keep AVIF files (any type - mockup or design)
+    if (item.is_avif) return true;
+    // Keep mockup files (any format)
+    if (item.is_mockup) return true;
+    // Exclude raw JPG/PNG files that aren't mockups
+    return false;
+  });
+
   // Extract URLs in priority order - only include valid URLs
-  const mediaUrls = mediaItems.map((item: any) => item.url).filter((url: string) => url && url.trim() !== '');
+  const mediaUrls = filteredMediaItems.map((item: any) => item.url).filter((url: string) => url && url.trim() !== '');
 
   // Transform sub_products if they exist, otherwise create empty array
   // Note: Backend might not have sub_products, so we'll create a default one from the product
