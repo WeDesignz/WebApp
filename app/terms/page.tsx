@@ -1,9 +1,25 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wedesignz.com';
+
 export const metadata: Metadata = {
-  title: 'Terms & Conditions - WeDesignz',
-  description: 'Terms and Conditions for WeDesignz platform',
+  title: 'Terms & Conditions',
+  description: 'Read the Terms and Conditions for WeDesignz platform. Understand your rights and obligations when using our design marketplace services.',
+  keywords: ['terms and conditions', 'wedesignz terms', 'user agreement', 'platform terms'],
+  alternates: {
+    canonical: `${siteUrl}/terms`,
+  },
+  openGraph: {
+    title: 'Terms & Conditions - WeDesignz',
+    description: 'Read the Terms and Conditions for WeDesignz platform',
+    url: `${siteUrl}/terms`,
+    type: 'website',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function TermsPage() {

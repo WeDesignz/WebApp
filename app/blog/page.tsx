@@ -1,9 +1,34 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wedesignz.com';
+
 export const metadata: Metadata = {
-  title: 'Blog - WeDesignz',
-  description: 'Read the latest articles, tips, and insights from WeDesignz',
+  title: 'Blog',
+  description: 'Read the latest articles, design tips, creative insights, and industry trends from WeDesignz. Stay updated with design inspiration and best practices.',
+  keywords: ['design blog', 'design tips', 'creative articles', 'design inspiration', 'graphic design blog'],
+  alternates: {
+    canonical: `${siteUrl}/blog`,
+  },
+  openGraph: {
+    title: 'Blog - WeDesignz',
+    description: 'Read the latest articles, design tips, and creative insights from WeDesignz',
+    url: `${siteUrl}/blog`,
+    type: 'website',
+    images: [
+      {
+        url: '/Logos/WD LOGO2048BLACK.png',
+        width: 1200,
+        height: 630,
+        alt: 'WeDesignz Blog',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Blog - WeDesignz',
+    description: 'Read the latest articles, tips, and insights from WeDesignz',
+  },
 };
 
 export default function BlogPage() {

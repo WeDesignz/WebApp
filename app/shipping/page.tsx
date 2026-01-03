@@ -1,9 +1,25 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wedesignz.com';
+
 export const metadata: Metadata = {
-  title: 'Shipping & Delivery Policy - WeDesignz',
-  description: 'Shipping and Delivery Policy for WeDesignz platform',
+  title: 'Shipping & Delivery Policy',
+  description: 'Read the Shipping and Delivery Policy for WeDesignz platform. Learn about delivery times, shipping methods, and tracking information.',
+  keywords: ['shipping policy', 'delivery policy', 'wedesignz shipping', 'delivery information'],
+  alternates: {
+    canonical: `${siteUrl}/shipping`,
+  },
+  openGraph: {
+    title: 'Shipping & Delivery Policy - WeDesignz',
+    description: 'Read the Shipping and Delivery Policy for WeDesignz platform',
+    url: `${siteUrl}/shipping`,
+    type: 'website',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function ShippingPage() {
