@@ -60,6 +60,19 @@ export default function ProfileContent() {
 
   const [skillTagInput, setSkillTagInput] = useState("");
 
+  // Fetch user profile to get profile photo
+  const { data: userProfileData } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: async () => {
+      const response = await apiClient.getUserProfile();
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    staleTime: 30 * 1000,
+  });
+
   // Fetch designer profile (only for studio owners/individual designers, not for studio members)
   const { data: designerProfileData, isLoading: isLoadingProfile } = useQuery({
     queryKey: ['designerProfile'],
@@ -111,9 +124,22 @@ export default function ProfileContent() {
         skillTags: newSkillTags,
       };
     });
-    
-    // Set profile photo from media (only if not already set from upload)
-    if (!photoFile && designerProfileData.media && designerProfileData.media.length > 0) {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [designerProfileData?.id, designerProfileData?.bio, designerProfileData?.skill_tags, isStudioMember]);
+
+  // Load profile image from user profile (primary source)
+  useEffect(() => {
+    if (!photoFile && userProfileData?.profile_photo_url) {
+      setPhotoPreview(prev => {
+        // Only update if URL changed
+        return prev !== userProfileData.profile_photo_url ? userProfileData.profile_photo_url : prev;
+      });
+    }
+  }, [userProfileData?.profile_photo_url, photoFile]);
+
+  // Set profile photo from designer profile media as fallback (only if not already set from upload or user profile)
+  useEffect(() => {
+    if (!photoFile && !userProfileData?.profile_photo_url && designerProfileData?.media && designerProfileData.media.length > 0) {
       // First try to find profile photo by meta type
       let profilePhoto = designerProfileData.media.find((m: any) => 
         m.meta?.type === 'profile_photo'
@@ -137,7 +163,7 @@ export default function ProfileContent() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [designerProfileData?.id, designerProfileData?.bio, designerProfileData?.skill_tags, isStudioMember, photoFile]);
+  }, [designerProfileData?.media, photoFile, userProfileData?.profile_photo_url]);
 
   // Update designer profile mutation
   const updateProfileMutation = useMutation({
@@ -255,6 +281,7 @@ export default function ProfileContent() {
       });
 
       // Invalidate queries to refresh profile data including photo
+      await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
       await queryClient.invalidateQueries({ queryKey: ['designerProfile'] });
     } catch (error) {
       // Error handled by mutation
@@ -276,8 +303,10 @@ export default function ProfileContent() {
         skillTags: designerProfile?.skill_tags || [],
       });
     }
-    // Reset photo preview to original from profile
-    if (designerProfile?.media && designerProfile.media.length > 0) {
+    // Reset photo preview to original from user profile or designer profile media
+    if (userProfileData?.profile_photo_url) {
+      setPhotoPreview(userProfileData.profile_photo_url);
+    } else if (designerProfile?.media && designerProfile.media.length > 0) {
       const profilePhoto = designerProfile.media.find((m: any) => 
         m.meta?.type === 'profile_photo' || (m.media_type === 'image' && !photoPreview)
       );
@@ -288,7 +317,7 @@ export default function ProfileContent() {
         setPhotoPreview(null);
       }
     } else {
-    setPhotoPreview(null);
+      setPhotoPreview(null);
     }
     setPhotoFile(null);
   };

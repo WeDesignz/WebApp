@@ -29,6 +29,7 @@ export interface TransformedCategory {
   id: string;
   title: string;
   icon?: any;
+  iconName?: string; // Lucide icon name from API
   color?: string;
   borderColor?: string;
   iconColor?: string;
@@ -243,6 +244,16 @@ export function transformCategory(apiCategory: any, iconMap?: Record<string, any
     iconColor: 'text-gray-500',
   };
 
+  // Get icon: first try iconMap (backward compatibility), then try icon_name from API
+  // icon_name will be resolved in the component using dynamic icon lookup
+  let iconComponent = undefined;
+  if (iconMap?.[categoryKey]) {
+    // Use iconMap first for backward compatibility
+    iconComponent = iconMap[categoryKey];
+  }
+  // Note: If apiCategory.icon_name exists, it will be stored in iconName field
+  // Components should check iconName first, then fall back to icon
+
   // Transform subcategories if they exist
   const subcategories = apiCategory.subcategories 
     ? apiCategory.subcategories.map((sub: any) => transformCategory(sub, iconMap))
@@ -251,7 +262,8 @@ export function transformCategory(apiCategory: any, iconMap?: Record<string, any
   return {
     id: categoryId,
     title: categoryName,
-    icon: iconMap?.[categoryKey],
+    icon: iconComponent,
+    iconName: apiCategory.icon_name || undefined, // Store icon_name separately for dynamic loading
     color: colors.color,
     borderColor: colors.borderColor,
     iconColor: colors.iconColor,
