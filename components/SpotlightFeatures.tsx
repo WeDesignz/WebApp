@@ -6,10 +6,10 @@ import { Wand2, Bolt, Globe2, ShieldCheck } from "lucide-react";
 type Feature = { title: string; desc: string; icon: React.ReactNode; tint: string };
 
 const features: Feature[] = [
-  { title: "AI Design Tools", desc: "Powerful AI-driven assistance to accelerate your creative workflow.", icon: <Wand2 className="w-5 h-5" />, tint: "262 83% 58%" },
-  { title: "Instant Collaboration", desc: "Real-time collaboration tools that keep your team in sync.", icon: <Bolt className="w-5 h-5" />, tint: "199 89% 55%" },
-  { title: "Global Marketplace", desc: "Connect with clients and designers from around the world.", icon: <Globe2 className="w-5 h-5" />, tint: "173 58% 59%" },
-  { title: "Quality Assurance", desc: "Rigorous quality checks ensure only the best designs make it through.", icon: <ShieldCheck className="w-5 h-5" />, tint: "38 92% 55%" },
+  { title: "Custom Design Orders", desc: "Get custom designs delivered in just 1 hour. Fast turnaround for urgent projects.", icon: <Bolt className="w-5 h-5" />, tint: "199 89% 55%" },
+  { title: "Premium Design Library", desc: "Access thousands of high-quality designs including jerseys, vectors, mockups, and 3D models.", icon: <Wand2 className="w-5 h-5" />, tint: "262 83% 58%" },
+  { title: "Subscription Plans", desc: "Choose from flexible monthly or annual plans with unlimited downloads and exclusive features.", icon: <Globe2 className="w-5 h-5" />, tint: "173 58% 59%" },
+  { title: "Secure Transactions", desc: "Safe and secure payments via Razorpay. Quality guaranteed with our rigorous review process.", icon: <ShieldCheck className="w-5 h-5" />, tint: "38 92% 55%" },
 ];
 
 export default function SpotlightFeatures() {
@@ -37,8 +37,8 @@ export default function SpotlightFeatures() {
     <section className="py-20">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
         <div className="text-center mb-10">
-          <h2 className="font-display text-3xl md:text-5xl font-bold tracking-tight">Platform Features</h2>
-          <p className="text-foreground/70 mt-3">Everything you need to create exceptional designs and build your career.</p>
+          <h2 className="font-display text-3xl md:text-5xl font-bold tracking-tight">Why Choose WeDesignz</h2>
+          <p className="text-foreground/70 mt-3">Everything you need to discover premium designs, connect with talented creators, and grow your creative business.</p>
         </div>
         <div ref={containerRef} className="sf-container relative rounded-3xl p-4 md:p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

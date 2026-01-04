@@ -36,8 +36,8 @@ export default function FAQSection() {
     <section id="faqs" className="py-24">
       <div className="max-w-5xl mx-auto px-6 md:px-8">
         <div className="mb-10 text-center">
-          <h2 className="font-display text-3xl md:text-5xl font-bold tracking-tight">FAQs</h2>
-          <p className="text-foreground/70 mt-3">Common questions about selling designs and services.</p>
+          <h2 className="font-display text-3xl md:text-5xl font-bold tracking-tight">Frequently Asked Questions</h2>
+          <p className="text-foreground/70 mt-3">Find answers to common questions about purchasing designs, subscription plans, custom orders, and becoming a designer on WeDesignz.</p>
         </div>
         {isLoading ? (
           <div className="space-y-4">

@@ -292,7 +292,7 @@ export default function PricingPlans() {
           <h2 className="font-display text-4xl md:text-6xl font-bold tracking-tight bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
             Choose Your Plan
           </h2>
-          <p className="text-foreground/70 text-lg mt-4">Transparent pricing for every team size. No hidden fees.</p>
+          <p className="text-foreground/70 text-lg mt-4">Flexible subscription plans for individuals and businesses. Access premium designs, unlimited downloads, and exclusive features.</p>
         </motion.div>
 
         <motion.div
@@ -464,7 +464,7 @@ export default function PricingPlans() {
           transition={{ duration: 0.6, delay: 0.8 }}
           className="text-center mt-12 text-sm text-foreground/60"
         >
-          All plans include 14-day free trial • No credit card required • Cancel anytime
+          Secure payments via Razorpay • Instant access after purchase • Cancel anytime • 24/7 customer support
         </motion.p>
       </div>
     </section>
