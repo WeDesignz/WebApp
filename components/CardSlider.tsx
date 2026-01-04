@@ -6,6 +6,7 @@ interface Item {
   id?: number;
   title: string; 
   creator?: string;
+  product_number?: string;
   price?: string;
   category?: string;
   image?: string; 
@@ -345,9 +346,9 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
                           <h4 className="text-lg md:text-xl font-bold text-white leading-tight line-clamp-2 group-hover:text-white transition-colors duration-300">
                             {it.title}
                           </h4>
-                          {it.creator && (
+                          {it.product_number && (
                             <p className="text-sm text-white/80 mt-1.5 font-medium">
-                              {it.creator}
+                              #{it.product_number}
                             </p>
                           )}
                         </div>

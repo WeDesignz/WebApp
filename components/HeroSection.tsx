@@ -11,6 +11,7 @@ interface HeroDesign {
   id: number;
   title: string;
   creator: string;
+  product_number?: string;
   price: string;
   image: string | null;
 }
@@ -235,7 +236,9 @@ export default function HeroSection() {
                     <div className="h-[35%] p-5 bg-black/50 backdrop-blur-sm flex flex-col justify-center">
                         <div>
                           <h3 className="text-white font-semibold text-base">{design.title || 'Design'}</h3>
-                          <p className="text-white/50 text-xs mt-0.5">{design.creator || '@wedesignz'}</p>
+                          {design.product_number && (
+                            <p className="text-white/50 text-xs mt-0.5">#{design.product_number}</p>
+                          )}
                       </div>
                     </div>
                   </Card>
