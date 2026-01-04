@@ -68,11 +68,10 @@ export default function GallerySection() {
           className="max-w-4xl mx-auto text-center space-y-6"
         >
           <h2 className="font-display text-4xl md:text-5xl font-bold tracking-tight">
-            Featured Design Work
+            Featured Design Gallery
           </h2>
           <p className="text-xl text-foreground/80 max-w-2xl mx-auto">
-            Explore exceptional work from our global community of talented designers. Each piece
-            represents the pinnacle of creative excellence.
+            Discover premium designs from our verified designer community. From jerseys to vectors, mockups to 3D models - find exactly what you need for your next project.
           </p>
         </motion.div>
       </div>
@@ -106,7 +105,7 @@ export default function GallerySection() {
         className="text-center mt-12"
       >
         <p className="text-sm text-muted-foreground">
-          Drag to explore • Click to enlarge
+          Browse our design collection • Click to view details • Subscribe to download premium designs
         </p>
       </motion.div>
     </section>

@@ -140,7 +140,7 @@ export default function HeroSection() {
               className="flex items-center gap-2 text-white/70 text-base md:text-lg"
             >
               <Zap className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-              Buy and sell designs from the world's top creators
+              India's premier design marketplace for jerseys, vectors, mockups, and custom designs
             </motion.p>
 
             <motion.div 
@@ -153,14 +153,14 @@ export default function HeroSection() {
                 href="/customer-dashboard"
                 className="group inline-flex items-center gap-2 px-8 py-4 rounded-full bg-white text-black font-medium text-base hover:bg-white/90 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-white/20"
               >
-                Home
+                Browse Designs
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </a>
               <a 
                 href="/designer-console"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-full border border-white/30 text-white font-medium text-base hover:bg-white/10 hover:border-white/50 transition-all duration-300 hover:scale-105"
               >
-                Create
+                Sell Your Designs
               </a>
             </motion.div>
           </motion.div>

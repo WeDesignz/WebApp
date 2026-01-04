@@ -92,9 +92,23 @@ export default function AboutPage() {
 
           <section>
             <h2 className="text-2xl font-semibold mb-4">Get in Touch</h2>
-            <p className="text-foreground/80 leading-relaxed">
-              Have questions or want to learn more? <Link href="/contact" className="text-primary hover:underline">Contact us</Link> and we&apos;ll be happy to help.
+            <p className="text-foreground/80 leading-relaxed mb-4">
+              Have questions or want to learn more? We&apos;d love to hear from you. Reach out to us through any of the following channels:
             </p>
+            <div className="space-y-3 text-foreground/80">
+              <p>
+                <strong>Support Email:</strong> <a href="mailto:support@wedesignz.com" className="text-primary hover:underline">support@wedesignz.com</a>
+              </p>
+              <p>
+                <strong>General Inquiries:</strong> <a href="mailto:info@wedesignz.com" className="text-primary hover:underline">info@wedesignz.com</a>
+              </p>
+              <p>
+                <strong>Phone:</strong> <a href="tel:8000452183" className="text-primary hover:underline">8000452183</a>
+              </p>
+              <p className="mt-4">
+                For more details, visit our <Link href="/contact" className="text-primary hover:underline">Contact page</Link>.
+              </p>
+            </div>
           </section>
         </div>
       </div>

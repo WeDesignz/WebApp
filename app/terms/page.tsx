@@ -142,8 +142,9 @@ export default function TermsPage() {
               If you have any questions about these Terms & Conditions, please contact us:
             </p>
             <div className="space-y-1 text-foreground/80">
-              <p><strong>Email:</strong> wedesignz006@gmail.com</p>
-              <p><strong>Phone:</strong> +91-8000452183</p>
+              <p><strong>Support Email:</strong> <a href="mailto:support@wedesignz.com" className="text-primary hover:underline">support@wedesignz.com</a></p>
+              <p><strong>General Inquiries:</strong> <a href="mailto:info@wedesignz.com" className="text-primary hover:underline">info@wedesignz.com</a></p>
+              <p><strong>Phone:</strong> <a href="tel:8000452183" className="text-primary hover:underline">8000452183</a></p>
               <p><strong>Address:</strong> Sheetal Fab, B-117, Akar Tower, B-block, Old RTO road, Yogi Tower, Bhilwara - 311001</p>
             </div>
           </section>

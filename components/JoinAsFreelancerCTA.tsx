@@ -28,13 +28,13 @@ export default function JoinAsFreelancerCTA() {
             </div>
 
             <h2 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] mb-6">
-              Showcase Your Work.
+              Turn Your Designs
               <br />
-              Get Discovered.
+              Into Income.
             </h2>
 
             <p className="text-lg text-foreground/70 mb-8 leading-relaxed">
-              Join a thriving community of elite designers. Build your portfolio, connect with premium clients, and take your creative career to the next level.
+              Join WeDesignz and connect with thousands of customers looking for premium designs. Upload your work, set your prices, and start earning. Our platform handles payments, customer support, and helps you grow your creative business.
             </p>
 
             <div className="flex flex-wrap gap-6 mb-8">
@@ -62,17 +62,24 @@ export default function JoinAsFreelancerCTA() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="flex flex-wrap gap-4"
             >
-              <Button className="px-8 py-6 rounded-full text-base font-semibold bg-primary hover:shadow-2xl hover:shadow-primary/30 hover:scale-105 transition-all">
-                Start Your Journey
+              <Button 
+                className="px-8 py-6 rounded-full text-base font-semibold bg-primary hover:shadow-2xl hover:shadow-primary/30 hover:scale-105 transition-all"
+                onClick={() => window.location.href = '/designer-onboarding'}
+              >
+                Start Selling Designs
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-              <Button variant="outline" className="px-8 py-6 rounded-full text-base font-semibold border-2">
-                View Success Stories
+              <Button 
+                variant="outline" 
+                className="px-8 py-6 rounded-full text-base font-semibold border-2"
+                onClick={() => window.location.href = '/designer-console'}
+              >
+                View Designer Console
               </Button>
             </motion.div>
 
             <p className="text-xs text-foreground/50 mt-6">
-              Join 350+ designers • No credit card required • Free to start
+              Join 350+ verified designers • Free to join • Earn from every sale • Secure payments
             </p>
           </motion.div>
 
@@ -94,7 +101,7 @@ export default function JoinAsFreelancerCTA() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg mb-1">Premium Exposure</h3>
-                    <p className="text-sm text-foreground/70">Get featured on our homepage and reach 10,000+ monthly visitors</p>
+                    <p className="text-sm text-foreground/70">Get featured on our homepage and reach thousands of customers browsing for designs</p>
                   </div>
                 </div>
 
@@ -103,8 +110,8 @@ export default function JoinAsFreelancerCTA() {
                     <Award className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg mb-1">Verified Badge</h3>
-                    <p className="text-sm text-foreground/70">Stand out with our exclusive verification badge for professionals</p>
+                    <h3 className="font-semibold text-lg mb-1">Verified Designer Badge</h3>
+                    <p className="text-sm text-foreground/70">Stand out with our exclusive verification badge and build trust with customers</p>
                   </div>
                 </div>
 
@@ -113,16 +120,16 @@ export default function JoinAsFreelancerCTA() {
                     <Rocket className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg mb-1">Growth Tools</h3>
-                    <p className="text-sm text-foreground/70">Analytics, AI tools, and insights to accelerate your creative business</p>
+                    <h3 className="font-semibold text-lg mb-1">Designer Analytics</h3>
+                    <p className="text-sm text-foreground/70">Track your sales, views, downloads, and earnings with detailed analytics dashboard</p>
                   </div>
                 </div>
               </div>
 
               <div className="mt-8 pt-8 border-t border-border/50">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-foreground/60">Avg. Designer Income</span>
-                  <span className="text-2xl font-bold text-primary">₹3.5L/mo</span>
+                  <span className="text-foreground/60">Active Designers</span>
+                  <span className="text-2xl font-bold text-primary">350+</span>
                 </div>
               </div>
             </SpotlightCard>
