@@ -18,6 +18,7 @@ import CardSlider from "@/components/CardSlider";
 import Particles from "@/components/Particles";
 import { apiClient } from "@/lib/api";
 import { preferAvifForDisplay } from "@/lib/utils/transformers";
+import PublicPageTheme from "@/components/common/PublicPageTheme";
 
 interface FeaturedDesign {
   id: number;
@@ -72,21 +73,23 @@ export default function Page() {
   }, []);
 
   return (
-    <div className="relative min-h-screen bg-background overflow-x-hidden">
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <Particles
-          particleColors={['#ffffff', '#ffffff']}
-          particleCount={200}
-          particleSpread={10}
-          speed={0.1}
-          particleBaseSize={100}
-          moveParticlesOnHover={true}
-          alphaParticles={false}
-          disableRotation={false}
-          className="opacity-60"
-        />
-      </div>
-      <div className="relative z-10 overflow-x-hidden">
+    <>
+      <PublicPageTheme />
+      <div className="relative min-h-screen bg-background overflow-x-hidden">
+        <div className="fixed inset-0 z-0 pointer-events-none">
+          <Particles
+            particleColors={['#ffffff', '#ffffff']}
+            particleCount={200}
+            particleSpread={10}
+            speed={0.1}
+            particleBaseSize={100}
+            moveParticlesOnHover={true}
+            alphaParticles={false}
+            disableRotation={false}
+            className="opacity-60"
+          />
+        </div>
+        <div className="relative z-10 overflow-x-hidden">
       <Navbar />
       <HeroSection />
       <ClientsStats />
@@ -108,6 +111,7 @@ export default function Page() {
       <Footer />
       </div>
     </div>
+    </>
   );
 }
 

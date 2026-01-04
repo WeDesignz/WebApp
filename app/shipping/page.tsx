@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
+import PublicPageWrapper from '@/components/common/PublicPageWrapper';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wedesignz.com';
 
@@ -30,7 +31,8 @@ export default function ShippingPage() {
   });
 
   return (
-    <div className="min-h-screen bg-background">
+    <PublicPageWrapper>
+      <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-6 md:px-8 py-12">
         <div className="mb-8">
           <Link href="/" className="text-primary hover:underline text-sm mb-4 inline-block">
@@ -165,6 +167,7 @@ export default function ShippingPage() {
         </div>
       </div>
     </div>
+    </PublicPageWrapper>
   );
 }
 
