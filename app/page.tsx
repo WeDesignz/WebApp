@@ -23,6 +23,7 @@ interface FeaturedDesign {
   id: number;
   title: string;
   creator: string;
+  product_number?: string;
   price: string;
   image: string | null;
   category?: string;
@@ -49,6 +50,7 @@ export default function Page() {
             id: design.id,
             title: design.title,
             creator: design.creator,
+            product_number: design.product_number,
             price: design.price,
             category: design.category,
             image: design.image ? preferAvifForDisplay(design.image) || design.image : undefined,
