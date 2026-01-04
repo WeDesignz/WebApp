@@ -268,45 +268,6 @@ export default function DomeGallery({
     }
   }, []);
 
-  // Add cleanup function for drag state
-  const resetDragState = useCallback(() => {
-    if (draggingRef.current) {
-      draggingRef.current = false;
-      startPosRef.current = null;
-      tapTargetRef.current = null;
-      movedRef.current = false;
-      cancelTapRef.current = false;
-    }
-  }, []);
-
-  // Add global pointer/mouse event listeners to handle drag interruption
-  useEffect(() => {
-    const handleGlobalPointerUp = (e: PointerEvent) => {
-      // Only handle if we were dragging
-      if (draggingRef.current) {
-        resetDragState();
-      }
-    };
-
-    const handleGlobalMouseUp = (e: MouseEvent) => {
-      // Fallback for mouse events
-      if (draggingRef.current) {
-        resetDragState();
-      }
-    };
-
-    // Listen on window to catch events even if pointer leaves the element
-    window.addEventListener('pointerup', handleGlobalPointerUp, { passive: true });
-    window.addEventListener('pointercancel', handleGlobalPointerUp, { passive: true });
-    window.addEventListener('mouseup', handleGlobalMouseUp, { passive: true });
-
-    return () => {
-      window.removeEventListener('pointerup', handleGlobalPointerUp);
-      window.removeEventListener('pointercancel', handleGlobalPointerUp);
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-    };
-  }, [resetDragState]);
-
   const startInertia = useCallback(
     (vx: number, vy: number) => {
       const MAX_V = 1.4;
