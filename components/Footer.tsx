@@ -87,21 +87,6 @@ export default function Footer() {
                     <a href="mailto:info@wedesignz.com" className="hover:text-primary transition-colors">info@wedesignz.com</a>
                   </div>
                 </div>
-<<<<<<< Updated upstream
-                <div className="flex items-center gap-3 text-sm text-foreground/70">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Phone className="w-4 h-4 text-primary" />
-                  </div>
-                  <a href="tel:8000452183" className="hover:text-primary transition-colors">8000452183</a>
-                </div>
-                <div className="flex items-start gap-3 text-sm text-foreground/70">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <MapPin className="w-4 h-4 text-primary" />
-                  </div>
-                  <span>Sheetal Fab, B-117, Akar Tower, B-block, Old RTO road, Yogi Tower, Bhilwara - 311001</span>
-                </div>
-=======
->>>>>>> Stashed changes
               </div>
 
               <div className="flex items-center gap-3">
