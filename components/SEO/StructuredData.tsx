@@ -18,7 +18,7 @@ export function OrganizationSchema({ siteUrl = 'https://wedesignz.com' }: Organi
       '@type': 'ContactPoint',
       telephone: '+91-8000452183',
       contactType: 'Customer Service',
-      email: 'wedesignz006@gmail.com',
+      email: 'support@wedesignz.com',
       areaServed: ['IN', 'Worldwide'],
       availableLanguage: ['en', 'hi'],
     },

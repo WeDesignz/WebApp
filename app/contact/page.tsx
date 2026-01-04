@@ -54,13 +54,31 @@ export default function ContactPage() {
                   <Mail className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-2">Email</h3>
-                  <p className="text-muted-foreground mb-2">Send us an email anytime</p>
+                  <h3 className="font-semibold mb-2">Support Email</h3>
+                  <p className="text-muted-foreground mb-2">For support and assistance</p>
                   <a 
-                    href="mailto:wedesignz006@gmail.com" 
+                    href="mailto:support@wedesignz.com" 
                     className="text-primary hover:underline"
                   >
-                    wedesignz006@gmail.com
+                    support@wedesignz.com
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border border-border rounded-lg">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <Mail className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2">General Inquiries</h3>
+                  <p className="text-muted-foreground mb-2">For general information</p>
+                  <a 
+                    href="mailto:info@wedesignz.com" 
+                    className="text-primary hover:underline"
+                  >
+                    info@wedesignz.com
                   </a>
                 </div>
               </div>
@@ -177,8 +195,9 @@ export default function ContactPage() {
           <h2 className="text-2xl font-semibold mb-4">WeDesignz</h2>
           <div className="space-y-2 text-foreground/80">
             <p><strong>Address:</strong> Sheetal Fab, B-117, Akar Tower, B-block, Old RTO road, Yogi Tower, Bhilwara - 311001</p>
-            <p><strong>Email:</strong> wedesignz006@gmail.com</p>
-            <p><strong>Phone:</strong> 8000452183</p>
+            <p><strong>Support Email:</strong> <a href="mailto:support@wedesignz.com" className="text-primary hover:underline">support@wedesignz.com</a></p>
+            <p><strong>General Inquiries:</strong> <a href="mailto:info@wedesignz.com" className="text-primary hover:underline">info@wedesignz.com</a></p>
+            <p><strong>Phone:</strong> <a href="tel:8000452183" className="text-primary hover:underline">8000452183</a></p>
             <p><strong>Working Hours:</strong> Monday - Saturday, 10 AM - 6 PM IST</p>
           </div>
         </div>

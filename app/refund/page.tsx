@@ -124,8 +124,9 @@ export default function RefundPage() {
               For refund requests or questions about our refund policy, please contact us:
             </p>
             <div className="space-y-1 text-foreground/80">
-              <p><strong>Email:</strong> refunds@wedesignz.com</p>
-              <p><strong>Phone:</strong> +91-XXXXXXXXXX</p>
+              <p><strong>Support Email:</strong> <a href="mailto:support@wedesignz.com" className="text-primary hover:underline">support@wedesignz.com</a></p>
+              <p><strong>General Inquiries:</strong> <a href="mailto:info@wedesignz.com" className="text-primary hover:underline">info@wedesignz.com</a></p>
+              <p><strong>Phone:</strong> <a href="tel:8000452183" className="text-primary hover:underline">8000452183</a></p>
               <p><strong>Support Hours:</strong> Monday - Saturday, 10 AM - 6 PM IST</p>
             </div>
           </section>
