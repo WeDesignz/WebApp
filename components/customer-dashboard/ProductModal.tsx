@@ -508,9 +508,9 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
               ) : (
                 <>
                   {/* Header with action buttons - Sticky */}
-                  <div className="flex items-center justify-between p-6 border-b border-border bg-card sticky top-0 z-10 rounded-t-2xl">
-                    <h2 className="text-2xl font-bold">{product.title}</h2>
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between gap-3 p-4 sm:p-6 border-b border-border bg-card sticky top-0 z-10 rounded-t-2xl">
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-bold truncate min-w-0 flex-1 pr-2">{product.title}</h2>
+                    <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                       <TooltipProvider>
                         {/* Add to Cart and Wishlist buttons (if not free and not downloaded) */}
                         {!isDownloaded && !isFree() && (
