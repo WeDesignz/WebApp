@@ -64,7 +64,12 @@ export default function JoinAsFreelancerCTA() {
             >
               <Button 
                 className="px-8 py-6 rounded-full text-base font-semibold bg-primary hover:shadow-2xl hover:shadow-primary/30 hover:scale-105 transition-all"
-                onClick={() => window.location.href = '/designer-onboarding'}
+                onClick={() => {
+                  // Always route through designer console.
+                  // Authentication and onboarding requirements are enforced
+                  // by DesignerConsoleGuard on the /designer-console pages.
+                  window.location.href = '/designer-console';
+                }}
               >
                 Start Selling Designs
                 <ArrowRight className="w-4 h-4 ml-2" />
@@ -72,7 +77,9 @@ export default function JoinAsFreelancerCTA() {
               <Button 
                 variant="outline" 
                 className="px-8 py-6 rounded-full text-base font-semibold border-2"
-                onClick={() => window.location.href = '/designer-console'}
+                onClick={() => {
+                  window.location.href = '/designer-console';
+                }}
               >
                 View Designer Console
               </Button>

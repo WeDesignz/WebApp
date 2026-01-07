@@ -282,7 +282,13 @@ export default function JerseyShowcase() {
               </div>
             </div>
 
-            <Button className="w-full rounded-full py-6 bg-primary hover:shadow-xl hover:shadow-primary/30 hover:scale-105 transition-all font-semibold text-base">
+            <Button
+              className="w-full rounded-full py-6 bg-primary hover:shadow-xl hover:shadow-primary/30 hover:scale-105 transition-all font-semibold text-base"
+              onClick={() => {
+                // Always take users to the customer dashboard to browse designs
+                window.location.href = '/customer-dashboard';
+              }}
+            >
               Explore Full Collection →
             </Button>
           </motion.div>
