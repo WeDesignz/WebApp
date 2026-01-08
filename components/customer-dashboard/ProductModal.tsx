@@ -165,6 +165,11 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
       const fileNameLower = fileName.toLowerCase();
       const urlLower = url.toLowerCase();
       
+      // Skip AVIF files - they are preview images only, not downloadable files
+      if (fileNameLower.endsWith('.avif') || urlLower.endsWith('.avif') || mediaItem?.is_avif === true) {
+        return;
+      }
+      
       // Check if it's a mockup (base name is "mockup" without extension)
       // Extract base name without extension
       const baseName = fileNameLower.split('.')[0];
@@ -858,6 +863,13 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                         if (filesByType.eps.length > 0) availableTypes.push('EPS');
                         if (filesByType.mockup.length > 0) availableTypes.push('Mockup');
                         
+                        // Count only actual downloadable files (excluding AVIF preview images)
+                        const totalDownloadableFiles = filesByType.cdr.length + 
+                                                      filesByType.jpg.length + 
+                                                      filesByType.png.length + 
+                                                      filesByType.eps.length + 
+                                                      filesByType.mockup.length;
+                        
                         return (
                           <div className="p-4 bg-muted/50 rounded-lg border border-border">
                             <div className="flex items-center gap-2 text-muted-foreground mb-2">
@@ -865,7 +877,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                               <span className="text-xs font-medium">Media Files</span>
                             </div>
                             <p className="text-sm font-semibold mb-2">
-                              {product.media.length} file{product.media.length !== 1 ? 's' : ''} available
+                              {totalDownloadableFiles} file{totalDownloadableFiles !== 1 ? 's' : ''} available
                             </p>
                             {availableTypes.length > 0 && (
                               <div className="mt-2">
