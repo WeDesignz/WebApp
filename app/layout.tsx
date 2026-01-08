@@ -5,6 +5,7 @@ import Providers from "./providers";
 import Script from "next/script";
 import { Inter, Poppins } from "next/font/google";
 import { OrganizationSchema, WebsiteSchema } from "@/components/SEO/StructuredData";
+import ConsentBanner from "@/components/common/ConsentBanner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -112,13 +113,27 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${poppins.variable}`}>
       <head>
-        {/* Google tag (gtag.js) */}
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-0SY8MZC6ZK"></script>
+        {/* Google Consent Mode v2 - Must load before gtag.js */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
+              gtag('consent', 'default', {
+                'analytics_storage': 'denied',
+                'ad_storage': 'denied',
+                'ad_user_data': 'denied',
+                'ad_personalization': 'denied',
+                'wait_for_update': 500,
+              });
+            `,
+          }}
+        />
+        {/* Google tag (gtag.js) */}
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-0SY8MZC6ZK"></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
               gtag('js', new Date());
               gtag('config', 'G-0SY8MZC6ZK');
             `,
@@ -163,7 +178,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           src="https://checkout.razorpay.com/v1/checkout.js"
           strategy="afterInteractive"
         />
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <ConsentBanner />
+        </Providers>
       </body>
     </html>
   );

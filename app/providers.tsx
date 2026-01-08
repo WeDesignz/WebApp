@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { CartWishlistProvider } from "@/contexts/CartWishlistContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ConsentProvider } from "@/contexts/ConsentContext";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
 export default function Providers({ children }: { children: ReactNode }) {
@@ -37,15 +38,17 @@ export default function Providers({ children }: { children: ReactNode }) {
     <ErrorBoundary>
       <QueryClientProvider client={client}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-          <AuthProvider>
-            <CartWishlistProvider>
-              <TooltipProvider>
-                {children}
-                <Toaster />
-                <SonnerToaster position="top-center" richColors />
-              </TooltipProvider>
-            </CartWishlistProvider>
-          </AuthProvider>
+          <ConsentProvider>
+            <AuthProvider>
+              <CartWishlistProvider>
+                <TooltipProvider>
+                  {children}
+                  <Toaster />
+                  <SonnerToaster position="top-center" richColors />
+                </TooltipProvider>
+              </CartWishlistProvider>
+            </AuthProvider>
+          </ConsentProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>
