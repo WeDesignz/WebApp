@@ -846,6 +846,45 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                           </div>
                         </div>
                       )}
+
+                      {/* Media Files - What you'll get */}
+                      {product.media.length > 0 && (() => {
+                        const filesByType = organizeMediaByFileType();
+                        const availableTypes: string[] = [];
+                        
+                        if (filesByType.cdr.length > 0) availableTypes.push('CDR');
+                        if (filesByType.jpg.length > 0) availableTypes.push('JPG');
+                        if (filesByType.png.length > 0) availableTypes.push('PNG');
+                        if (filesByType.eps.length > 0) availableTypes.push('EPS');
+                        if (filesByType.mockup.length > 0) availableTypes.push('Mockup');
+                        
+                        return (
+                          <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                              <ImageIcon className="w-4 h-4" />
+                              <span className="text-xs font-medium">Media Files</span>
+                            </div>
+                            <p className="text-sm font-semibold mb-2">
+                              {product.media.length} file{product.media.length !== 1 ? 's' : ''} available
+                            </p>
+                            {availableTypes.length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-xs text-muted-foreground mb-1.5">What you'll get:</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {availableTypes.map((type) => (
+                                    <span
+                                      key={type}
+                                      className="text-xs px-2 py-1 bg-primary/10 text-primary border border-primary/20 rounded-md font-medium"
+                                    >
+                                      {type}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Right Side - Product Information */}
@@ -949,17 +988,6 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                               </span>
                             ))}
                           </div>
-                        </div>
-                      )}
-
-                      {/* Media Files Count */}
-                      {product.media.length > 0 && (
-                        <div className="p-4 bg-muted/50 rounded-lg border border-border">
-                          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                            <ImageIcon className="w-4 h-4" />
-                            <span className="text-xs font-medium">Media Files</span>
-                          </div>
-                          <p className="text-sm font-semibold">{product.media.length} file{product.media.length !== 1 ? 's' : ''} available</p>
                         </div>
                       )}
                     </div>
