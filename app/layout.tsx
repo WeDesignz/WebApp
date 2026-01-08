@@ -112,6 +112,18 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${poppins.variable}`}>
       <head>
+        {/* Google tag (gtag.js) */}
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-0SY8MZC6ZK"></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-0SY8MZC6ZK');
+            `,
+          }}
+        />
         <meta name="p:domain_verify" content="7efb64ebb140ef75eb3643e0a9714d6b" />
         <OrganizationSchema siteUrl={siteUrl} />
         <WebsiteSchema siteUrl={siteUrl} />
