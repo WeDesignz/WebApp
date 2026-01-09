@@ -321,9 +321,7 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
 
   const handleFreePDFClaim = () => {
     // Redirect to PDF design selection page
-    if (typeof window !== 'undefined') {
-      window.location.href = '/customer-dashboard/pdf-select?type=free';
-    }
+    router.push('/customer-dashboard?view=downloadMockPDF');
   };
 
   const handleCategoryClick = (categoryId: string) => {
