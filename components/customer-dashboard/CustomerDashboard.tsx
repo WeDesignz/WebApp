@@ -18,6 +18,7 @@ import CartContent from "./CartContent";
 import PlansContent from "./PlansContent";
 import LogoutModal from "./LogoutModal";
 import DownloadMockPDFContent from "./DownloadMockPDFContent";
+import LensSearchModal from "./LensSearchModal";
 import { useAuth } from "@/contexts/AuthContext";
 
 export type DashboardView = "dashboard" | "downloads" | "orders" | "freelancers" | "support" | "notifications" | "faq" | "profile" | "wishlist" | "cart" | "plans" | "downloadMockPDF";
@@ -37,6 +38,7 @@ export default function CustomerDashboard() {
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [activeView, setActiveView] = useState<DashboardView>("dashboard");
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const [lensModalOpen, setLensModalOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Check for view and category query parameters on mount
@@ -214,6 +216,7 @@ export default function CustomerDashboard() {
           onOpenCart={() => setCartDrawerOpen(true)}
           onViewChange={setActiveView}
           onOpenLogout={() => setLogoutModalOpen(true)}
+          onOpenLens={() => setLensModalOpen(true)}
         />
         
         <main className="flex-1 overflow-y-auto">
@@ -233,6 +236,26 @@ export default function CustomerDashboard() {
       <LogoutModal
         isOpen={logoutModalOpen}
         onClose={() => setLogoutModalOpen(false)}
+      />
+
+      <LensSearchModal
+        open={lensModalOpen}
+        onClose={() => setLensModalOpen(false)}
+        onSearchComplete={(products) => {
+          // Pass lens search results to CustomerDashboardContent
+          // We'll handle this by setting a special search query that triggers lens results
+          // For now, we'll trigger a refresh with a special query prefix
+          setLensModalOpen(false);
+          // The lens results will be handled via a callback or state that CustomerDashboardContent can access
+          // For now, we'll use a special query format to indicate lens search
+          if (products && products.length > 0) {
+            setSearchQuery(`__lens__${Date.now()}`);
+            // Store products in sessionStorage temporarily for CustomerDashboardContent to pick up
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('lensSearchResults', JSON.stringify(products));
+            }
+          }
+        }}
       />
     </div>
   );

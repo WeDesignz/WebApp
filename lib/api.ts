@@ -712,6 +712,53 @@ export const catalogAPI = {
   }>> {
     return apiRequest('/api/catalog/featured-designs/');
   },
+
+  /**
+   * Lens search - Search products by uploading an image
+   */
+  async lensSearch(imageFile: File, numResults: number = 20): Promise<ApiResponse<{
+    success: boolean;
+    products: any[];
+    extracted_image: string | null;
+    count: number;
+    total_matched: number;
+    message?: string;
+  }>> {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    formData.append('num_results', String(numResults));
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/catalog/lens-search/`, {
+        method: 'POST',
+        body: formData,
+        headers,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          error: data.error || 'Failed to search products by image',
+          errorDetails: data,
+        };
+      }
+
+      return { data };
+    } catch (error: any) {
+      return {
+        error: error.message || 'Network error occurred',
+        errorDetails: error,
+      };
+    }
+  },
 };
 
 /**

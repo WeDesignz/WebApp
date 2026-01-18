@@ -133,6 +133,9 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
     }
   }, [downloadsData]);
 
+  // Check if this is a lens search (starts with __lens__)
+  const isLensSearch = searchQuery.startsWith('__lens__');
+  
   // Fetch products using infinite query for pagination
   const {
     data,
@@ -144,8 +147,28 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
   } = useInfiniteQuery({
     queryKey: ['homeFeed', searchQuery, selectedCategory, selectedSubcategory],
     queryFn: async ({ pageParam = 1 }) => {
-      // If there's a search query or category/subcategory filter, use search endpoint
-      if (searchQuery || (selectedCategory && selectedCategory !== 'all') || selectedSubcategory) {
+      // Handle lens search results from sessionStorage
+      if (isLensSearch && typeof window !== 'undefined') {
+        const lensResults = sessionStorage.getItem('lensSearchResults');
+        if (lensResults) {
+          try {
+            const products = JSON.parse(lensResults);
+            // Clear the sessionStorage after reading
+            sessionStorage.removeItem('lensSearchResults');
+            // Transform and return lens results
+            return {
+              products: transformProducts(products),
+              page: 1,
+              hasNext: false, // Lens search doesn't support pagination
+            };
+          } catch (e) {
+            console.error('Error parsing lens search results:', e);
+          }
+        }
+      }
+      
+      // If there's a search query (but not lens search) or category/subcategory filter, use search endpoint
+      if ((searchQuery && !isLensSearch) || (selectedCategory && selectedCategory !== 'all') || selectedSubcategory) {
         // Use subcategory if selected, otherwise use category
         const categoryId = selectedSubcategory 
           ? parseInt(selectedSubcategory)
