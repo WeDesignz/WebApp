@@ -70,6 +70,7 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
         title: description.trim().substring(0, 200) || "", // Optional - backend will default to "Custom Order"
         description: description.trim() || "", // Optional - backend will default to "No description provided"
         budget: customOrderPrice,
+        files: files.length > 0 ? files : undefined, // Include files if any
       });
 
       if (submitResponse.error || !submitResponse.data) {

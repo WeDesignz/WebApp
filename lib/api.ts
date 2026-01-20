@@ -1123,6 +1123,7 @@ export const apiClient = {
     title: string;
     description: string;
     budget?: number;
+    files?: File[];
   }): Promise<ApiResponse<{
     message: string;
     custom_request: {
@@ -1140,29 +1141,63 @@ export const apiClient = {
     amount: number;
     payment_message: string;
   }>> => {
-    return apiRequest<{
-      message: string;
-      custom_request: {
-        id: number;
-        title: string;
-        description: string;
-        status: string;
-        budget: number | null;
-        created_at: string;
-        updated_at: string;
-        media?: Array<any>;
-      };
-      payment_required: boolean;
-      amount: number;
-      payment_message: string;
-    }>('/api/custom-requests/submit/', {
-      method: 'POST',
-      body: JSON.stringify({
-        title: data.title,
-        description: data.description,
-        budget: data.budget || 200,
-      }),
-    });
+    // If files are provided, use FormData; otherwise use JSON
+    if (data.files && data.files.length > 0) {
+      const formData = new FormData();
+      formData.append('title', data.title);
+      formData.append('description', data.description);
+      formData.append('budget', String(data.budget || 200));
+      
+      // Append all files
+      data.files.forEach((file, index) => {
+        formData.append(`files`, file);
+      });
+      
+      return apiRequest<{
+        message: string;
+        custom_request: {
+          id: number;
+          title: string;
+          description: string;
+          status: string;
+          budget: number | null;
+          created_at: string;
+          updated_at: string;
+          media?: Array<any>;
+        };
+        payment_required: boolean;
+        amount: number;
+        payment_message: string;
+      }>('/api/custom-requests/submit/', {
+        method: 'POST',
+        body: formData,
+      });
+    } else {
+      // No files, use JSON
+      return apiRequest<{
+        message: string;
+        custom_request: {
+          id: number;
+          title: string;
+          description: string;
+          status: string;
+          budget: number | null;
+          created_at: string;
+          updated_at: string;
+          media?: Array<any>;
+        };
+        payment_required: boolean;
+        amount: number;
+        payment_message: string;
+      }>('/api/custom-requests/submit/', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: data.title,
+          description: data.description,
+          budget: data.budget || 200,
+        }),
+      });
+    }
   },
 
   /**
