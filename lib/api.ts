@@ -3456,6 +3456,7 @@ export const apiClient = {
   getBusinessConfig: async (): Promise<ApiResponse<{
     commission_rate: number;
     gst_percentage: number;
+    custom_order_price: number;
     custom_order_time_slot_hours: number;
     minimum_required_designs_onboard: number;
   }>> => {
@@ -3464,6 +3465,7 @@ export const apiClient = {
       data: {
         commission_rate: number;
         gst_percentage: number;
+        custom_order_price: number;
         custom_order_time_slot_hours: number;
         minimum_required_designs_onboard: number;
       };
