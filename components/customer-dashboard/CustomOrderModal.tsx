@@ -51,15 +51,6 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
   };
 
   const handleSubmit = async () => {
-    if (!description.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Please provide design specifications",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (!customOrderPrice || customOrderPrice <= 0) {
       toast({
         title: "Error",
@@ -74,10 +65,10 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
 
     try {
       // Step 1: Submit custom request (this creates CustomOrderRequest and Order)
-      // Use description as title since title field is removed
+      // Title and description are optional - backend will provide defaults if empty
       const submitResponse = await apiClient.submitCustomRequest({
-        title: description.trim().substring(0, 200) || "Custom Order", // Use first 200 chars of description as title
-        description: description.trim(),
+        title: description.trim().substring(0, 200) || "", // Optional - backend will default to "Custom Order"
+        description: description.trim() || "", // Optional - backend will default to "No description provided"
         budget: customOrderPrice,
       });
 
@@ -192,21 +183,21 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
 
         <div className="space-y-4">
           <div>
-            <Label htmlFor="description">Design Specifications *</Label>
+            <Label htmlFor="description">Design Specifications</Label>
             <Textarea
               id="description"
-              placeholder="Describe your design requirements in detail..."
+              placeholder="Describe your design requirements in detail (optional)..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="mt-1.5 min-h-[120px]"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Please provide detailed specifications for your custom design
+              Optional: Provide detailed specifications for your custom design
             </p>
           </div>
 
           <div>
-            <Label htmlFor="files">Reference Files (Optional)</Label>
+            <Label htmlFor="files">Reference Files</Label>
             <div className="mt-1.5">
               <label
                 htmlFor="files"
