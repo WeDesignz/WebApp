@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Upload, X, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
 import { initializeRazorpayCheckout } from "@/lib/payment";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 interface CustomOrderModalProps {
   open: boolean;
@@ -19,14 +18,27 @@ interface CustomOrderModalProps {
 }
 
 export default function CustomOrderModal({ open, onClose, onOrderPlaced }: CustomOrderModalProps) {
-  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [budget, setBudget] = useState<number>(200);
   const [files, setFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch custom order price from business config
+  const { data: businessConfig } = useQuery({
+    queryKey: ['businessConfig'],
+    queryFn: async () => {
+      const response = await apiClient.getBusinessConfig();
+      if (response.error || !response.data) {
+        throw new Error(response.error || 'Failed to fetch business configuration');
+      }
+      return response.data;
+    },
+    enabled: open, // Only fetch when modal is open
+  });
+
+  const customOrderPrice = businessConfig?.custom_order_price || 0;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -39,28 +51,10 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
   };
 
   const handleSubmit = async () => {
-    if (!title.trim() || !description.trim()) {
+    if (!customOrderPrice || customOrderPrice <= 0) {
       toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!budget || budget <= 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter a valid budget amount",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (budget < 200) {
-      toast({
-        title: "Validation Error",
-        description: "Minimum budget is ₹200",
+        title: "Error",
+        description: "Custom order price is not configured. Please contact support.",
         variant: "destructive",
       });
       return;
@@ -71,10 +65,12 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
 
     try {
       // Step 1: Submit custom request (this creates CustomOrderRequest and Order)
+      // Title and description are optional - backend will provide defaults if empty
       const submitResponse = await apiClient.submitCustomRequest({
-        title: title.trim(),
-        description: description.trim(),
-        budget: budget,
+        title: description.trim().substring(0, 200) || "", // Optional - backend will default to "Custom Order"
+        description: description.trim() || "", // Optional - backend will default to "No description provided"
+        budget: customOrderPrice,
+        files: files.length > 0 ? files : undefined, // Include files if any
       });
 
       if (submitResponse.error || !submitResponse.data) {
@@ -101,7 +97,7 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
       };
       const customRequest = data.custom_request;
       const orderId = data.order_id;
-      const amount = data.amount || budget;
+      const amount = data.amount || customOrderPrice;
 
       if (!orderId) {
         throw new Error('Failed to create order for custom request');
@@ -112,7 +108,7 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
       const paymentOrderResponse = await apiClient.createPaymentOrder({
         amount: amount,
         currency: 'INR',
-        description: `Custom Order: ${title}`,
+        description: `Custom Order`,
         order_id: orderId.toString(), // Link payment to order
       });
 
@@ -128,7 +124,7 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
         amount: amount * 100, // Convert rupees to paise for Razorpay
         currency: 'INR',
         name: 'WeDesign',
-        description: `Custom Order: ${title}`,
+        description: `Custom Order`,
         order_id: razorpay_order_id,
         theme: {
           color: '#8B5CF6',
@@ -175,9 +171,7 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
   };
 
   const resetForm = () => {
-    setTitle("");
     setDescription("");
-    setBudget(200);
     setFiles([]);
   };
 
@@ -190,46 +184,21 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
 
         <div className="space-y-4">
           <div>
-            <Label htmlFor="title">Design Title *</Label>
-            <Input
-              id="title"
-              placeholder="e.g., Business Card Design"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="mt-1.5"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="description">Specifications *</Label>
+            <Label htmlFor="description">Design Specifications</Label>
             <Textarea
               id="description"
-              placeholder="Describe your design requirements in detail..."
+              placeholder="Describe your design requirements in detail (optional)..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="mt-1.5 min-h-[120px]"
             />
-          </div>
-
-          <div>
-            <Label htmlFor="budget">Budget (₹) *</Label>
-            <Input
-              id="budget"
-              type="number"
-              min="1"
-              step="0.01"
-              placeholder="e.g., 200"
-              value={budget}
-              onChange={(e) => setBudget(parseFloat(e.target.value) || 0)}
-              className="mt-1.5"
-            />
             <p className="text-xs text-muted-foreground mt-1">
-              Minimum budget: ₹200
+              Optional: Provide detailed specifications for your custom design
             </p>
           </div>
 
           <div>
-            <Label htmlFor="files">Reference Files (Optional)</Label>
+            <Label htmlFor="files">Reference Files</Label>
             <div className="mt-1.5">
               <label
                 htmlFor="files"
@@ -277,17 +246,17 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
           <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="font-semibold">Order Price</span>
-              <span className="text-2xl font-bold">₹{budget}</span>
+              <span className="text-2xl font-bold">₹{customOrderPrice}</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Delivered within 1 hour • Unlimited revisions
+              Fixed price as per system configuration
             </p>
           </div>
 
           <div className="flex gap-2">
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting || isProcessing}
+              disabled={isSubmitting || isProcessing || !customOrderPrice}
               className="flex-1"
             >
               {isSubmitting || isProcessing ? (
@@ -296,7 +265,7 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
                   {isProcessing ? "Processing Payment..." : "Submitting..."}
                 </>
               ) : (
-                `Place Order (₹${budget})`
+                `Place Order (₹${customOrderPrice})`
               )}
             </Button>
             <Button 

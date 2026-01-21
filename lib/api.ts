@@ -712,6 +712,53 @@ export const catalogAPI = {
   }>> {
     return apiRequest('/api/catalog/featured-designs/');
   },
+
+  /**
+   * Lens search - Search products by uploading an image
+   */
+  async lensSearch(imageFile: File, numResults: number = 20): Promise<ApiResponse<{
+    success: boolean;
+    products: any[];
+    extracted_image: string | null;
+    count: number;
+    total_matched: number;
+    message?: string;
+  }>> {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    formData.append('num_results', String(numResults));
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/catalog/lens-search/`, {
+        method: 'POST',
+        body: formData,
+        headers,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          error: data.error || 'Failed to search products by image',
+          errorDetails: data,
+        };
+      }
+
+      return { data };
+    } catch (error: any) {
+      return {
+        error: error.message || 'Network error occurred',
+        errorDetails: error,
+      };
+    }
+  },
 };
 
 /**
@@ -1076,6 +1123,7 @@ export const apiClient = {
     title: string;
     description: string;
     budget?: number;
+    files?: File[];
   }): Promise<ApiResponse<{
     message: string;
     custom_request: {
@@ -1093,29 +1141,63 @@ export const apiClient = {
     amount: number;
     payment_message: string;
   }>> => {
-    return apiRequest<{
-      message: string;
-      custom_request: {
-        id: number;
-        title: string;
-        description: string;
-        status: string;
-        budget: number | null;
-        created_at: string;
-        updated_at: string;
-        media?: Array<any>;
-      };
-      payment_required: boolean;
-      amount: number;
-      payment_message: string;
-    }>('/api/custom-requests/submit/', {
-      method: 'POST',
-      body: JSON.stringify({
-        title: data.title,
-        description: data.description,
-        budget: data.budget || 200,
-      }),
-    });
+    // If files are provided, use FormData; otherwise use JSON
+    if (data.files && data.files.length > 0) {
+      const formData = new FormData();
+      formData.append('title', data.title);
+      formData.append('description', data.description);
+      formData.append('budget', String(data.budget || 200));
+      
+      // Append all files
+      data.files.forEach((file, index) => {
+        formData.append(`files`, file);
+      });
+      
+      return apiRequest<{
+        message: string;
+        custom_request: {
+          id: number;
+          title: string;
+          description: string;
+          status: string;
+          budget: number | null;
+          created_at: string;
+          updated_at: string;
+          media?: Array<any>;
+        };
+        payment_required: boolean;
+        amount: number;
+        payment_message: string;
+      }>('/api/custom-requests/submit/', {
+        method: 'POST',
+        body: formData,
+      });
+    } else {
+      // No files, use JSON
+      return apiRequest<{
+        message: string;
+        custom_request: {
+          id: number;
+          title: string;
+          description: string;
+          status: string;
+          budget: number | null;
+          created_at: string;
+          updated_at: string;
+          media?: Array<any>;
+        };
+        payment_required: boolean;
+        amount: number;
+        payment_message: string;
+      }>('/api/custom-requests/submit/', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: data.title,
+          description: data.description,
+          budget: data.budget || 200,
+        }),
+      });
+    }
   },
 
   /**
@@ -3409,6 +3491,7 @@ export const apiClient = {
   getBusinessConfig: async (): Promise<ApiResponse<{
     commission_rate: number;
     gst_percentage: number;
+    custom_order_price: number;
     custom_order_time_slot_hours: number;
     minimum_required_designs_onboard: number;
   }>> => {
@@ -3417,6 +3500,7 @@ export const apiClient = {
       data: {
         commission_rate: number;
         gst_percentage: number;
+        custom_order_price: number;
         custom_order_time_slot_hours: number;
         minimum_required_designs_onboard: number;
       };
