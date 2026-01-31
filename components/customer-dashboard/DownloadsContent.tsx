@@ -43,6 +43,7 @@ import {
 import ReceiptModal from "@/components/customer-dashboard/ReceiptModal";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, catalogAPI } from "@/lib/api";
+import { triggerBlobDownload } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 
@@ -350,18 +351,8 @@ export default function DownloadsContent() {
           }
 
           if (response.data instanceof Blob) {
-            // Create download link
-            const url = window.URL.createObjectURL(response.data);
-            const a = document.createElement('a');
-            a.href = url;
-            // Use filename from response if available, otherwise use default
             const downloadFilename = (response as any).filename || `designs_${pdfId}.pdf`;
-            a.download = downloadFilename;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-
+            triggerBlobDownload(response.data, downloadFilename);
             toast({
               title: "Download started",
               description: "Your PDF is being downloaded.",
@@ -375,17 +366,8 @@ export default function DownloadsContent() {
         setDownloadingProductId(download.productId);
         try {
           const blob = await apiClient.downloadProductZip(download.productId);
-          
-          // Create download link
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${download.title?.replace(/[^a-z0-9]/gi, '_') || 'design'}_${download.productId}.zip`;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-
+          const zipFilename = `${download.title?.replace(/[^a-z0-9]/gi, '_') || 'design'}_${download.productId}.zip`;
+          triggerBlobDownload(blob, zipFilename);
           toast({
             title: "Download started",
             description: "Your design files are being downloaded as a ZIP file.",
