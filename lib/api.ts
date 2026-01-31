@@ -1448,32 +1448,51 @@ export const apiClient = {
   checkPDFEligibility: async (): Promise<ApiResponse<{
     is_eligible: boolean;
     free_downloads_used?: number;
+    free_pdf_downloads_limit_per_month?: number;
     free_pdf_designs_count?: number;
     [key: string]: any;
   }>> => {
     return apiRequest<{
       is_eligible: boolean;
       free_downloads_used?: number;
+      free_pdf_downloads_limit_per_month?: number;
       free_pdf_designs_count?: number;
       [key: string]: any;
     }>('/api/catalog/pdf/check-eligibility/');
   },
 
-  createPDFRequest: async (data: {
-    download_type: 'free' | 'paid';
-    total_pages: number;
-    selection_type?: 'specific' | 'search_results';
-    selected_products?: number[];
-    search_filters?: any;
-    use_subscription_mock_pdf?: boolean;
-    customer_name?: string;
-    customer_mobile?: string;
-  }): Promise<ApiResponse<{
+  createPDFRequest: async (
+    data: {
+      download_type: 'free' | 'paid';
+      total_pages: number;
+      selection_type?: 'specific' | 'search_results';
+      selected_products?: number[];
+      search_filters?: any;
+      use_subscription_mock_pdf?: boolean;
+      customer_name: string;
+      customer_mobile: string;
+    },
+    logoFile?: File | null
+  ): Promise<ApiResponse<{
     download_id?: number;
     id?: number;
     pdf_download?: { id?: number; [key: string]: any };
     [key: string]: any;
   }>> => {
+    if (logoFile) {
+      const formData = new FormData();
+      formData.append('data', JSON.stringify(data));
+      formData.append('customer_logo', logoFile);
+      return apiRequest<{
+        download_id?: number;
+        id?: number;
+        pdf_download?: { id?: number; [key: string]: any };
+        [key: string]: any;
+      }>('/api/catalog/pdf/create-request/', {
+        method: 'POST',
+        body: formData,
+      });
+    }
     return apiRequest<{
       download_id?: number;
       id?: number;

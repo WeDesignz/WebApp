@@ -25,6 +25,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { catalogAPI, apiClient } from "@/lib/api";
@@ -74,9 +81,11 @@ export default function DownloadMockPDFContent() {
   } | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  // Customer information for mock PDF
+  // Customer information for mock PDF (required for every download; stored per download in DB)
   const [customerName, setCustomerName] = useState("");
   const [customerMobile, setCustomerMobile] = useState("");
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   const isAuthenticated = !!user;
   // Use first value of paid_pdf_designs_options as free designs count
@@ -155,7 +164,11 @@ export default function DownloadMockPDFContent() {
   });
 
   const isEligible = eligibilityData?.is_eligible ?? false;
-  
+  const freeDownloadsUsed = eligibilityData?.free_downloads_used ?? 0;
+  const freePdfLimitPerMonth = eligibilityData?.free_pdf_downloads_limit_per_month ?? 999;
+  const freePdfRemaining = Math.max(0, freePdfLimitPerMonth - freeDownloadsUsed);
+  const isUnlimitedFree = freePdfLimitPerMonth >= 999;
+
   // Fetch subscription info for mock PDF downloads
   const { data: subscriptionData } = useQuery({
     queryKey: ['subscription', 'freeDownloads'],
@@ -174,10 +187,10 @@ export default function DownloadMockPDFContent() {
   const subscriptionMockPDFCount = subscriptionData?.remaining_mock_pdf_downloads || 0;
   
   // Determine the actual design count to use
-  // If using subscription mock PDF, use freeDesignsCount (first value of PAID_PDF_DESIGNS_OPTIONS)
+  // Subscription mock PDF: first option only. Unlimited free promo (limit >= 999): any size. Otherwise: first option for free, selected for paid.
   const actualDesignCount = useSubscriptionMockPDF 
     ? freeDesignsCount 
-    : (isEligible ? freeDesignsCount : selectedDesignCount);
+    : (isEligible ? (isUnlimitedFree ? selectedDesignCount : freeDesignsCount) : selectedDesignCount);
 
   // Fetch categories
   const { data: categoriesData, isLoading: isLoadingCategories } = useQuery({
@@ -224,35 +237,29 @@ export default function DownloadMockPDFContent() {
         }
 
         const rawProducts = response.data?.results || [];
-        // Filter products to only include those with mockup images
+        // Prefer products with mockup images; if none have mockups, show all products with any media so designs are visible
         const productsWithMockups = rawProducts.filter((product: any) => {
           if (!product.media || !Array.isArray(product.media) || product.media.length === 0) {
             return false;
           }
-          // Check if any media item is marked as mockup
           return product.media.some((mediaItem: any) => {
-            if (typeof mediaItem === 'string') {
-              return false; // String URLs don't have mockup info
-            }
-            // Check is_mockup flag
-            if (mediaItem.is_mockup === true) {
-              return true;
-            }
-            // Check filename for "mockup"
+            if (typeof mediaItem === 'string') return false;
+            if (mediaItem.is_mockup === true) return true;
             const fileName = mediaItem.file_name || '';
             if (fileName) {
               const fileNameLower = fileName.toLowerCase();
               const baseName = fileNameLower.split('.')[0];
-              if (baseName === 'mockup' || fileNameLower.includes('mockup')) {
-                return true;
-              }
+              if (baseName === 'mockup' || fileNameLower.includes('mockup')) return true;
             }
             return false;
           });
         });
+        const productsToShow = productsWithMockups.length > 0
+          ? productsWithMockups
+          : rawProducts.filter((p: any) => p.media && Array.isArray(p.media) && p.media.length > 0);
 
         return {
-          products: transformProducts(productsWithMockups),
+          products: transformProducts(productsToShow),
           page: response.data?.current_page || pageParam,
           hasNext: (response.data?.current_page || 0) < (response.data?.total_pages || 0),
         };
@@ -264,35 +271,29 @@ export default function DownloadMockPDFContent() {
         }
 
         const rawProducts = response.data?.products || [];
-        // Filter products to only include those with mockup images
+        // Prefer products with mockup images; if none have mockups, show all products with any media so designs are visible
         const productsWithMockups = rawProducts.filter((product: any) => {
           if (!product.media || !Array.isArray(product.media) || product.media.length === 0) {
             return false;
           }
-          // Check if any media item is marked as mockup
           return product.media.some((mediaItem: any) => {
-            if (typeof mediaItem === 'string') {
-              return false; // String URLs don't have mockup info
-            }
-            // Check is_mockup flag
-            if (mediaItem.is_mockup === true) {
-              return true;
-            }
-            // Check filename for "mockup"
+            if (typeof mediaItem === 'string') return false;
+            if (mediaItem.is_mockup === true) return true;
             const fileName = mediaItem.file_name || '';
             if (fileName) {
               const fileNameLower = fileName.toLowerCase();
               const baseName = fileNameLower.split('.')[0];
-              if (baseName === 'mockup' || fileNameLower.includes('mockup')) {
-                return true;
-              }
+              if (baseName === 'mockup' || fileNameLower.includes('mockup')) return true;
             }
             return false;
           });
         });
+        const productsToShow = productsWithMockups.length > 0
+          ? productsWithMockups
+          : rawProducts.filter((p: any) => p.media && Array.isArray(p.media) && p.media.length > 0);
 
         return {
-          products: transformProducts(productsWithMockups),
+          products: transformProducts(productsToShow),
           page: response.data?.page || pageParam,
           hasNext: response.data?.has_next || false,
         };
@@ -356,7 +357,7 @@ export default function DownloadMockPDFContent() {
     
     setSelectedDesignIds(prev => {
       const newSet = new Set(prev);
-      const maxCount = isEligible ? freeDesignsCount : selectedDesignCount;
+      const maxCount = isEligible ? freeDownloadDesignCount : selectedDesignCount;
       
       if (newSet.has(productId)) {
         newSet.delete(productId);
@@ -389,39 +390,35 @@ export default function DownloadMockPDFContent() {
     // Determine download type early for validation
     const downloadType = isFreeDownload ? "free" : "paid";
     
-    // Validate customer information for paid downloads
-    if (downloadType === "paid" && price > 0) {
-      if (!customerName.trim()) {
-        toast({
-          title: "Customer name required",
-          description: "Please enter customer name before proceeding",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (!customerMobile.trim()) {
-        toast({
-          title: "Customer mobile required",
-          description: "Please enter customer mobile number before proceeding",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Validate mobile number: must be exactly 10 digits
-      const mobileNumber = customerMobile.trim().replace(/\D/g, ''); // Remove non-digits
-      if (mobileNumber.length !== 10) {
-        toast({
-          title: "Invalid mobile number",
-          description: "Please enter a valid 10-digit mobile number",
-          variant: "destructive",
-        });
-        return;
-      }
+    // Name and number are required for every PDF download (free and paid)
+    if (!customerName.trim()) {
+      toast({
+        title: "Name required",
+        description: "Please enter your name before downloading the PDF.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!customerMobile.trim()) {
+      toast({
+        title: "Contact number required",
+        description: "Please enter your contact number before downloading.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const mobileNumber = customerMobile.trim().replace(/\D/g, '');
+    if (mobileNumber.length !== 10) {
+      toast({
+        title: "Invalid mobile number",
+        description: "Please enter a valid 10-digit mobile number.",
+        variant: "destructive",
+      });
+      return;
     }
 
     // Check if enough designs are available/selected
-    const requiredCount = isFreeDownload ? freeDesignsCount : selectedDesignCount;
+    const requiredCount = isFreeDownload ? freeDownloadDesignCount : selectedDesignCount;
     const selectedCount = selectionMode === "firstN" 
       ? firstNDesigns.length 
       : selectedDesignIds.size;
@@ -468,8 +465,8 @@ export default function DownloadMockPDFContent() {
         // firstNDesigns is already in display order (from the grid rendering)
         const firstNProductIds = firstNDesigns.map(p => p.id);
         
-        // Use the required count (freeDesignsCount for free, selectedDesignCount for paid)
-        const productCount = isFreeDownload ? freeDesignsCount : selectedDesignCount;
+        // Use the required count (freeDownloadDesignCount for free, selectedDesignCount for paid)
+        const productCount = isFreeDownload ? freeDownloadDesignCount : selectedDesignCount;
         // Ensure we're using exactly the first N products in display order
         const productIdsToUse = firstNProductIds.slice(0, productCount);
         
@@ -483,16 +480,16 @@ export default function DownloadMockPDFContent() {
         const createResponse = await apiClient.createPDFRequest({
           download_type: downloadType,
           total_pages: productCount,
-          selection_type: "specific", // Use "specific" to preserve the exact sequence as shown on screen
-          selected_products: productIdsToUse, // This array preserves the exact order as shown on screen
+          selection_type: "specific",
+          selected_products: productIdsToUse,
           search_filters: {
-          q: searchQuery || undefined,
+            q: searchQuery || undefined,
             category: selectedCategory !== 'all' ? selectedCategory : undefined,
           },
           use_subscription_mock_pdf: useSubscriptionMockPDF,
           customer_name: customerName.trim(),
-          customer_mobile: customerMobile.trim().replace(/\D/g, ''), // Ensure only digits
-        });
+          customer_mobile: customerMobile.trim().replace(/\D/g, ''),
+        }, selectedLogoFile || undefined);
 
         if (createResponse.error || !createResponse.data) {
           throw new Error(createResponse.error || 'Failed to create PDF request');
@@ -502,7 +499,7 @@ export default function DownloadMockPDFContent() {
       } else {
         // Use selected designs - "Select N Design" mode
         const designIds = Array.from(selectedDesignIds);
-        const productCount = isFreeDownload ? freeDesignsCount : selectedDesignCount;
+        const productCount = isFreeDownload ? freeDownloadDesignCount : selectedDesignCount;
         
         // Ensure we have exactly the required count
         if (designIds.length !== productCount) {
@@ -513,12 +510,12 @@ export default function DownloadMockPDFContent() {
         const createResponse = await apiClient.createPDFRequest({
           download_type: downloadType,
           total_pages: productCount,
-          selection_type: "specific", // Specific product selection
+          selection_type: "specific",
           selected_products: designIds,
           use_subscription_mock_pdf: useSubscriptionMockPDF,
           customer_name: customerName.trim(),
-          customer_mobile: customerMobile.trim().replace(/\D/g, ''), // Ensure only digits
-        });
+          customer_mobile: customerMobile.trim().replace(/\D/g, ''),
+        }, selectedLogoFile || undefined);
 
         if (createResponse.error || !createResponse.data) {
           throw new Error(createResponse.error || 'Failed to create PDF request');
@@ -653,20 +650,18 @@ export default function DownloadMockPDFContent() {
     }
   };
 
+  // Free download count: unlimited promo = any selected count; subscription or limited free = first option only
+  const freeDownloadDesignCount = (isEligible && isUnlimitedFree) ? selectedDesignCount : freeDesignsCount;
   // Determine if this is a free or paid download
-  // Free: user is eligible OR using subscription mock PDF AND has exactly freeDesignsCount designs in "firstN" mode
-  // Paid: user is NOT eligible AND NOT using subscription AND has exactly the selected design count
-  const isFreeDownload = (isEligible || useSubscriptionMockPDF) && selectionMode === "firstN" && firstNDesigns.length === freeDesignsCount;
+  const isFreeDownload = (isEligible || useSubscriptionMockPDF) && selectionMode === "firstN" && firstNDesigns.length === freeDownloadDesignCount;
   const isPaidDownload = !isEligible && !useSubscriptionMockPDF && (
     (selectionMode === "firstN" && firstNDesigns.length === selectedDesignCount) ||
     (selectionMode === "selected" && selectedDesignIds.size === selectedDesignCount)
   );
 
   // Check if download button should be enabled
-  // Free: must have exactly freeDesignsCount designs in "firstN" mode (for both regular free and subscription)
-  // Paid: must have exactly the selected design count (for both "firstN" and "selected" modes)
   const canDownload = pdfConfig && (
-    ((isEligible || useSubscriptionMockPDF) && selectionMode === "firstN" && firstNDesigns.length === freeDesignsCount) ||
+    ((isEligible || useSubscriptionMockPDF) && selectionMode === "firstN" && firstNDesigns.length === freeDownloadDesignCount) ||
     (!isEligible && !useSubscriptionMockPDF && (
       (selectionMode === "firstN" && firstNDesigns.length === selectedDesignCount) ||
       (selectionMode === "selected" && selectedDesignIds.size === selectedDesignCount)
@@ -710,7 +705,7 @@ export default function DownloadMockPDFContent() {
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {isEligible || useSubscriptionMockPDF
-                ? `Select ${freeDesignsCount} designs for your free PDF download`
+                ? (isUnlimitedFree && isEligible ? `Select any size (20, 50, 100…) designs per PDF for your free download` : `Select ${freeDesignsCount} designs for your free PDF download`)
                 : `Select exactly ${freeDesignsCount} designs to download (payment required)`}
             </p>
           </div>
@@ -724,7 +719,11 @@ export default function DownloadMockPDFContent() {
               <div>
                 <p className="font-semibold text-green-600 dark:text-green-400">Free Download Available</p>
                 <p className="text-sm text-muted-foreground">
-                  You have <span className="font-semibold text-green-600 dark:text-green-400">1 free PDF download</span> available. Select {freeDesignsCount} designs to get started!
+                  {isUnlimitedFree ? (
+                    <>Unlimited free PDF downloads <span className="font-semibold text-green-600 dark:text-green-400">(for a limited time)</span>. All sizes (20, 50, 100, 200…) are free — choose any number of designs per PDF above!</>
+                  ) : (
+                    <>You have <span className="font-semibold text-green-600 dark:text-green-400">{freePdfRemaining} free PDF download{freePdfRemaining !== 1 ? 's' : ''}</span> available this month ({freeDownloadsUsed} of {freePdfLimitPerMonth} used). Select {freeDesignsCount} designs to get started!</>
+                  )}
                 </p>
               </div>
             </div>
@@ -786,9 +785,9 @@ export default function DownloadMockPDFContent() {
             <div className="flex items-center gap-3 pr-6">
               <AlertCircle className="w-5 h-5 text-destructive" />
               <div>
-                <p className="font-semibold text-destructive">Free PDF Already Used</p>
+                <p className="font-semibold text-destructive">Free PDF Limit Reached</p>
                 <p className="text-sm text-muted-foreground">
-                  You have already used your free PDF download. {hasSubscriptionMockPDF && 'You can use your subscription mock PDF downloads or '}Please use paid downloads for additional PDFs.
+                  You have used your {freePdfLimitPerMonth >= 999 ? 'free' : `${freePdfLimitPerMonth} free`} PDF download{freePdfLimitPerMonth !== 1 ? 's' : ''} this month ({freeDownloadsUsed} used). {hasSubscriptionMockPDF && 'You can use your subscription mock PDF downloads or '}Please use paid downloads for additional PDFs.
                 </p>
               </div>
             </div>
@@ -799,12 +798,12 @@ export default function DownloadMockPDFContent() {
         {pdfConfig?.paid_pdf_designs_options && pdfConfig.paid_pdf_designs_options.length > 0 && (
           <Card className="p-4">
             <label className="text-base font-semibold mb-3 block">
-              Number of Designs {(isEligible || useSubscriptionMockPDF) && "(for paid downloads)"}
+              Number of Designs {(isEligible || useSubscriptionMockPDF) && !isUnlimitedFree && "(for paid downloads)"}
             </label>
             <div className="flex gap-2 flex-wrap">
               {pdfConfig.paid_pdf_designs_options.map((opt, index) => {
                 const isFirstOption = index === 0;
-                const isEnabled = (!isEligible && !useSubscriptionMockPDF) || isFirstOption;
+                const isEnabled = (!isEligible && !useSubscriptionMockPDF) || isFirstOption || (isEligible && isUnlimitedFree);
                 
                 return (
                   <button
@@ -995,23 +994,37 @@ export default function DownloadMockPDFContent() {
           ) : products.length === 0 ? (
             <Card className="p-12 text-center">
               <p className="text-muted-foreground mb-2">No designs found</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mb-4">
                 {searchQuery 
-                  ? `No designs match "${searchQuery}". Try a different search term.`
+                  ? `No designs match "${searchQuery}". Try a different search term, or clear search to browse all designs.`
+                  : selectedCategory !== "all"
+                  ? "No designs in this category. Try another category or browse all."
                   : "No designs available at the moment."}
               </p>
+              {(searchQuery || selectedCategory !== "all") && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSelectedCategory("all");
+                    queryClient.invalidateQueries({ queryKey: ['freePDFDesigns'] });
+                  }}
+                >
+                  Clear search & show all designs
+                </Button>
+              )}
             </Card>
           ) : (
             <>
               {selectionMode === "firstN" && (
                 <div className="mb-4 text-sm text-muted-foreground">
-                  Showing first {Math.min(firstNDesigns.length, freeDesignsCount)} of {products.length} designs
+                  Showing first {Math.min(firstNDesigns.length, actualDesignCount)} of {products.length} designs
                 </div>
               )}
               <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                 {(selectionMode === "firstN" ? firstNDesigns : products).map((product, idx) => {
                   const isSelected = selectedDesignIds.has(product.id);
-                  const maxCount = isEligible ? freeDesignsCount : selectedDesignCount;
+                  const maxCount = isEligible ? freeDownloadDesignCount : selectedDesignCount;
                   const canSelect = selectionMode === "selected" && 
                     (isSelected || selectedDesignIds.size < maxCount);
 
@@ -1091,53 +1104,6 @@ export default function DownloadMockPDFContent() {
           )}
         </div>
 
-        {/* Customer Information Inputs - Show only for paid downloads */}
-        {!isFreeDownload && price > 0 && (
-          <Card className="p-6 mb-6 border-2 border-primary/20">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Metadata Information for PDF
-            </h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              enter the details that will appear on each page of the mock pdf
-            </p>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Your Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Enter your name"
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Contact Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={customerMobile}
-                  onChange={(e) => {
-                    // Only allow digits and limit to 10 digits
-                    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
-                    setCustomerMobile(value);
-                  }}
-                  placeholder="Enter 10-digit contact number"
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                  required
-                  maxLength={10}
-                  pattern="[0-9]{10}"
-                />
-              </div>
-            </div>
-          </Card>
-        )}
-
         {/* Download Button - Sticky at bottom */}
         <div className="sticky bottom-0 bg-background border-t border-border p-4 -mx-4 md:-mx-6 mt-6 z-10">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -1168,7 +1134,9 @@ export default function DownloadMockPDFContent() {
             </div>
             <Button
               size="lg"
-              onClick={handleDownload}
+              onClick={() => {
+                if (canDownload && !isDownloading) setIsDetailsModalOpen(true);
+              }}
               disabled={!canDownload || isDownloading}
               className={
                 isFreeDownload
@@ -1193,6 +1161,99 @@ export default function DownloadMockPDFContent() {
           </div>
         </div>
       </div>
+
+      {/* Modal: Enter name, number, logo before downloading */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Enter details for your PDF
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            These will appear on each page of the mock PDF. Logo is optional — WeDesignz logo is used if not added.
+          </p>
+          <div className="grid gap-4 py-2">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Your Name <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Enter your name"
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Contact Number <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="tel"
+                value={customerMobile}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setCustomerMobile(value);
+                }}
+                placeholder="10-digit number"
+                className="w-full"
+                maxLength={10}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Logo (optional)</label>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setSelectedLogoFile(e.target.files?.[0] ?? null)}
+                className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-primary-foreground file:font-medium"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!customerName.trim()) {
+                  toast({
+                    title: "Name required",
+                    description: "Please enter your name.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                if (!customerMobile.trim()) {
+                  toast({
+                    title: "Contact number required",
+                    description: "Please enter your contact number.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                const mobileNumber = customerMobile.trim().replace(/\D/g, '');
+                if (mobileNumber.length !== 10) {
+                  toast({
+                    title: "Invalid mobile number",
+                    description: "Please enter a valid 10-digit number.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                setIsDetailsModalOpen(false);
+                await handleDownload();
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Confirm & Download
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Product Detail Modal */}
       {selectedProduct && (

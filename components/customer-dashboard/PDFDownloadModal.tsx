@@ -174,6 +174,9 @@ export default function PDFDownloadModal({
 
   const freePDFUsed = !eligibilityData?.is_eligible;
   const freeDownloadsUsed = eligibilityData?.free_downloads_used || 0;
+  const freePdfLimitPerMonth = eligibilityData?.free_pdf_downloads_limit_per_month ?? 999;
+  const freePdfRemaining = Math.max(0, freePdfLimitPerMonth - freeDownloadsUsed);
+  const isUnlimitedFree = freePdfLimitPerMonth >= 999;
 
   // Poll for PDF status when download is processing
   const { data: pdfStatus } = useQuery<{ status?: string; [key: string]: any } | null>({
@@ -496,18 +499,18 @@ export default function PDFDownloadModal({
                     <p className="text-sm text-muted-foreground">
                       {!freePDFUsed ? (
                         <span>
-                          You're eligible for <strong>1 free PDF</strong> of 50 designs for your current search.
+                          You're eligible for <strong>{isUnlimitedFree ? 'Unlimited free PDFs' : `${freePdfRemaining} free PDF${freePdfRemaining !== 1 ? 's' : ''}`}</strong> of {pdfConfig?.paid_pdf_designs_options?.[0] ?? pdfConfig?.free_pdf_designs_count ?? 50} designs each for your current search{isUnlimitedFree ? ' (for a limited time)' : ''}.
                         </span>
                       ) : (
                         <span>
-                          Free PDF has been used ({freeDownloadsUsed} used). Purchase additional PDFs below.
+                          Free PDF limit reached this month ({freeDownloadsUsed} of {freePdfLimitPerMonth} used). Purchase additional PDFs below.
                         </span>
                       )}
                     </p>
                   ) : (
                     <div className="space-y-2">
                       <p className="text-sm text-muted-foreground">
-                        Sign in to get 1 free PDF of 50 designs for your current search.
+                        Sign in to get {isUnlimitedFree ? 'unlimited' : 'free'} PDFs of {pdfConfig?.paid_pdf_designs_options?.[0] ?? pdfConfig?.free_pdf_designs_count ?? 50} designs for your current search.
                       </p>
                       <Button size="sm" variant="outline" onClick={onClose}>
                         Sign In
