@@ -16,6 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiClient, catalogAPI } from "@/lib/api";
 import { transformProducts } from "@/lib/utils/transformers";
@@ -70,6 +72,8 @@ export default function PDFDownloadModal({
     };
   } | null>(null);
   const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
+  const [customerName, setCustomerName] = useState("");
+  const [customerMobile, setCustomerMobile] = useState("");
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -295,6 +299,33 @@ export default function PDFDownloadModal({
       return;
     }
 
+    // Validate required details for PDF
+    if (!customerName.trim()) {
+      toast({
+        title: "Name required",
+        description: "Please enter your name for the PDF.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!customerMobile.trim()) {
+      toast({
+        title: "Contact number required",
+        description: "Please enter your contact number for the PDF.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const mobileNumber = customerMobile.trim().replace(/\D/g, "");
+    if (mobileNumber.length < 10) {
+      toast({
+        title: "Invalid number",
+        description: "Please enter a valid 10-digit contact number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
@@ -311,6 +342,8 @@ export default function PDFDownloadModal({
           q: searchQuery,
           category: selectedCategory !== "all" ? selectedCategory : undefined,
         },
+        customer_name: customerName.trim(),
+        customer_mobile: mobileNumber,
       });
 
       if (createResponse.error || !createResponse.data) {
@@ -540,6 +573,36 @@ export default function PDFDownloadModal({
               </div>
             </Card>
 
+            {/* Details for PDF (required for all downloads) */}
+            <Card className="p-4 border-border">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                <FileText className="w-4 h-4" />
+                <span>Details for PDF</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="pdf-modal-name">Your Name *</Label>
+                  <Input
+                    id="pdf-modal-name"
+                    placeholder="Enter your name"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pdf-modal-mobile">Contact Number *</Label>
+                  <Input
+                    id="pdf-modal-mobile"
+                    placeholder="10-digit mobile number"
+                    value={customerMobile}
+                    onChange={(e) => setCustomerMobile(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </Card>
+
             {/* Quantity Selection */}
             <div>
               <label className="text-base font-semibold mb-3 block">
@@ -742,7 +805,7 @@ export default function PDFDownloadModal({
                 <Button
                   onClick={handlePurchase}
                   className="flex-1"
-                  disabled={isProcessing || !isAuthenticated}
+                  disabled={isProcessing || !isAuthenticated || !customerName.trim() || customerMobile.trim().replace(/\D/g, "").length < 10}
                 >
                   {isProcessing ? (
                     <>
