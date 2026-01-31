@@ -13,6 +13,7 @@ import PDFDownloadModal, { PDFPurchase } from "./PDFDownloadModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { catalogAPI, apiClient } from "@/lib/api";
+import { triggerBlobDownload } from "@/lib/utils";
 import { transformProduct, transformProducts, transformCategories, type TransformedProduct, type TransformedCategory } from "@/lib/utils/transformers";
 import { useToast } from "@/hooks/use-toast";
 
@@ -310,15 +311,7 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
     setDownloadingProductId(productId);
     try {
       const blob = await apiClient.downloadProductZip(productId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `design_${productId}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
+      triggerBlobDownload(blob, `design_${productId}.zip`);
       toast({
         title: "Download started",
         description: "Your design files are being downloaded.",

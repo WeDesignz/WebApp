@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiClient, catalogAPI } from "@/lib/api";
+import { triggerBlobDownload } from "@/lib/utils";
 import { transformProducts } from "@/lib/utils/transformers";
 import { initializeRazorpayCheckout } from "@/lib/payment";
 import { useToast } from "@/hooks/use-toast";
@@ -758,15 +759,8 @@ export default function PDFDownloadModal({
                               throw new Error(response.error);
                             }
                             if (response.data instanceof Blob) {
-                              const url = window.URL.createObjectURL(response.data);
-                              const a = document.createElement('a');
-                              a.href = url;
                               const downloadFilename = (response as any).filename || `designs_${currentDownloadId}.pdf`;
-                              a.download = downloadFilename;
-                              document.body.appendChild(a);
-                              a.click();
-                              window.URL.revokeObjectURL(url);
-                              document.body.removeChild(a);
+                              triggerBlobDownload(response.data, downloadFilename);
                               toast({
                                 title: "Download started",
                                 description: "Your PDF is being downloaded.",

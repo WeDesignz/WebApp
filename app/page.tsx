@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import GallerySection from "@/components/GallerySection";
@@ -16,6 +17,7 @@ import ClientsStats from "@/components/ClientsStats";
 import SpotlightFeatures from "@/components/SpotlightFeatures";
 import CardSlider from "@/components/CardSlider";
 import Particles from "@/components/Particles";
+import LensSearchModal from "@/components/customer-dashboard/LensSearchModal";
 import { apiClient } from "@/lib/api";
 import { preferAvifForDisplay } from "@/lib/utils/transformers";
 import PublicPageTheme from "@/components/common/PublicPageTheme";
@@ -31,6 +33,7 @@ interface FeaturedDesign {
 }
 
 export default function Page() {
+  const router = useRouter();
   const [featuredDesigns, setFeaturedDesigns] = useState<Array<{
     id: number;
     title: string;
@@ -40,6 +43,7 @@ export default function Page() {
     image?: string;
   }>>([]);
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
+  const [lensModalOpen, setLensModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchFeaturedDesigns = async () => {
@@ -90,7 +94,17 @@ export default function Page() {
           />
         </div>
         <div className="relative z-10 overflow-x-hidden">
-      <Navbar />
+      <Navbar onOpenLensSearch={() => setLensModalOpen(true)} />
+      <LensSearchModal
+        open={lensModalOpen}
+        onClose={() => setLensModalOpen(false)}
+        onSearchComplete={(products) => {
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("lensSearchResults", JSON.stringify(products ?? []));
+          }
+          router.push("/customer-dashboard?lens=1");
+        }}
+      />
       <HeroSection />
       <ClientsStats />
       <SpotlightFeatures />

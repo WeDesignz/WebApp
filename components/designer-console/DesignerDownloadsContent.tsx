@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
+import { triggerBlobDownload } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 interface PDFDownload {
@@ -168,18 +169,8 @@ export default function DesignerDownloadsContent() {
         }
 
         if (response.data instanceof Blob) {
-          // Create download link
-          const url = window.URL.createObjectURL(response.data);
-          const a = document.createElement('a');
-          a.href = url;
-          // Use filename from response if available, otherwise use default
           const downloadFilename = (response as any).filename || `designs_${pdfId}.pdf`;
-          a.download = downloadFilename;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-
+          triggerBlobDownload(response.data, downloadFilename);
           toast({
             title: "Download started",
             description: "Your PDF is being downloaded.",

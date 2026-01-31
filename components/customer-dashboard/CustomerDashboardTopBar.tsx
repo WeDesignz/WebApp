@@ -90,18 +90,23 @@ export default function CustomerDashboardTopBar({
               value={localSearchQuery}
               onChange={(e) => setLocalSearchQuery(e.target.value)}
               placeholder="Search designs, vectors, mockups..."
-              className="w-full h-12 pl-12 pr-12 bg-background border border-border rounded-full focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+              className="w-full h-12 pl-12 pr-4 bg-background border border-border rounded-full focus:outline-none focus:ring-2 focus:ring-primary transition-all"
             />
-            {onOpenLens && (
-              <button
-                onClick={onOpenLens}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-muted rounded-full transition-colors flex-shrink-0"
-                title="Search by image"
-              >
-                <Camera className="w-5 h-5 text-muted-foreground hover:text-primary transition-colors" />
-              </button>
-            )}
           </div>
+
+          {/* Search by image - prominent button beside search bar */}
+          {onOpenLens && (
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={onOpenLens}
+              className="h-12 px-4 md:px-5 rounded-full font-medium flex items-center gap-2 flex-shrink-0 border-primary/50 hover:bg-primary/10 hover:border-primary"
+              title="Search by image"
+            >
+              <Camera className="w-5 h-5" />
+              <span className="hidden sm:inline">Search by image</span>
+            </Button>
+          )}
         </div>
 
         {/* Right Side - Invite Freelancers, Notifications, Wishlist, Cart, Profile */}
