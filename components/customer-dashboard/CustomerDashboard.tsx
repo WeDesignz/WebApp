@@ -75,8 +75,21 @@ export default function CustomerDashboard() {
       setSelectedCategory('all');
     }
     
+    // Handle redirect from landing page visual search: show lens results and strip ?lens=1 from URL
+    const lensParam = searchParams.get('lens');
+    if (lensParam === '1' && typeof window !== 'undefined') {
+      const lensResults = sessionStorage.getItem('lensSearchResults');
+      if (lensResults) {
+        setSearchQuery('__lens__' + Date.now());
+        const params = new URLSearchParams(window.location.search);
+        params.delete('lens');
+        const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+        router.replace(newUrl, { scroll: false });
+      }
+    }
+    
     setIsInitialized(true);
-  }, [searchParams, isAuthenticated, authLoading, router]); // Add auth dependencies
+  }, [searchParams, isAuthenticated, authLoading, router, pathname]); // Add auth dependencies
 
   // Update URL when activeView changes (after initial load from URL)
   useEffect(() => {
@@ -242,18 +255,12 @@ export default function CustomerDashboard() {
         open={lensModalOpen}
         onClose={() => setLensModalOpen(false)}
         onSearchComplete={(products) => {
-          // Pass lens search results to CustomerDashboardContent
-          // We'll handle this by setting a special search query that triggers lens results
-          // For now, we'll trigger a refresh with a special query prefix
           setLensModalOpen(false);
-          // The lens results will be handled via a callback or state that CustomerDashboardContent can access
-          // For now, we'll use a special query format to indicate lens search
-          if (products && products.length > 0) {
-            setSearchQuery(`__lens__${Date.now()}`);
-            // Store products in sessionStorage temporarily for CustomerDashboardContent to pick up
-            if (typeof window !== 'undefined') {
-              sessionStorage.setItem('lensSearchResults', JSON.stringify(products));
-            }
+          // Always switch to dashboard view and show lens results (even if empty)
+          setActiveView('dashboard');
+          setSearchQuery(`__lens__${Date.now()}`);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('lensSearchResults', JSON.stringify(products ?? []));
           }
         }}
       />
