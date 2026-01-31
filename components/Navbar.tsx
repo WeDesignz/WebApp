@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from 'react';
-import { ChevronDown, Menu, X } from 'lucide-react';
+import { ChevronDown, Menu, X, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export default function Navbar() {
+interface NavbarProps {
+  onOpenLensSearch?: () => void;
+}
+
+export default function Navbar({ onOpenLensSearch }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
@@ -33,9 +37,19 @@ export default function Navbar() {
             />
           </a>
 
-          {/* Desktop Navigation - Center */}
+          {/* Desktop Navigation - Center: Search by image */}
           <div className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
-            {/* Empty - removed Resources and Blog */}
+            {onOpenLensSearch && (
+              <Button
+                variant="outline"
+                onClick={onOpenLensSearch}
+                className="px-5 py-2 rounded-full text-sm font-medium border border-white/20 bg-transparent text-white/80 hover:bg-white/10 hover:text-white hover:border-white/30 transition-all flex items-center gap-2"
+                data-testid="button-search-by-image"
+              >
+                <Camera className="w-4 h-4" />
+                Search by image
+              </Button>
+            )}
           </div>
 
           {/* Right Side - Dashboard Buttons */}
@@ -131,6 +145,20 @@ export default function Navbar() {
             </div>
             
             <div className="h-px bg-white/10" />
+            
+            {onOpenLensSearch && (
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  onClick={() => { onOpenLensSearch(); setMobileMenuOpen(false); }}
+                  className="w-full rounded-full font-medium border border-white/20 bg-transparent text-white/80 hover:bg-white/10 hover:text-white flex items-center justify-center gap-2"
+                  data-testid="button-search-by-image-mobile"
+                >
+                  <Camera className="w-4 h-4" />
+                  Search by image
+                </Button>
+              </div>
+            )}
             
             <div className="space-y-3 pt-2">
               <Button
