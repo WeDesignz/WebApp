@@ -715,6 +715,7 @@ export const catalogAPI = {
 
   /**
    * Lens search - Search products by uploading an image
+   * Uses same API base URL as rest of app (NEXT_PUBLIC_API_BASE_URL) so it works on hosting.
    */
   async lensSearch(imageFile: File, numResults: number = 20): Promise<ApiResponse<{
     success: boolean;
@@ -736,7 +737,8 @@ export const catalogAPI = {
     }
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/catalog/lens-search/`, {
+      const baseUrl = getApiBaseUrl();
+      const response = await fetch(`${baseUrl}/api/catalog/lens-search/`, {
         method: 'POST',
         body: formData,
         headers,
