@@ -129,9 +129,10 @@ export default function LensSearchModal({
       const response = await catalogAPI.lensSearch(selectedImage, 20);
 
       if (response.error) {
+        const details = (response as { errorDetails?: { details?: string } }).errorDetails?.details;
         toast({
           title: "Search failed",
-          description: response.error || "Could not search for similar products",
+          description: details ? `${response.error} (${details})` : (response.error || "Could not search for similar products"),
           variant: "destructive",
         });
         return;
