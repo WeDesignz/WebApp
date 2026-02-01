@@ -218,10 +218,7 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
         const addResponse = await apiClient.addMobileNumber({ 
           mobile_number: formData.businessPhone 
         });
-        
-        // Debug: Log the response to see what we're getting
-        console.log('addMobileNumber response (business):', addResponse);
-        
+
         // If successful, OTP was already sent
         if (addResponse.data && !addResponse.error) {
           toast.success('OTP sent to your business phone');
@@ -232,12 +229,9 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
         // If there's an error, check what kind
         if (addResponse.error) {
           const errorMessage = String(addResponse.error).toLowerCase();
-          
-          console.log('Error detected (business):', addResponse.error, 'Lowercase:', errorMessage);
-          
+
           // If mobile belongs to another user, show error and throw to prevent modal opening
           if (errorMessage.includes('another account') || errorMessage.includes('already registered with another')) {
-            console.log('Showing error toast for another account (business)');
             const errorMsg = 'This mobile number is already registered with another account. Please use a different number.';
             toast.error(errorMsg);
             errorShown = true;
@@ -248,11 +242,9 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
           
           // If mobile already exists for this user, that's okay - just continue to resend
           if (errorMessage.includes('already registered') || errorMessage.includes('already exists')) {
-            console.log('Mobile exists for this user, continuing to resend OTP (business)');
             // Mobile exists for this user, continue to resend OTP
           } else {
             // Other errors - show the original error message and throw
-            console.log('Showing error toast for other error (business):', addResponse.error);
             toast.error(addResponse.error);
             errorShown = true;
             // Add small delay to ensure toast is visible before throwing
@@ -263,8 +255,6 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
       } catch (error: any) {
         // Only show error if we haven't shown it already
         if (!errorShown) {
-          console.error('Exception in addMobileNumber (business):', error);
-          
           // Extract error message from various possible formats
           const errorMessage = String(
             error?.response?.data?.error || 
@@ -273,12 +263,9 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
             error?.message || 
             'Failed to add mobile number'
           ).toLowerCase();
-          
-          console.log('Extracted error message (business):', errorMessage);
-          
+
           // If mobile belongs to another user, show error and throw to prevent modal opening
           if (errorMessage.includes('another account') || errorMessage.includes('already registered with another')) {
-            console.log('Showing error toast for another account (from catch, business)');
             const errorMsg = 'This mobile number is already registered with another account. Please use a different number.';
             toast.error(errorMsg);
             errorShown = true;
@@ -289,7 +276,6 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
           
           // If mobile already exists for this user, that's okay - just continue to resend
           if (errorMessage.includes('already registered') || errorMessage.includes('already exists')) {
-            console.log('Mobile exists for this user, continuing to resend OTP (from catch, business)');
             // Mobile exists for this user, continue to resend OTP
           } else {
             // Other errors - show the original error message and throw
@@ -298,7 +284,6 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
                                  error?.error || 
                                  error?.message || 
                                  'Failed to add mobile number';
-            console.log('Showing error toast for other error (from catch, business):', originalError);
             toast.error(originalError);
             errorShown = true;
             // Add small delay to ensure toast is visible before throwing
@@ -334,15 +319,11 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
     } catch (error: any) {
       // Only show error in outer catch if we haven't shown it already
       if (!errorShown) {
-        console.error('Outer catch block (business):', error);
-        // Extract error message from various possible formats
         const errorMessage = error?.response?.data?.error || 
                             error?.data?.error ||
                             error?.error || 
                             error?.message || 
                             'Failed to send OTP. Please try again.';
-        
-        console.log('Showing error toast in outer catch (business):', errorMessage);
         toast.error(errorMessage);
         // Add small delay to ensure toast is visible
         await new Promise(resolve => setTimeout(resolve, 100));
