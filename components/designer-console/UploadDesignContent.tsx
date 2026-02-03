@@ -376,9 +376,7 @@ export default function UploadDesignContent() {
       
       // Reference the Categories sheet
       const categoryRange = `Categories!$A$2:$A${lastCategoryRow}`;
-      console.log(`Setting category dropdown with range: ${categoryRange}, Categories count: ${categoryNames.length}`);
-      
-      
+
       // Apply data validation to cells - limit to first 100 rows for better performance
       // Users can copy the validation to more rows if needed
       const maxValidationRows = 100;
@@ -393,12 +391,8 @@ export default function UploadDesignContent() {
             errorTitle: 'Invalid Category',
             error: 'Please select a valid category from the dropdown.',
           };
-          // Log first row for debugging
-          if (row === 2) {
-            console.log(`Data validation set for D${row} with formula:`, categoryRange);
-          }
         } catch (error) {
-          console.error(`Error setting data validation for row ${row}:`, error);
+          // Error setting data validation for row
         }
       }
       

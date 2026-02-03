@@ -56,19 +56,12 @@ export default function HeroSection() {
           }
           
           const data = await fetchResponse.json();
-          console.log('Hero designs API response data:', data);
-          
+
           // Handle both response formats
           if (data.designs && Array.isArray(data.designs)) {
             designsData = data.designs;
-            console.log('Found designs:', designsData.length, designsData);
-            // Log image URLs for debugging
-            designsData.forEach((design: HeroDesign, index: number) => {
-              console.log(`Design ${index + 1}: ID=${design.id}, Title=${design.title}, Image=${design.image || 'NULL'}`);
-            });
           } else if (data.data?.designs && Array.isArray(data.data.designs)) {
             designsData = data.data.designs;
-            console.log('Found designs in data.designs:', designsData.length);
           }
         }
         

@@ -213,7 +213,6 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
       
       toast.success('OTP sent to your email');
     } catch (error: any) {
-      console.error('Error in sendEmailOTP:', error);
       const errorMessage = error?.message || error?.error || 'Failed to send OTP';
       toast.error(errorMessage);
       throw error; // Re-throw to prevent modal from opening
@@ -231,10 +230,7 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
         const addResponse = await apiClient.addMobileNumber({ 
           mobile_number: formData.phone 
         });
-        
-        // Debug: Log the response to see what we're getting
-        console.log('addMobileNumber response:', addResponse);
-        
+
         // If successful, OTP was already sent
         if (addResponse.data && !addResponse.error) {
           toast.success('OTP sent to your phone');
@@ -245,12 +241,9 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
         // If there's an error, check what kind
         if (addResponse.error) {
           const errorMessage = String(addResponse.error).toLowerCase();
-          
-          console.log('Error detected:', addResponse.error, 'Lowercase:', errorMessage);
-          
+
           // If mobile belongs to another user, show error and throw to prevent modal opening
           if (errorMessage.includes('another account') || errorMessage.includes('already registered with another')) {
-            console.log('Showing error toast for another account');
             const errorMsg = 'This mobile number is already registered with another account. Please use a different number.';
             toast.error(errorMsg);
             errorShown = true;
@@ -261,11 +254,9 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
           
           // If mobile already exists for this user, that's okay - just continue to resend
           if (errorMessage.includes('already registered') || errorMessage.includes('already exists')) {
-            console.log('Mobile exists for this user, continuing to resend OTP');
             // Mobile exists for this user, continue to resend OTP
           } else {
             // Other errors - show the original error message and throw
-            console.log('Showing error toast for other error:', addResponse.error);
             toast.error(addResponse.error);
             errorShown = true;
             // Add small delay to ensure toast is visible before throwing
@@ -276,8 +267,6 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
       } catch (error: any) {
         // Only show error if we haven't shown it already
         if (!errorShown) {
-          console.error('Exception in addMobileNumber:', error);
-          
           // Extract error message from various possible formats
           const errorMessage = String(
             error?.response?.data?.error || 
@@ -286,12 +275,9 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
             error?.message || 
             'Failed to add mobile number'
           ).toLowerCase();
-          
-          console.log('Extracted error message:', errorMessage);
-          
+
           // If mobile belongs to another user, show error and throw to prevent modal opening
           if (errorMessage.includes('another account') || errorMessage.includes('already registered with another')) {
-            console.log('Showing error toast for another account (from catch)');
             const errorMsg = 'This mobile number is already registered with another account. Please use a different number.';
             toast.error(errorMsg);
             errorShown = true;
@@ -302,7 +288,6 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
           
           // If mobile already exists for this user, that's okay - just continue to resend
           if (errorMessage.includes('already registered') || errorMessage.includes('already exists')) {
-            console.log('Mobile exists for this user, continuing to resend OTP (from catch)');
             // Mobile exists for this user, continue to resend OTP
           } else {
             // Other errors - show the original error message and throw
@@ -311,7 +296,6 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
                                  error?.error || 
                                  error?.message || 
                                  'Failed to add mobile number';
-            console.log('Showing error toast for other error (from catch):', originalError);
             toast.error(originalError);
             errorShown = true;
             // Add small delay to ensure toast is visible before throwing
@@ -347,15 +331,11 @@ export default function Step1BasicProfile({ initialData, onComplete }: Step1Basi
     } catch (error: any) {
       // Only show error in outer catch if we haven't shown it already
       if (!errorShown) {
-        console.error('Outer catch block:', error);
-        // Extract error message from various possible formats
         const errorMessage = error?.response?.data?.error || 
                             error?.data?.error ||
                             error?.error || 
                             error?.message || 
                             'Failed to send OTP. Please try again.';
-        
-        console.log('Showing error toast in outer catch:', errorMessage);
         toast.error(errorMessage);
         // Add small delay to ensure toast is visible
         await new Promise(resolve => setTimeout(resolve, 100));

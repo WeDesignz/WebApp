@@ -117,10 +117,6 @@ export default function EarningsWalletContent() {
     queryFn: async () => {
       const response = await apiClient.getWalletBalance();
       if (response.error) throw new Error(response.error);
-      console.log('Wallet balance response:', response);
-      console.log('Balance data:', response.data);
-      console.log('Balance value:', response.data?.balance);
-      console.log('Wallet balance:', response.data?.wallet?.balance);
       return response.data;
     },
     staleTime: 30 * 1000,
@@ -142,15 +138,7 @@ export default function EarningsWalletContent() {
     queryKey: ['walletTransactions'],
     queryFn: async () => {
       const response = await apiClient.getWalletTransactions();
-      if (response.error) {
-        console.error('Error fetching wallet transactions:', response.error);
-        throw new Error(response.error);
-      }
-      // Log the response structure for debugging
-      console.log('Wallet transactions response:', response);
-      console.log('Wallet transactions data:', response.data);
-      console.log('Transactions array:', response.data?.transactions);
-      console.log('Transaction count:', response.data?.transactions?.length || 0);
+      if (response.error) throw new Error(response.error);
       return response.data;
     },
     staleTime: 30 * 1000,
@@ -170,69 +158,33 @@ export default function EarningsWalletContent() {
   // Parse balance correctly - handle both string and number, ensure proper decimal conversion
   // Check both balanceData.balance and balanceData.wallet.balance
   const balance = useMemo(() => {
-    if (!balanceData) {
-      console.log('No balanceData available');
-      return 0;
-    }
-    
+    if (!balanceData) return 0;
+
     // Try balance field first, then wallet.balance
     let balanceValue = balanceData.balance;
     if (balanceValue === undefined && balanceData.wallet?.balance !== undefined) {
       balanceValue = balanceData.wallet.balance;
     }
-    
-    console.log('Raw balance value:', balanceValue, 'Type:', typeof balanceValue);
-    
-    if (balanceValue === undefined || balanceValue === null) {
-      console.warn('Balance value is undefined or null');
-      return 0;
-    }
-    
+
+    if (balanceValue === undefined || balanceValue === null) return 0;
+
     if (typeof balanceValue === 'string') {
       const parsed = parseFloat(balanceValue);
-      console.log('Parsed balance from string:', parsed);
       return isNaN(parsed) ? 0 : parsed;
     }
-    
-    const numValue = typeof balanceValue === 'number' ? balanceValue : 0;
-    console.log('Final balance value:', numValue);
-    return numValue;
+
+    return typeof balanceValue === 'number' ? balanceValue : 0;
   }, [balanceData]);
   // Handle different possible response structures
   const transactions: Transaction[] = useMemo(() => {
-    if (!transactionsData) {
-      console.log('No transactionsData available');
-      return [];
-    }
-    
-    console.log('Processing transactionsData:', transactionsData);
-    
-    // Check if transactions are directly in the data
-    if (Array.isArray(transactionsData)) {
-      console.log('Transactions found as array, count:', transactionsData.length);
-      return transactionsData;
-    }
-    
-    // Check if transactions are in a transactions field
+    if (!transactionsData) return [];
+
+    if (Array.isArray(transactionsData)) return transactionsData;
     if (transactionsData.transactions && Array.isArray(transactionsData.transactions)) {
-      console.log('Transactions found in .transactions field, count:', transactionsData.transactions.length);
       return transactionsData.transactions;
     }
-    
-    // Check if transactions are in a data field
-    if (transactionsData.data && Array.isArray(transactionsData.data)) {
-      console.log('Transactions found in .data field, count:', transactionsData.data.length);
-      return transactionsData.data;
-    }
-    
-    // Check for results field (common in paginated responses)
-    if (transactionsData.results && Array.isArray(transactionsData.results)) {
-      console.log('Transactions found in .results field, count:', transactionsData.results.length);
-      return transactionsData.results;
-    }
-    
-    console.warn('Unexpected transactions data structure:', transactionsData);
-    console.warn('Available keys:', Object.keys(transactionsData || {}));
+    if (transactionsData.data && Array.isArray(transactionsData.data)) return transactionsData.data;
+    if (transactionsData.results && Array.isArray(transactionsData.results)) return transactionsData.results;
     return [];
   }, [transactionsData]);
   const withdrawalRequests: WithdrawalRequest[] = (withdrawalRequestsData?.withdrawal_requests || []).map((req: any) => ({

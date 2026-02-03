@@ -290,6 +290,26 @@ export function transformCategories(apiCategories: any[], iconMap?: Record<strin
 }
 
 /**
+ * Get the display image URL for a product.
+ * When preferPngAvif is true (e.g. visual search results), prefer PNG AVIF over JPG AVIF
+ * so the design thumbnail matches what was searched (PNG). Otherwise use first media (JPG AVIF as currently).
+ */
+export function getDisplayImageUrl(
+  product: TransformedProduct,
+  preferPngAvif = false
+): string | undefined {
+  const media = product.media || [];
+  if (media.length === 0) return undefined;
+  if (preferPngAvif) {
+    const pngAvif = media.find((url) =>
+      typeof url === 'string' && url.toLowerCase().includes('_png.avif')
+    );
+    if (pngAvif) return pngAvif;
+  }
+  return media[0];
+}
+
+/**
  * Convert JPG/PNG URL to AVIF equivalent for display
  * Converts design.jpg -> design_JPG.avif (for design images)
  * Leaves other URLs as-is
