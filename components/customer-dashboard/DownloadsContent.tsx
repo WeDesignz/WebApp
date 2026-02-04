@@ -40,10 +40,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import ReceiptModal from "@/components/customer-dashboard/ReceiptModal";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, catalogAPI } from "@/lib/api";
-import { triggerBlobDownload } from "@/lib/utils";
+import { triggerBlobDownload, downloadPDFToDevice } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 
@@ -102,6 +103,7 @@ export default function DownloadsContent() {
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [filter, setFilter] = useState<'all' | 'paid'>('all');
   const [downloadingProductId, setDownloadingProductId] = useState<number | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [hoveredProductId, setHoveredProductId] = useState<number | string | null>(null);
   const { toast } = useToast();
@@ -342,25 +344,30 @@ export default function DownloadsContent() {
       // Check if it's a PDF download
       if (download.pdfDownloadId) {
         const pdfId = download.pdfDownloadId;
-        setDownloadingProductId(pdfId); // Use pdfDownloadId for PDF downloads
-        try {
-          const response = await apiClient.downloadPDF(pdfId);
-          
-          if (response.error) {
-            throw new Error(response.error);
-          }
-
-          if (response.data instanceof Blob) {
-            const downloadFilename = (response as any).filename || `designs_${pdfId}.pdf`;
-            triggerBlobDownload(response.data, downloadFilename);
+        setDownloadingProductId(pdfId);
+        setDownloadProgress(0);
+        await downloadPDFToDevice(pdfId, {
+          getDownloadUrl: (id) => apiClient.getPDFDownloadUrl(id),
+          downloadPDF: (id, onP) => apiClient.downloadPDF(id, onP),
+          onProgress: (p) => setDownloadProgress(p),
+          onComplete: () => {
+            setDownloadingProductId(null);
+            setDownloadProgress(null);
             toast({
               title: "Download started",
               description: "Your PDF is being downloaded.",
             });
-          }
-        } finally {
-          setDownloadingProductId(null);
-        }
+          },
+          onError: (msg) => {
+            setDownloadingProductId(null);
+            setDownloadProgress(null);
+            toast({
+              title: "Download failed",
+              description: msg || "Failed to download file",
+              variant: "destructive",
+            });
+          },
+        });
       } else if (download.productId) {
         // Handle product zip download
         setDownloadingProductId(download.productId);
@@ -700,24 +707,29 @@ export default function DownloadsContent() {
                             )}
                           </div>
                         ) : download.isMockPDF && download.status === 'completed' ? (
-                          <Button 
-                            className="w-full" 
-                            size="sm"
-                            onClick={() => handleDownload(download)}
-                            disabled={downloadingProductId === download.pdfDownloadId}
-                          >
-                            {downloadingProductId === download.pdfDownloadId ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Preparing...
-                              </>
-                            ) : (
-                              <>
-                                <Download className="w-4 h-4 mr-2" />
-                                Download PDF
-                              </>
+                          <div className="w-full space-y-2">
+                            <Button 
+                              className="w-full" 
+                              size="sm"
+                              onClick={() => handleDownload(download)}
+                              disabled={downloadingProductId === download.pdfDownloadId}
+                            >
+                              {downloadingProductId === download.pdfDownloadId ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  {downloadProgress != null ? `Downloading ${downloadProgress}%` : "Preparing..."}
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="w-4 h-4 mr-2" />
+                                  Download PDF
+                                </>
+                              )}
+                            </Button>
+                            {downloadingProductId === download.pdfDownloadId && downloadProgress != null && (
+                              <Progress value={downloadProgress} className="h-2 w-full" />
                             )}
-                          </Button>
+                          </div>
                         ) : (
                           <Button 
                             className="w-full" 
@@ -814,9 +826,9 @@ export default function DownloadsContent() {
                             </div>
                           )}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col gap-2 items-end min-w-[140px]">
                           {download.isMockPDF && download.status !== 'completed' ? (
-                            <div className="flex-1 p-2 text-center bg-muted rounded-md">
+                            <div className="flex-1 p-2 text-center bg-muted rounded-md w-full">
                               <p className="text-xs text-muted-foreground">
                                 {download.status === 'processing' && 'Generating...'}
                                 {download.status === 'pending' && 'Pending'}
@@ -826,6 +838,29 @@ export default function DownloadsContent() {
                                 <Loader2 className="w-3 h-3 mx-auto mt-1 animate-spin text-primary" />
                               )}
                             </div>
+                          ) : download.isMockPDF && download.status === 'completed' ? (
+                            <>
+                              <Button 
+                                size="sm"
+                                onClick={() => handleDownload(download)}
+                                disabled={downloadingProductId === download.pdfDownloadId}
+                              >
+                                {downloadingProductId === download.pdfDownloadId ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    {downloadProgress != null ? `${downloadProgress}%` : "Preparing..."}
+                                  </>
+                                ) : (
+                                  <>
+                                    <Download className="w-4 h-4 mr-2" />
+                                    Download PDF
+                                  </>
+                                )}
+                              </Button>
+                              {downloadingProductId === download.pdfDownloadId && downloadProgress != null && (
+                                <Progress value={downloadProgress} className="h-1.5 w-full max-w-[140px]" />
+                              )}
+                            </>
                           ) : (
                             <Button 
                               size="sm"

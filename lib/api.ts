@@ -1603,7 +1603,20 @@ export const apiClient = {
     });
   },
 
-  downloadPDF: async (downloadId: number) => {
+  /**
+   * Get a short-lived signed URL for PDF download (for mobile save-to-device).
+   * On mobile, opening this URL triggers download to device storage instead of opening in browser.
+   */
+  getPDFDownloadUrl: async (downloadId: number) => {
+    return apiRequest<{ url: string; expires_in_seconds: number }>(
+      `/api/catalog/pdf/download-url/${downloadId}/`
+    );
+  },
+
+  downloadPDF: async (
+    downloadId: number,
+    onProgress?: (percent: number) => void
+  ) => {
     // This will return a blob, so we need special handling
     const baseUrl = getApiBaseUrl();
     if (!baseUrl) {
@@ -1617,12 +1630,12 @@ export const apiClient = {
       };
     }
     const token = typeof window !== 'undefined' ? localStorage.getItem('wedesign_access_token') : null;
-    
+
     try {
       const response = await fetch(`${baseUrl}/api/catalog/pdf/download/${downloadId}/`, {
         method: 'GET',
         headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
+          Authorization: token ? `Bearer ${token}` : '',
           'Content-Type': 'application/json',
         },
         credentials: 'include',
@@ -1667,14 +1680,14 @@ export const apiClient = {
               // If decoding fails, try regular filename
             }
           }
-          
+
           // If filename* didn't work, try regular filename
           if (!filename) {
             const patterns = [
               /filename=["']([^"']+)["']/i,  // filename="value"
-              /filename=([^;]+)/i  // filename=value
+              /filename=([^;]+)/i,  // filename=value
             ];
-            
+
             for (const pattern of patterns) {
               const match = contentDisposition.match(pattern);
               if (match && match[1]) {
@@ -1700,8 +1713,29 @@ export const apiClient = {
         return { error: getUserFriendlyMessage(errorDetails), errorDetails, data };
       }
 
-      // Return blob for file download with filename if available
-      const blob = await response.blob();
+      const contentLength = response.headers.get('content-length');
+      const total = contentLength ? parseInt(contentLength, 10) : 0;
+      const hasProgress = typeof onProgress === 'function' && total > 0;
+
+      let blob: Blob;
+      if (hasProgress && response.body) {
+        const reader = response.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let received = 0;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.length;
+          onProgress!(Math.min(99, Math.round((received / total) * 100)));
+        }
+        onProgress!(100);
+        blob = new Blob(chunks, { type: response.headers.get('content-type') || 'application/pdf' });
+      } else {
+        blob = await response.blob();
+      }
+
       return { data: blob, filename: filename || null };
     } catch (error: any) {
       const errorDetails = formatError(error, undefined);

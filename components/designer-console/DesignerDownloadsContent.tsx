@@ -27,7 +27,8 @@ import {
 } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
-import { triggerBlobDownload } from "@/lib/utils";
+import { downloadPDFToDevice } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 
 interface PDFDownload {
@@ -76,6 +77,7 @@ const PDFIcon = ({ className = "w-16 h-16" }: { className?: string }) => {
 export default function DesignerDownloadsContent() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [downloadingPDFId, setDownloadingPDFId] = useState<number | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const { toast } = useToast();
 
   // Filter states
@@ -157,36 +159,32 @@ export default function DesignerDownloadsContent() {
       return;
     }
 
-    try {
-      const pdfId = download.pdfDownloadId;
-      setDownloadingPDFId(pdfId);
-      
-      try {
-        const response = await apiClient.downloadPDF(pdfId);
-        
-        if (response.error) {
-          throw new Error(response.error);
-        }
+    const pdfId = download.pdfDownloadId;
+    setDownloadingPDFId(pdfId);
+    setDownloadProgress(0);
 
-        if (response.data instanceof Blob) {
-          const downloadFilename = (response as any).filename || `designs_${pdfId}.pdf`;
-          triggerBlobDownload(response.data, downloadFilename);
-          toast({
-            title: "Download started",
-            description: "Your PDF is being downloaded.",
-          });
-        }
-      } finally {
+    await downloadPDFToDevice(pdfId, {
+      getDownloadUrl: (id) => apiClient.getPDFDownloadUrl(id),
+      downloadPDF: (id, onP) => apiClient.downloadPDF(id, onP),
+      onProgress: (p) => setDownloadProgress(p),
+      onComplete: () => {
         setDownloadingPDFId(null);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Download failed",
-        description: error.message || "Failed to download file",
-        variant: "destructive",
-      });
-      setDownloadingPDFId(null);
-    }
+        setDownloadProgress(null);
+        toast({
+          title: "Download started",
+          description: "Your PDF is being downloaded.",
+        });
+      },
+      onError: (msg) => {
+        setDownloadingPDFId(null);
+        setDownloadProgress(null);
+        toast({
+          title: "Download failed",
+          description: msg || "Failed to download file",
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   return (
@@ -381,24 +379,29 @@ export default function DesignerDownloadsContent() {
                           )}
                         </div>
                       ) : (
-                        <Button 
-                          className="w-full" 
-                          size="sm"
-                          onClick={() => handleDownload(download)}
-                          disabled={downloadingPDFId === download.pdfDownloadId}
-                        >
-                          {downloadingPDFId === download.pdfDownloadId ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Preparing...
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-4 h-4 mr-2" />
-                              Download PDF
-                            </>
+                        <div className="w-full space-y-2">
+                          <Button 
+                            className="w-full" 
+                            size="sm"
+                            onClick={() => handleDownload(download)}
+                            disabled={downloadingPDFId === download.pdfDownloadId}
+                          >
+                            {downloadingPDFId === download.pdfDownloadId ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                {downloadProgress != null ? `Downloading ${downloadProgress}%` : "Preparing..."}
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-4 h-4 mr-2" />
+                                Download PDF
+                              </>
+                            )}
+                          </Button>
+                          {downloadingPDFId === download.pdfDownloadId && downloadProgress != null && (
+                            <Progress value={downloadProgress} className="h-2 w-full" />
                           )}
-                        </Button>
+                        </div>
                       )}
                     </div>
                   </Card>
@@ -472,23 +475,28 @@ export default function DesignerDownloadsContent() {
                             )}
                           </div>
                         ) : (
-                          <Button 
-                            size="sm"
-                            onClick={() => handleDownload(download)}
-                            disabled={downloadingPDFId === download.pdfDownloadId}
-                          >
-                            {downloadingPDFId === download.pdfDownloadId ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Preparing...
-                              </>
-                            ) : (
-                              <>
-                                <Download className="w-4 h-4 mr-2" />
-                                Download
-                              </>
+                          <>
+                            <Button 
+                              size="sm"
+                              onClick={() => handleDownload(download)}
+                              disabled={downloadingPDFId === download.pdfDownloadId}
+                            >
+                              {downloadingPDFId === download.pdfDownloadId ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  {downloadProgress != null ? `${downloadProgress}%` : "Preparing..."}
+                                </>
+                              ) : (
+                                  <>
+                                    <Download className="w-4 h-4 mr-2" />
+                                    Download PDF
+                                  </>
+                                )}
+                            </Button>
+                            {downloadingPDFId === download.pdfDownloadId && downloadProgress != null && (
+                              <Progress value={downloadProgress} className="h-1.5 w-full max-w-[140px]" />
                             )}
-                          </Button>
+                          </>
                         )}
                       </div>
                     </div>
