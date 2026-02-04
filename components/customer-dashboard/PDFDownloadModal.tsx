@@ -20,7 +20,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiClient, catalogAPI } from "@/lib/api";
-import { triggerBlobDownload } from "@/lib/utils";
+import { downloadPDFToDevice } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 import { transformProducts } from "@/lib/utils/transformers";
 import { initializeRazorpayCheckout } from "@/lib/payment";
 import { useToast } from "@/hooks/use-toast";
@@ -63,6 +64,7 @@ export default function PDFDownloadModal({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [currentDownloadId, setCurrentDownloadId] = useState<number | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [pricingInfo, setPricingInfo] = useState<any>(null);
   const [pdfConfig, setPdfConfig] = useState<{
     free_pdf_designs_count: number;
@@ -750,35 +752,52 @@ export default function PDFDownloadModal({
                       {pdfStatus.status === 'failed' && 'Failed to generate PDF. Please try again.'}
                     </p>
                     {pdfStatus.status === 'completed' && (
-                      <Button
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            const response = await apiClient.downloadPDF(currentDownloadId);
-                            if (response.error) {
-                              throw new Error(response.error);
-                            }
-                            if (response.data instanceof Blob) {
-                              const downloadFilename = (response as any).filename || `designs_${currentDownloadId}.pdf`;
-                              triggerBlobDownload(response.data, downloadFilename);
-                              toast({
-                                title: "Download started",
-                                description: "Your PDF is being downloaded.",
-                              });
-                              onClose();
-                            }
-                          } catch (error: any) {
-                            toast({
-                              title: "Download failed",
-                              description: error.message || "Failed to download PDF",
-                              variant: "destructive",
+                      <div className="space-y-2">
+                        <Button
+                          size="sm"
+                          disabled={downloadProgress != null}
+                          onClick={async () => {
+                            if (!currentDownloadId) return;
+                            setDownloadProgress(0);
+                            await downloadPDFToDevice(currentDownloadId, {
+                              getDownloadUrl: (id) => apiClient.getPDFDownloadUrl(id),
+                              downloadPDF: (id, onP) => apiClient.downloadPDF(id, onP),
+                              onProgress: (p) => setDownloadProgress(p),
+                              onComplete: () => {
+                                setDownloadProgress(null);
+                                toast({
+                                  title: "Download started",
+                                  description: "Your PDF is being downloaded.",
+                                });
+                                onClose();
+                              },
+                              onError: (msg) => {
+                                setDownloadProgress(null);
+                                toast({
+                                  title: "Download failed",
+                                  description: msg || "Failed to download PDF",
+                                  variant: "destructive",
+                                });
+                              },
                             });
-                          }
-                        }}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Download PDF
-                      </Button>
+                          }}
+                        >
+                          {downloadProgress != null ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              {downloadProgress < 100 ? `Downloading ${downloadProgress}%` : "Done"}
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-4 h-4 mr-2" />
+                              Download PDF
+                            </>
+                          )}
+                        </Button>
+                        {downloadProgress != null && (
+                          <Progress value={downloadProgress} className="h-2 w-full" />
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
