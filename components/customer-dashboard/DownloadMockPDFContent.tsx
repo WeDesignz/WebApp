@@ -571,11 +571,6 @@ export default function DownloadMockPDFContent() {
 
         // Validate payment order response
         if (!razorpay_order_id || !payment_id) {
-          console.error('Payment order response missing required fields:', {
-            razorpay_order_id,
-            payment_id,
-            fullResponse: paymentOrderResponse.data
-          });
           throw new Error('Invalid payment order response. Missing razorpay_order_id or payment_id.');
         }
 
@@ -598,11 +593,6 @@ export default function DownloadMockPDFContent() {
 
         // Validate capture payment data
         if (!payment_id || !paymentResult.razorpay_payment_id || !price || price <= 0) {
-          console.error('Invalid capture payment data:', {
-            payment_id,
-            razorpay_payment_id: paymentResult.razorpay_payment_id,
-            amount: price
-          });
           throw new Error('Invalid payment data. Missing payment_id, razorpay_payment_id, or amount.');
         }
 
@@ -614,13 +604,6 @@ export default function DownloadMockPDFContent() {
         });
 
         if (captureResponse.error) {
-          // Log detailed error for debugging
-          console.error('PDF Payment Capture Error:', {
-            error: captureResponse.error,
-            errorDetails: captureResponse.errorDetails,
-            received_data: captureResponse.errorDetails?.originalError?.received_data
-          });
-          
           // Extract detailed error message
           const errorMessage = captureResponse.errorDetails?.originalError?.error 
             || captureResponse.errorDetails?.originalError?.received_data 

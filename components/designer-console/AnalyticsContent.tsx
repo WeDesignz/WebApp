@@ -296,7 +296,6 @@ export default function AnalyticsContent() {
           })
           .catch(error => {
             // Return default values on error
-            console.error(`Error fetching analytics for design ${design.id}:`, error);
             return {
               design_id: design.id,
               title: design.title || 'Unknown',

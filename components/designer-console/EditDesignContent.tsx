@@ -632,7 +632,6 @@ export default function EditDesignContent({ designId }: EditDesignContentProps) 
       }, 1500);
 
     } catch (error: any) {
-      console.error('Update design error:', error);
       toast({
         title: "Update failed",
         description: error.message || "Failed to update design. Please try again.",

@@ -38,7 +38,6 @@ export function StudioAccessProvider({ children }: { children: ReactNode }) {
         const response = await apiClient.getDesignerOnboardingStatus();
         
         if (response.error) {
-          console.error('Error fetching studio access:', response.error);
           // Default to no access on error
           setHasFullAccess(false);
           setIsStudioOwner(false);
@@ -77,7 +76,6 @@ export function StudioAccessProvider({ children }: { children: ReactNode }) {
           setProfileType('individual');
         }
       } catch (error) {
-        console.error('Error fetching studio access:', error);
         setHasFullAccess(false);
         setIsStudioOwner(false);
         setIsStudioMember(false);

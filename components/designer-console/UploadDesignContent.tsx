@@ -81,7 +81,6 @@ export default function UploadDesignContent() {
     queryFn: async () => {
       const response = await apiClient.getCategories();
       if (response.error) {
-        console.error('Error fetching categories:', response.error);
         throw new Error(response.error);
       }
       
@@ -99,7 +98,6 @@ export default function UploadDesignContent() {
       if (!categoryId) return [];
       const response = await apiClient.getCategorySubcategories(categoryId);
       if (response.error) {
-        console.error('Error fetching subcategories:', response.error);
         throw new Error(response.error);
       }
       
@@ -442,7 +440,6 @@ export default function UploadDesignContent() {
         description: "The template zip file has been downloaded.",
       });
     } catch (error: any) {
-      console.error('Error generating template:', error);
       toast({
         title: "Failed to generate template",
         description: "Please try again.",

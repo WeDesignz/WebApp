@@ -89,7 +89,6 @@ const makeAbsoluteUrl = (url: string | null | undefined): string | null => {
   }
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
   if (!apiBaseUrl) {
-    console.warn('NEXT_PUBLIC_API_BASE_URL is not set');
     return url;
   }
   // Remove trailing slash from apiBaseUrl if present
@@ -296,15 +295,6 @@ export default function StudioContent() {
         error?.rawError?.errors ||
         error?.rawError ||
         {};
-      
-      // Log full error for debugging
-      console.error('Business details update error:', {
-        error: JSON.stringify(error, null, 2),
-        errorDetails: JSON.stringify(error?.errorDetails, null, 2),
-        rawError: JSON.stringify(error?.rawError, null, 2),
-        fieldErrors: JSON.stringify(fieldErrors, null, 2),
-        fullError: error,
-      });
       
       // Build error message from field errors
       const errorMessages = Object.entries(fieldErrors)
@@ -2057,7 +2047,6 @@ export default function StudioContent() {
                               }
                             }}
                             onError={() => {
-                              console.error('PDF iframe failed to load:', previewUrl);
                               setPdfLoadError(true);
                             }}
                           />

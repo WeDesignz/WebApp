@@ -174,13 +174,6 @@ export function isRetryableError(errorDetails: ErrorDetails): boolean {
  */
 export function logError(errorDetails: ErrorDetails, context?: string) {
   if (process.env.NODE_ENV === 'development') {
-    console.error(`[Error${context ? ` - ${context}` : ''}]`, {
-      type: errorDetails.type,
-      message: errorDetails.message,
-      statusCode: errorDetails.statusCode,
-      fieldErrors: errorDetails.fieldErrors,
-      originalError: errorDetails.originalError,
-    });
   }
 
   // In production, you could send to error tracking service (e.g., Sentry)

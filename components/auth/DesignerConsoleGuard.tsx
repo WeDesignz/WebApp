@@ -37,7 +37,6 @@ export default function DesignerConsoleGuard({ children }: DesignerConsoleGuardP
         const response = await apiClient.getDesignerOnboardingStatus();
         
         if (response.error) {
-          console.error('Error checking onboarding status:', response.error);
           // Check if user is a studio member (they can access without DesignerProfile)
           const isStudioMember = response.data?.profile_info?.is_studio_member;
           if (isStudioMember && response.data?.can_access_console) {
@@ -58,7 +57,6 @@ export default function DesignerConsoleGuard({ children }: DesignerConsoleGuardP
           router.push('/designer-onboarding');
         }
       } catch (error) {
-        console.error('Error checking onboarding status:', error);
         // On error, redirect to onboarding
         router.push('/designer-onboarding');
       } finally {

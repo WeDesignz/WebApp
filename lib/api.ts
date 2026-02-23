@@ -137,7 +137,6 @@ async function handleUnauthorized(endpoint?: string): Promise<boolean> {
           }
         }
       } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError);
         // Fall through to logout
       }
 
@@ -321,7 +320,6 @@ export async function apiRequest<T>(
       
       // Include received_data in error details if available (for debugging)
       if (errorData?.received_data) {
-        console.error('API Error - Received Data:', errorData.received_data);
       }
       
       // Fallback to user-friendly message if still no error
@@ -454,8 +452,6 @@ export async function apiRequest<T>(
               clearTimeout(retryTimeoutId);
               
               // If retry also fails, return the original error
-              console.error('Retry after token refresh failed:', retryError);
-              
               // Return original error but indicate session expired
               return {
                 error: 'Session expired. Please login again.',
@@ -2811,7 +2807,6 @@ export const apiClient = {
 
     const baseUrl = getApiBaseUrl();
     if (!baseUrl) {
-      console.error('[uploadDesign] No API base URL configured');
       return {
         error: 'API base URL is not configured',
         errorDetails: {
@@ -2824,7 +2819,6 @@ export const apiClient = {
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-      console.error('[uploadDesign] Request timeout after 5 minutes');
       controller.abort();
     }, 5 * 60 * 1000); // 5 minutes
     
@@ -2839,24 +2833,19 @@ export const apiClient = {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        console.error('[uploadDesign] Response not OK:', response.status);
         let errorData: any = {};
         try {
           const text = await response.text();
-          console.error('[uploadDesign] Error response text:', text);
           errorData = JSON.parse(text);
         } catch (parseError) {
-          console.error('[uploadDesign] Failed to parse error response:', parseError);
           errorData = { error: response.statusText || 'Upload failed' };
         }
 
         if (response.status === 401) {
-          console.error('[uploadDesign] Unauthorized - redirecting to login');
           await handleUnauthorized();
         }
 
         const errorMessage = errorData.error || errorData.detail || 'Upload failed';
-        console.error('[uploadDesign] Returning error:', errorMessage);
         return {
           error: errorMessage,
           errorDetails: formatError(errorData, response.status),
@@ -2868,10 +2857,8 @@ export const apiClient = {
       
     } catch (error: any) {
       clearTimeout(timeoutId);
-      console.error('[uploadDesign] Exception caught:', error);
       
       if (error.name === 'AbortError') {
-        console.error('[uploadDesign] Request aborted (timeout)');
         return {
           error: 'Upload timeout. Please try again with smaller files.',
           errorDetails: {
@@ -2883,7 +2870,6 @@ export const apiClient = {
       }
 
       const errorMessage = error?.message || 'Failed to upload design. Please check your connection and try again.';
-      console.error('[uploadDesign] Returning network error:', errorMessage);
       return {
         error: errorMessage,
         errorDetails: formatError(error, undefined),
@@ -3007,14 +2993,6 @@ export const apiClient = {
 
           const errorDetails = formatError(errorData, response.status);
           const userMessage = getUserFriendlyMessage(errorDetails);
-          
-          // Log the full error data for debugging
-          console.error('Business Details Update Error Response:', {
-            errorData: JSON.stringify(errorData, null, 2),
-            errorDetails: JSON.stringify(errorDetails, null, 2),
-            fieldErrors: JSON.stringify(errorDetails.fieldErrors, null, 2),
-            rawResponse: errorData,
-          });
           
           logError(errorDetails, 'Update Studio Business Details');
 

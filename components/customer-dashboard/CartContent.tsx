@@ -296,12 +296,10 @@ export default function CartContent() {
           // Use productId (camelCase) from CartItem interface
           const productId = item.productId;
           if (!productId) {
-            console.error('Cart item missing productId:', item);
             return null;
           }
           const id = parseInt(productId.toString(), 10);
           if (isNaN(id)) {
-            console.error('Invalid product ID:', productId, 'for item:', item);
             return null;
           }
           return id;

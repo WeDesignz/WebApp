@@ -320,7 +320,6 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
       router.push('/customer-dashboard?view=cart');
       onClose(); // Close the modal
     } catch (error) {
-      console.error('Error adding to cart:', error);
     }
   };
 

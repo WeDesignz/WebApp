@@ -211,7 +211,6 @@ export default function PricingPlans() {
           setPlans(transformed);
         }
       } catch (err) {
-        console.error('Error fetching plans:', err);
         setError(err instanceof Error ? err.message : 'Failed to load plans');
         // Keep empty array on error - component will handle gracefully
         setPlans([]);

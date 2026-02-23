@@ -70,7 +70,6 @@ export default function FAQContent() {
         '/api/feedback/faqs/?location=customer_dashboard'
       );
       if (response.error) {
-        console.error('Error fetching FAQs:', response.error);
         throw new Error(response.error);
       }
       return response.data || [];

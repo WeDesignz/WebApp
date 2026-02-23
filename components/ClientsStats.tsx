@@ -47,7 +47,6 @@ export default function ClientsStats() {
           setClientNames(defaultLogos);
         }
       } catch (error) {
-        console.error('Error fetching landing page data:', error);
         // Fallback to default values
         setTargetCounts({ clients: 1200, designers: 350, assets: 5400 });
         setClientNames(defaultLogos);

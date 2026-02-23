@@ -85,7 +85,6 @@ export function useUnreadMessages(orderId: string | null, currentUserId?: string
         };
         return data;
       } catch (error) {
-        console.error('[useUnreadMessages] Error fetching order comments for unread count:', error, 'orderId:', orderId);
         return null;
       }
     },

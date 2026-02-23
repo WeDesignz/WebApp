@@ -134,7 +134,6 @@ export default function SupportChat({ open, onClose, orderId, orderTitle }: Supp
         .catch((error: any) => {
           // Only log non-404 errors (endpoint may not exist yet)
           if (error?.statusCode !== 404) {
-            console.error('Error marking messages as read:', error);
           }
         });
     }
@@ -181,7 +180,6 @@ export default function SupportChat({ open, onClose, orderId, orderTitle }: Supp
         media_ids: mediaIds.length > 0 ? mediaIds : undefined,
       });
     } catch (error: any) {
-      console.error("Error sending message:", error);
     } finally {
       setIsSending(false);
     }
