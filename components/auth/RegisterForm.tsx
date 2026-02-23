@@ -139,7 +139,6 @@ export default function RegisterForm() {
         }
       }, 1500);
     } catch (err: any) {
-      console.error('Registration error:', err);
       
       // Map Django field names to form field names
       const fieldNameMap: Record<string, string> = {

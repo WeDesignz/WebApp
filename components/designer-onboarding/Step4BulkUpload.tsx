@@ -39,7 +39,6 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
           setMinDesigns(response.data.minimum_required_designs_onboard);
         }
       } catch (error) {
-        console.error('Failed to fetch business config, using default:', error);
         // Keep default value of 50
       }
     };
@@ -257,7 +256,6 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
       
       toast.success('Template downloaded successfully!');
     } catch (error: any) {
-      console.error('Error generating template:', error);
       toast.error('Failed to generate template. Please try again.');
     } finally {
       setIsGeneratingTemplate(false);
@@ -686,8 +684,6 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
         const errorMsg = response.error;
         const validationErrs = response.validationErrors || [];
         
-        console.error('Upload error:', errorMsg, validationErrs);
-        
         if (validationErrs.length > 0) {
           setValidationErrors(validationErrs);
           toast.error(`Upload failed: ${errorMsg}`);
@@ -702,7 +698,6 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
       // Backend returns: { message: '...', data: {...} }
       // API client wraps it: { data: { message: '...', data: {...} } }
       if (!response.data) {
-        console.error('No data in response:', response);
         toast.error('Upload completed but no data was returned. Please check your designer console.');
         setIsUploading(false);
         return;
@@ -717,7 +712,6 @@ export default function Step4BulkUpload({ onBack, onComplete }: Step4BulkUploadP
       // Call onComplete which will handle redirect
       onComplete(bulkFile);
     } catch (error: any) {
-      console.error('Upload exception:', error);
       toast.error(error.message || 'Failed to upload zip file. Please try again.');
       setIsUploading(false);
     } finally {

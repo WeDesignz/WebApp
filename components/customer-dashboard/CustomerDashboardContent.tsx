@@ -113,7 +113,6 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
     queryFn: async () => {
       const response = await apiClient.getDownloads('all');
       if (response.error) {
-        console.error('Error fetching downloads:', response.error);
         return { products: [] };
       }
       const data = response.data || { products: [] };
@@ -163,7 +162,6 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
               hasNext: false, // Lens search doesn't support pagination
             };
           } catch (e) {
-            console.error('Error parsing lens search results:', e);
           }
         }
       }

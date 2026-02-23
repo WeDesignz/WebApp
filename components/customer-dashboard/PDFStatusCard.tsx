@@ -204,7 +204,7 @@ export default function PDFStatusCard({
           <p className="text-sm text-muted-foreground mb-3">{config.description}</p>
 
           {/* Processing sub-steps animation */}
-          {isProcessing && config.subSteps && !compact && (
+          {isProcessing && "subSteps" in config && config.subSteps && !compact && (
             <div className="space-y-1.5 mb-3">
               {config.subSteps.map((subStep, idx) => (
                 <motion.div

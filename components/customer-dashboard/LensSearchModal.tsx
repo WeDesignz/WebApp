@@ -90,7 +90,6 @@ export default function LensSearchModal({
         setShowCamera(true);
       }
     } catch (error: any) {
-      console.error('Camera error:', error);
       setCameraError('Could not access camera. Please check permissions or use file upload.');
       toast({
         title: "Camera access denied",
@@ -147,7 +146,6 @@ export default function LensSearchModal({
         onClose();
       }
     } catch (error: any) {
-      console.error('Lens search error:', error);
       toast({
         title: "Search failed",
         description: error.message || "An error occurred while searching",

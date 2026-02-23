@@ -46,7 +46,6 @@ export default function GallerySection() {
           setGalleryImages(transformedImages);
         }
       } catch (error) {
-        console.error('Error fetching gallery images:', error);
         // Fallback to empty array
         setGalleryImages([]);
       } finally {

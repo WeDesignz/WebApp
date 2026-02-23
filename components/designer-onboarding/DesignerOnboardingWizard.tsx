@@ -176,7 +176,6 @@ export default function DesignerOnboardingWizard() {
         // Onboarding not complete, allow them to proceed
         setIsCheckingOnboarding(false);
       } catch (error) {
-        console.error('Error checking onboarding status:', error);
         // On error, allow them to proceed with onboarding
         setIsCheckingOnboarding(false);
       }

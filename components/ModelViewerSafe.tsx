@@ -61,7 +61,6 @@ const ModelViewerSafe: FC<ViewerProps> = (props) => {
 				.catch((error) => {
 					if (!cancelled) {
 						// Silently handle the error - it's likely just a bundling warning
-						console.warn('ModelViewer loading handled:', error.message);
 						setIsLoading(false);
 					}
 				});

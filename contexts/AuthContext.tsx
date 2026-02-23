@@ -101,7 +101,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } catch (e) {
-        console.error('Failed to load auth data', e);
         clearAuthData();
       } finally {
         setIsLoading(false);
@@ -309,7 +308,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(transformedUser);
       localStorage.setItem('wedesign_user', JSON.stringify(transformedUser));
     } catch (error: any) {
-      console.error('Registration error in AuthContext:', error);
       throw error;
     }
   };
@@ -325,7 +323,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // We still want to clear local auth data regardless of API response
         // Only log in development for debugging
         if (process.env.NODE_ENV === 'development') {
-          console.debug('Logout API call failed (this is usually fine):', error?.message || error);
         }
       }
     }
@@ -419,7 +416,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               mobileResponse.errorDetails?.fieldErrors?.mobile_number?.some((msg: string) => msg.includes('already exists'))) {
             // Mobile number already exists, continue
           } else {
-            console.error('Failed to add mobile number after email verification:', mobileResponse.error);
             // Continue anyway - mobile can be added later
           }
         }
@@ -448,7 +444,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('wedesign_user', JSON.stringify(updatedUser));
       }
     } catch (error) {
-      console.error('Failed to refresh user profile:', error);
     }
 
     return !!response.data;

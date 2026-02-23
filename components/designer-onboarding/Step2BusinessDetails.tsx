@@ -165,7 +165,6 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
     setShowEmailOTP(true);
     } catch (error: any) {
       // Error already handled in sendEmailOTP with toast
-      console.error('Error sending email OTP:', error);
       // Don't open modal if there's an error
     }
   };
@@ -200,7 +199,6 @@ export default function Step2BusinessDetails({ initialData, onBack, onComplete }
       
       toast.success('OTP sent to your business email');
     } catch (error: any) {
-      console.error('Error in sendEmailOTP:', error);
       const errorMessage = error?.message || error?.error || 'Failed to send OTP';
       toast.error(errorMessage);
       throw error; // Re-throw to prevent modal from opening

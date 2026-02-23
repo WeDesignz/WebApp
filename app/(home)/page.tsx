@@ -66,7 +66,6 @@ export default function Page() {
           setFeaturedDesigns([]);
         }
       } catch (error) {
-        console.error('Error fetching featured designs:', error);
         setFeaturedDesigns([]);
       } finally {
         setIsLoadingFeatured(false);

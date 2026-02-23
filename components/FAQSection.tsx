@@ -18,7 +18,6 @@ export default function FAQSection() {
         '/api/feedback/faqs/?location=landing_page'
       );
       if (response.error) {
-        console.error('Error fetching FAQs:', response.error);
         return [];
       }
       return response.data || [];
@@ -29,7 +28,6 @@ export default function FAQSection() {
   
   // Error handling
   if (error) {
-    console.error('FAQ Query Error:', error);
   }
 
   return (

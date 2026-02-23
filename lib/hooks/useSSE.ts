@@ -54,7 +54,6 @@ export function useSSE(options: UseSSEOptions) {
       const eventSource = apiClient.streamDesignProcessingProgress(taskId);
       
       if (!eventSource) {
-        console.error('Failed to create EventSource');
         onError?.('Failed to create SSE connection: No token available');
         isAuthErrorRef.current = true; // Likely an auth issue
         return;
@@ -71,7 +70,6 @@ export function useSSE(options: UseSSEOptions) {
       authCheckTimeoutRef.current = setTimeout(() => {
         // If connection is closed immediately and never opened, it's likely an auth error
         if (eventSource.readyState === EventSource.CLOSED && !hasOpenedRef.current) {
-          console.error('SSE: Connection closed immediately, likely authentication error');
           isAuthErrorRef.current = true;
           setIsConnected(false);
           onError?.('Authentication failed. Please refresh the page and try again.');
@@ -113,7 +111,6 @@ export function useSSE(options: UseSSEOptions) {
             isAuthErrorRef.current = true;
           }
         } catch (error) {
-          console.error('Error parsing SSE event:', error);
         }
       };
 
@@ -122,12 +119,10 @@ export function useSSE(options: UseSSEOptions) {
           clearTimeout(authCheckTimeoutRef.current);
           authCheckTimeoutRef.current = null;
         }
-        console.error('SSE connection error:', error);
         setIsConnected(false);
         
         // Check if connection was never opened (likely auth error)
         if (!hasOpenedRef.current && eventSource.readyState === EventSource.CLOSED) {
-          console.error('SSE: Connection failed immediately, likely authentication error');
           isAuthErrorRef.current = true;
           onError?.('Authentication failed. Please refresh the page and try again.');
           return; // Don't attempt to reconnect
@@ -150,7 +145,6 @@ export function useSSE(options: UseSSEOptions) {
         }
       };
     } catch (error) {
-      console.error('Error creating SSE connection:', error);
       onError?.(error instanceof Error ? error.message : 'Failed to create SSE connection');
       isAuthErrorRef.current = true;
     }

@@ -71,7 +71,6 @@ export default function HeroSection() {
           setIsLoading(false);
         }
       } catch (error) {
-        console.error('Error fetching hero designs:', error);
         // Only update state if component is still mounted
         if (isMounted) {
           setFeaturedDesigns([]);

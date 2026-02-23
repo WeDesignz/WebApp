@@ -41,7 +41,6 @@ export function DesignerVerificationProvider({ children }: { children: ReactNode
         const response = await apiClient.getDesignerOnboardingStatus();
         
         if (response.error) {
-          console.error('Error fetching verification status:', response.error);
           setVerificationStatus('pending');
         } else {
           // Check if user is a studio member (they don't need verification)
@@ -59,7 +58,6 @@ export function DesignerVerificationProvider({ children }: { children: ReactNode
           }
         }
       } catch (error) {
-        console.error('Error fetching verification status:', error);
         setVerificationStatus('pending');
       } finally {
         setIsLoading(false);
