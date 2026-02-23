@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { Mail, Phone, MapPin, Clock } from 'lucide-react';
 import PublicPageWrapper from '@/components/common/PublicPageWrapper';
+import { BreadcrumbSchema } from '@/components/SEO/StructuredData';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wedesignz.com';
 
@@ -36,6 +37,7 @@ export const metadata: Metadata = {
 export default function ContactPage() {
   return (
     <PublicPageWrapper>
+      <BreadcrumbSchema items={[{ name: 'Home', url: siteUrl }, { name: 'Contact Us', url: `${siteUrl}/contact` }]} />
       <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-6 md:px-8 py-12">
         <div className="mb-8">

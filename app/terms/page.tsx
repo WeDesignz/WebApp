@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import PublicPageWrapper from '@/components/common/PublicPageWrapper';
+import { BreadcrumbSchema } from '@/components/SEO/StructuredData';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wedesignz.com';
 
@@ -16,6 +17,20 @@ export const metadata: Metadata = {
     description: 'Read the Terms and Conditions for WeDesignz platform',
     url: `${siteUrl}/terms`,
     type: 'website',
+    images: [
+      {
+        url: '/Logos/WD LOGO2048BLACK.png',
+        width: 1200,
+        height: 630,
+        alt: 'WeDesignz - Terms & Conditions',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Terms & Conditions - WeDesignz',
+    description: 'Read the Terms and Conditions for WeDesignz platform',
+    images: ['/Logos/WD LOGO2048BLACK.png'],
   },
   robots: {
     index: true,
@@ -32,6 +47,7 @@ export default function TermsPage() {
 
   return (
     <PublicPageWrapper>
+      <BreadcrumbSchema items={[{ name: 'Home', url: siteUrl }, { name: 'Terms & Conditions', url: `${siteUrl}/terms` }]} />
       <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-6 md:px-8 py-12">
         <div className="mb-8">
