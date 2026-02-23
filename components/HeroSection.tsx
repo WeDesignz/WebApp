@@ -192,7 +192,7 @@ export default function HeroSection() {
                       <div className="flex items-center justify-center w-12 h-12 rounded-full border border-white/30 bg-black backdrop-blur-sm shadow-lg">
                         <img 
                           src="/Logos/ONLY LOGO.png" 
-                          alt="WeDesign Logo"
+                          alt="WeDesignz logo"
                           className="h-8 w-auto object-contain brightness-0 invert"
                         />
                       </div>
@@ -204,7 +204,7 @@ export default function HeroSection() {
                       {design.image ? (
                         <img 
                           src={preferAvifForDisplay(design.image) || design.image} 
-                          alt={design.title}
+                          alt={design.title || 'Design preview'}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;

@@ -302,7 +302,7 @@ export default function CardSlider({ title, items, isLoading = false }: CardSlid
                         <>
                     <img 
                       src={it.image} 
-                      alt={it.title} 
+                      alt={it.title || 'Design preview'} 
                             className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:brightness-110" 
                       draggable={false} 
                             onError={(e) => {

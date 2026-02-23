@@ -63,7 +63,7 @@ export default function Footer() {
               <Link href="/" className="inline-flex items-center gap-2.5 flex-shrink-0">
                 <img 
                   src="/Logos/ONLY LOGO.png" 
-                  alt="WeDesignz Logo" 
+                  alt="WeDesignz logo" 
                   className="h-10 w-auto brightness-0 invert"
                 />
                 <img 
