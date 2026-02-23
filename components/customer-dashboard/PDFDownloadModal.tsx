@@ -18,6 +18,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiClient, catalogAPI } from "@/lib/api";
 import { downloadPDFToDevice } from "@/lib/utils";
@@ -27,6 +28,7 @@ import { initializeRazorpayCheckout } from "@/lib/payment";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import PDFStatusCard from "./PDFStatusCard";
 
 interface PDFDownloadModalProps {
   isOpen: boolean;
@@ -75,6 +77,7 @@ export default function PDFDownloadModal({
     };
   } | null>(null);
   const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
+  const [excludeDesignsFromPreviousPdfs, setExcludeDesignsFromPreviousPdfs] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerMobile, setCustomerMobile] = useState("");
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -83,6 +86,14 @@ export default function PDFDownloadModal({
   const router = useRouter();
 
   const isAuthenticated = !!user;
+
+  // Fetch previous PDF design IDs (for "only new designs" exclusion in results)
+  const { data: previousDesignsData } = useQuery({
+    queryKey: ['previousPDFDesignIds'],
+    queryFn: () => apiClient.getPreviousPDFDesignIds(),
+    enabled: isOpen && isAuthenticated,
+    staleTime: 60 * 1000,
+  });
 
   // Fetch PDF configuration when modal opens
   const { data: configData } = useQuery({
@@ -136,8 +147,16 @@ export default function PDFDownloadModal({
 
   // Fetch products for "first N" selection to get product IDs
   const { data: productsData } = useQuery({
-    queryKey: ['pdfModalProducts', searchQuery, selectedCategory, quantity],
+    queryKey: [
+      'pdfModalProducts',
+      searchQuery,
+      selectedCategory,
+      quantity,
+      excludeDesignsFromPreviousPdfs,
+      excludeDesignsFromPreviousPdfs ? (previousDesignsData?.data?.product_ids ?? []) : [],
+    ],
     queryFn: async () => {
+      const excludeIds = excludeDesignsFromPreviousPdfs ? (previousDesignsData?.data?.product_ids ?? []) : [];
       if (searchQuery || (selectedCategory && selectedCategory !== 'all')) {
         const categoryId = selectedCategory && selectedCategory !== 'all' 
           ? parseInt(selectedCategory) 
@@ -147,6 +166,7 @@ export default function PDFDownloadModal({
           q: searchQuery || undefined,
           category: categoryId,
           page: 1,
+          excludeProductIds: excludeIds.length > 0 ? excludeIds : undefined,
         });
 
         if (response.error) {
@@ -155,7 +175,7 @@ export default function PDFDownloadModal({
 
         return transformProducts(response.data?.results || []);
       } else {
-        const response = await catalogAPI.getHomeFeed(1);
+        const response = await catalogAPI.getHomeFeed(1, excludeIds.length > 0 ? excludeIds : undefined);
 
         if (response.error) {
           throw new Error(response.error);
@@ -336,11 +356,16 @@ export default function PDFDownloadModal({
 
       // Step 1: Create PDF request
       // For "firstN" selection, use "specific" type with selected product IDs
+      // When exclude_previous: send more candidates (backend filters and takes first N)
+      const productIdsToSend = selectionType === "firstN" && excludeDesignsFromPreviousPdfs && productsData?.length
+        ? productsData.slice(0, Math.max(quantity + 100, productsData.length)).map((p: { id: number }) => p.id)
+        : (selectionType === "firstN" ? selectedProductIds : []);
       const createResponse = await apiClient.createPDFRequest({
         download_type: downloadType,
         total_pages: quantity,
         selection_type: selectionType === "firstN" ? "specific" : "specific",
-        selected_products: selectionType === "firstN" ? selectedProductIds : [],
+        selected_products: productIdsToSend,
+        exclude_designs_from_previous_pdfs: excludeDesignsFromPreviousPdfs,
         search_filters: selectionType === "firstN" ? {} : {
           q: searchQuery,
           category: selectedCategory !== "all" ? selectedCategory : undefined,
@@ -612,20 +637,23 @@ export default function PDFDownloadModal({
                 Number of Designs
               </label>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                {(pdfConfig?.paid_pdf_designs_options || [50, 100, 200, 300, 400, 500]).map((opt) => (
-                  <button
-                    key={opt}
-                    onClick={() => setQuantity(opt)}
-                    className={`p-3 rounded-lg border-2 transition-all ${
-                      quantity === opt
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border hover:border-primary/50"
-                    }`}
-                  >
-                    <div className="text-lg font-bold">{opt}</div>
-                    <div className="text-xs text-muted-foreground">Designs</div>
-                  </button>
-                ))}
+                {(() => {
+                  const opts = (pdfConfig?.paid_pdf_designs_options || [20, 50, 100]).filter((n) => n <= 100);
+                  return (opts.length > 0 ? opts : [20, 50, 100]).map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setQuantity(opt)}
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        quantity === opt
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="text-lg font-bold">{opt}</div>
+                      <div className="text-xs text-muted-foreground">Designs</div>
+                    </button>
+                  ));
+                })()}
               </div>
             </div>
 
@@ -662,6 +690,24 @@ export default function PDFDownloadModal({
                   </div>
                 )}
               </div>
+
+              {/* Only new designs - exclude from previous PDFs */}
+              {isAuthenticated && (
+                <div className="mt-4 pt-4 border-t border-border flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-medium">Only new designs</p>
+                    <p className="text-xs text-muted-foreground">
+                      {previousDesignsData?.data?.count
+                        ? `Exclude ${previousDesignsData.data.count} design${previousDesignsData.data.count !== 1 ? 's' : ''} from your previous PDFs`
+                        : 'Exclude designs from your previous PDFs'}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={excludeDesignsFromPreviousPdfs}
+                    onCheckedChange={setExcludeDesignsFromPreviousPdfs}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Selected Products Display (for first N) */}
@@ -728,80 +774,68 @@ export default function PDFDownloadModal({
             </Card>
 
             {/* PDF Status Display */}
-            {currentDownloadId && pdfStatus && (
-              <Card className="p-4 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
+            {currentDownloadId && pdfStatus && pdfStatus.status !== 'failed' && (
+              <PDFStatusCard
+                status={pdfStatus.status as 'pending' | 'processing' | 'completed'}
+                downloadProgress={downloadProgress}
+                onGenerateClick={async () => {
+                  if (!currentDownloadId) return;
+                  const result = await apiClient.downloadPDF(currentDownloadId);
+                  if ((result as any)?.status === 'generating') {
+                    queryClient.invalidateQueries({ queryKey: ['pdfStatus', currentDownloadId] });
+                    toast({
+                      title: "Generating PDF",
+                      description: "Your PDF is being generated. Please wait a moment.",
+                    });
+                  } else if ((result as any)?.error) {
+                    toast({
+                      title: "Error",
+                      description: (result as any).error,
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                onDownloadClick={async () => {
+                  if (!currentDownloadId) return;
+                  setDownloadProgress(0);
+                  await downloadPDFToDevice(currentDownloadId, {
+                    getDownloadUrl: (id) => apiClient.getPDFDownloadUrl(id),
+                    downloadPDF: (id, onP) => apiClient.downloadPDF(id, onP),
+                    onProgress: (p) => setDownloadProgress(p),
+                    onComplete: () => {
+                      setDownloadProgress(null);
+                      toast({
+                        title: "Download started",
+                        description: "Your PDF is being downloaded.",
+                      });
+                      onClose();
+                    },
+                    onError: (msg) => {
+                      setDownloadProgress(null);
+                      toast({
+                        title: "Download failed",
+                        description: msg || "Failed to download PDF",
+                        variant: "destructive",
+                      });
+                    },
+                  });
+                }}
+              />
+            )}
+            {currentDownloadId && pdfStatus?.status === 'failed' && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl border-2 border-red-500/30 bg-gradient-to-br from-red-500/10 to-rose-500/10 p-4"
+              >
                 <div className="flex items-start gap-3">
-                  {pdfStatus.status === 'completed' ? (
-                    <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  ) : pdfStatus.status === 'failed' ? (
-                    <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                  ) : (
-                    <Loader2 className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5 animate-spin" />
-                  )}
-                  <div className="flex-1">
-                    <h3 className="font-semibold mb-1">
-                      {pdfStatus.status === 'completed' && 'PDF Ready!'}
-                      {pdfStatus.status === 'processing' && 'Generating PDF...'}
-                      {pdfStatus.status === 'pending' && 'PDF Request Pending'}
-                      {pdfStatus.status === 'failed' && 'PDF Generation Failed'}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {pdfStatus.status === 'completed' && 'Your PDF is ready to download.'}
-                      {pdfStatus.status === 'processing' && 'Please wait while we generate your PDF. This may take a few moments.'}
-                      {pdfStatus.status === 'pending' && 'Your PDF request is being processed.'}
-                      {pdfStatus.status === 'failed' && 'Failed to generate PDF. Please try again.'}
-                    </p>
-                    {pdfStatus.status === 'completed' && (
-                      <div className="space-y-2">
-                        <Button
-                          size="sm"
-                          disabled={downloadProgress != null}
-                          onClick={async () => {
-                            if (!currentDownloadId) return;
-                            setDownloadProgress(0);
-                            await downloadPDFToDevice(currentDownloadId, {
-                              getDownloadUrl: (id) => apiClient.getPDFDownloadUrl(id),
-                              downloadPDF: (id, onP) => apiClient.downloadPDF(id, onP),
-                              onProgress: (p) => setDownloadProgress(p),
-                              onComplete: () => {
-                                setDownloadProgress(null);
-                                toast({
-                                  title: "Download started",
-                                  description: "Your PDF is being downloaded.",
-                                });
-                                onClose();
-                              },
-                              onError: (msg) => {
-                                setDownloadProgress(null);
-                                toast({
-                                  title: "Download failed",
-                                  description: msg || "Failed to download PDF",
-                                  variant: "destructive",
-                                });
-                              },
-                            });
-                          }}
-                        >
-                          {downloadProgress != null ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              {downloadProgress < 100 ? `Downloading ${downloadProgress}%` : "Done"}
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-4 h-4 mr-2" />
-                              Download PDF
-                            </>
-                          )}
-                        </Button>
-                        {downloadProgress != null && (
-                          <Progress value={downloadProgress} className="h-2 w-full" />
-                        )}
-                      </div>
-                    )}
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-red-600 dark:text-red-400">PDF Generation Failed</h3>
+                    <p className="text-sm text-muted-foreground">Failed to generate PDF. Please try again or contact support.</p>
                   </div>
                 </div>
-              </Card>
+              </motion.div>
             )}
 
             {/* Action Buttons */}
@@ -810,7 +844,7 @@ export default function PDFDownloadModal({
                 variant="outline"
                 onClick={onClose}
                 className="flex-1"
-                disabled={isProcessing || !!(currentDownloadId && pdfStatus?.status !== 'completed')}
+                disabled={isProcessing}
               >
                 {currentDownloadId && pdfStatus?.status === 'completed' ? 'Close' : 'Cancel'}
               </Button>

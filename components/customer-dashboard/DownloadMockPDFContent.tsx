@@ -97,6 +97,18 @@ export default function DownloadMockPDFContent() {
   // Subscription mock PDF state
   const [useSubscriptionMockPDF, setUseSubscriptionMockPDF] = useState(false);
 
+  // Exclude designs from previous PDFs (only new designs)
+  const [excludeDesignsFromPreviousPdfs, setExcludeDesignsFromPreviousPdfs] = useState(false);
+
+  // Fetch previous PDF design count (for "exclude previous" option)
+  const { data: previousDesignsData } = useQuery({
+    queryKey: ['previousPDFDesignIds'],
+    queryFn: () => apiClient.getPreviousPDFDesignIds(),
+    enabled: isAuthenticated,
+    staleTime: 60 * 1000,
+  });
+  const previousDesignsCount = previousDesignsData?.data?.count ?? 0;
+
   // Fetch PDF configuration
   const { data: configData } = useQuery({
     queryKey: ['pdfConfig'],
@@ -219,8 +231,16 @@ export default function DownloadMockPDFContent() {
     error,
     refetch,
   } = useInfiniteQuery({
-    queryKey: ['freePDFDesigns', searchQuery, selectedCategory, actualDesignCount],
+    queryKey: [
+      'freePDFDesigns',
+      searchQuery,
+      selectedCategory,
+      actualDesignCount,
+      excludeDesignsFromPreviousPdfs,
+      excludeDesignsFromPreviousPdfs ? (previousDesignsData?.data?.product_ids ?? []) : [],
+    ],
     queryFn: async ({ pageParam = 1 }) => {
+      const excludeIds = excludeDesignsFromPreviousPdfs ? (previousDesignsData?.data?.product_ids ?? []) : [];
       if (searchQuery || (selectedCategory && selectedCategory !== 'all')) {
         const categoryId = selectedCategory && selectedCategory !== 'all' 
           ? parseInt(selectedCategory) 
@@ -230,6 +250,7 @@ export default function DownloadMockPDFContent() {
           q: searchQuery || undefined,
           category: categoryId,
           page: pageParam,
+          excludeProductIds: excludeIds.length > 0 ? excludeIds : undefined,
         });
 
         if (response.error) {
@@ -264,7 +285,7 @@ export default function DownloadMockPDFContent() {
           hasNext: (response.data?.current_page || 0) < (response.data?.total_pages || 0),
         };
       } else {
-        const response = await catalogAPI.getHomeFeed(pageParam);
+        const response = await catalogAPI.getHomeFeed(pageParam, excludeIds.length > 0 ? excludeIds : undefined);
 
         if (response.error) {
           throw new Error(response.error);
@@ -467,14 +488,18 @@ export default function DownloadMockPDFContent() {
         
         // Use the required count (freeDownloadDesignCount for free, selectedDesignCount for paid)
         const productCount = isFreeDownload ? freeDownloadDesignCount : selectedDesignCount;
-        // Ensure we're using exactly the first N products in display order
-        const productIdsToUse = firstNProductIds.slice(0, productCount);
+        // When excluding previous: send more candidates (backend filters and takes first N)
+        const productIdsToUse = excludeDesignsFromPreviousPdfs
+          ? firstNProductIds.slice(0, Math.max(productCount + 100, firstNProductIds.length))
+          : firstNProductIds.slice(0, productCount);
         
-        // Ensure we have enough products
-        if (productIdsToUse.length !== productCount) {
+        // Ensure we have enough products (when not excluding, need exact count)
+        if (!excludeDesignsFromPreviousPdfs && productIdsToUse.length !== productCount) {
           throw new Error(`Not enough products available. Required: ${productCount}, Available: ${productIdsToUse.length}`);
         }
-
+        if (excludeDesignsFromPreviousPdfs && productIdsToUse.length < productCount) {
+          throw new Error(`Not enough products available. Required: ${productCount}, Available: ${productIdsToUse.length}. Load more designs or include previous designs.`);
+        }
 
         // Create PDF request - for "firstN" mode, use "specific" selection type to preserve exact order
         const createResponse = await apiClient.createPDFRequest({
@@ -482,6 +507,7 @@ export default function DownloadMockPDFContent() {
           total_pages: productCount,
           selection_type: "specific",
           selected_products: productIdsToUse,
+          exclude_designs_from_previous_pdfs: excludeDesignsFromPreviousPdfs,
           search_filters: {
             q: searchQuery || undefined,
             category: selectedCategory !== 'all' ? selectedCategory : undefined,
@@ -512,6 +538,7 @@ export default function DownloadMockPDFContent() {
           total_pages: productCount,
           selection_type: "specific",
           selected_products: designIds,
+          exclude_designs_from_previous_pdfs: excludeDesignsFromPreviousPdfs,
           use_subscription_mock_pdf: useSubscriptionMockPDF,
           customer_name: customerName.trim(),
           customer_mobile: customerMobile.trim().replace(/\D/g, ''),
@@ -705,7 +732,7 @@ export default function DownloadMockPDFContent() {
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {isEligible || useSubscriptionMockPDF
-                ? (isUnlimitedFree && isEligible ? `Select any size (20, 50, 100…) designs per PDF for your free download` : `Select ${freeDesignsCount} designs for your free PDF download`)
+                ? (isUnlimitedFree && isEligible ? `Select any size (20, 50, 100) designs per PDF for your free download` : `Select ${freeDesignsCount} designs for your free PDF download`)
                 : `Select exactly ${freeDesignsCount} designs to download (payment required)`}
             </p>
           </div>
@@ -720,7 +747,7 @@ export default function DownloadMockPDFContent() {
                 <p className="font-semibold text-green-600 dark:text-green-400">Free Download Available</p>
                 <p className="text-sm text-muted-foreground">
                   {isUnlimitedFree ? (
-                    <>Unlimited free PDF downloads <span className="font-semibold text-green-600 dark:text-green-400">(for a limited time)</span>. All sizes (20, 50, 100, 200…) are free — choose any number of designs per PDF above!</>
+                    <>Unlimited free PDF downloads <span className="font-semibold text-green-600 dark:text-green-400">(for a limited time)</span>. All sizes (20, 50, 100) are free — choose any number of designs per PDF above!</>
                   ) : (
                     <>You have <span className="font-semibold text-green-600 dark:text-green-400">{freePdfRemaining} free PDF download{freePdfRemaining !== 1 ? 's' : ''}</span> available this month ({freeDownloadsUsed} of {freePdfLimitPerMonth} used). Select {freeDesignsCount} designs to get started!</>
                   )}
@@ -801,7 +828,9 @@ export default function DownloadMockPDFContent() {
               Number of Designs {(isEligible || useSubscriptionMockPDF) && !isUnlimitedFree && "(for paid downloads)"}
             </label>
             <div className="flex gap-2 flex-wrap">
-              {pdfConfig.paid_pdf_designs_options.map((opt, index) => {
+              {(() => {
+                const opts = (pdfConfig.paid_pdf_designs_options || []).filter((n) => n <= 100);
+                return (opts.length > 0 ? opts : [20, 50, 100]).map((opt, index) => {
                 const isFirstOption = index === 0;
                 const isEnabled = (!isEligible && !useSubscriptionMockPDF) || isFirstOption || (isEligible && isUnlimitedFree);
                 
@@ -829,7 +858,8 @@ export default function DownloadMockPDFContent() {
                     <div className="text-xs text-muted-foreground">Designs</div>
                   </button>
                 );
-              })}
+              });
+            })()}
             </div>
           </Card>
         )}
@@ -872,6 +902,26 @@ export default function DownloadMockPDFContent() {
               ? `The first ${actualDesignCount} designs from your filtered results will be included in your PDF.`
               : `Manually select exactly ${actualDesignCount} designs by clicking on them.`}
           </p>
+
+          {/* Exclude designs from previous PDFs */}
+          {isAuthenticated && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-medium">Only new designs</p>
+                  <p className="text-sm text-muted-foreground">
+                    {previousDesignsCount > 0
+                      ? `Exclude ${previousDesignsCount} design${previousDesignsCount !== 1 ? 's' : ''} from your previous PDFs`
+                      : 'Exclude designs already in your previous PDFs'}
+                  </p>
+                </div>
+                <Switch
+                  checked={excludeDesignsFromPreviousPdfs}
+                  onCheckedChange={setExcludeDesignsFromPreviousPdfs}
+                />
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Search and Filters */}

@@ -29,6 +29,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { downloadPDFToDevice } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
+import { PDFStatusBadge } from "@/components/customer-dashboard/PDFStatusCard";
 import { useToast } from "@/hooks/use-toast";
 
 interface PDFDownload {
@@ -106,13 +107,14 @@ export default function DesignerDownloadsContent() {
         const hasProcessing = data.some((pdf: any) => 
           pdf.status === 'processing' || pdf.status === 'pending'
         );
-        // Poll every 3 seconds if there are processing downloads
+        // Poll every 2 seconds when processing so Download button appears quickly when ready
         if (hasProcessing) {
-          return 3000;
+          return 2000;
         }
       }
       return false;
     },
+    refetchOnWindowFocus: true, // Refetch when user returns to tab so Download button appears
   });
 
   const pdfDownloads = pdfDownloadsData || [];
@@ -166,6 +168,15 @@ export default function DesignerDownloadsContent() {
     await downloadPDFToDevice(pdfId, {
       getDownloadUrl: (id) => apiClient.getPDFDownloadUrl(id),
       downloadPDF: (id, onP) => apiClient.downloadPDF(id, onP),
+      onGenerating: () => {
+        setDownloadingPDFId(null);
+        setDownloadProgress(null);
+        refetchPDFDownloads();
+        toast({
+          title: "Generating PDF",
+          description: "Your PDF is being generated. It will be ready in 30–60 seconds.",
+        });
+      },
       onProgress: (p) => setDownloadProgress(p),
       onComplete: () => {
         setDownloadingPDFId(null);
@@ -333,17 +344,9 @@ export default function DesignerDownloadsContent() {
                         {download.type || 'paid'}
                       </Badge>
                       {download.status && (
-                        <Badge 
-                          variant={
-                            download.status === 'completed' ? 'default' :
-                            download.status === 'processing' ? 'secondary' :
-                            download.status === 'failed' ? 'destructive' : 'outline'
-                          }
-                          className="absolute top-2 left-2 z-10"
-                        >
-                          {download.status === 'processing' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
-                          {download.status}
-                        </Badge>
+                        <div className="absolute top-2 left-2 z-10">
+                          <PDFStatusBadge status={download.status as 'pending' | 'processing' | 'completed' | 'failed'} />
+                        </div>
                       )}
                     </div>
                     <div className="p-4 space-y-3">
@@ -368,16 +371,52 @@ export default function DesignerDownloadsContent() {
                         </div>
                       )}
                       {download.status !== 'completed' ? (
-                        <div className="p-3 text-center bg-muted rounded-md">
-                          <p className="text-sm text-muted-foreground">
-                            {download.status === 'processing' && 'PDF is being generated...'}
-                            {download.status === 'pending' && 'PDF request is pending'}
-                            {download.status === 'failed' && 'PDF generation failed. Please contact support.'}
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="p-3 rounded-lg border border-border bg-muted/30"
+                        >
+                          <div className="flex items-center justify-center gap-2 mb-2">
+                            <PDFStatusBadge status={download.status as 'pending' | 'processing' | 'completed' | 'failed'} />
+                          </div>
+                          <p className="text-xs text-center text-muted-foreground mb-2">
+                            {download.status === 'processing' && 'Adding designs to your PDF...'}
+                            {download.status === 'pending' && 'Click below to generate your PDF'}
+                            {download.status === 'failed' && 'Please try again or contact support'}
                           </p>
                           {download.status === 'processing' && (
-                            <Loader2 className="w-4 h-4 mx-auto mt-2 animate-spin text-primary" />
+                            <div className="mt-2 flex justify-center gap-1">
+                              {[0, 1, 2].map((i) => (
+                                <motion.span
+                                  key={i}
+                                  animate={{ opacity: [0.3, 1, 0.3] }}
+                                  transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.2 }}
+                                  className="w-1.5 h-1.5 rounded-full bg-primary"
+                                />
+                              ))}
+                            </div>
                           )}
-                        </div>
+                          {download.status === 'pending' && (
+                            <Button
+                              size="sm"
+                              className="w-full mt-2 gap-2"
+                              onClick={() => handleDownload(download)}
+                              disabled={downloadingPDFId === download.pdfDownloadId}
+                            >
+                              {downloadingPDFId === download.pdfDownloadId ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Generating...
+                                </>
+                              ) : (
+                                <>
+                                  <FileText className="w-4 h-4" />
+                                  Generate PDF
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </motion.div>
                       ) : (
                         <div className="w-full space-y-2">
                           <Button 
@@ -432,17 +471,7 @@ export default function DesignerDownloadsContent() {
                             {download.type || 'paid'}
                           </Badge>
                           {download.status && (
-                            <Badge 
-                              variant={
-                                download.status === 'completed' ? 'default' :
-                                download.status === 'processing' ? 'secondary' :
-                                download.status === 'failed' ? 'destructive' : 'outline'
-                              }
-                              className="text-xs"
-                            >
-                              {download.status === 'processing' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
-                              {download.status}
-                            </Badge>
+                            <PDFStatusBadge status={download.status as 'pending' | 'processing' | 'completed' | 'failed'} />
                           )}
                           <span className="text-xs text-muted-foreground">
                             {new Date(download.downloadDate || download.created_at || Date.now()).toLocaleDateString()}
@@ -464,14 +493,31 @@ export default function DesignerDownloadsContent() {
                       </div>
                       <div className="flex gap-2">
                         {download.status !== 'completed' ? (
-                          <div className="flex-1 p-2 text-center bg-muted rounded-md">
+                          <div className="flex flex-col items-end gap-2">
+                            <PDFStatusBadge status={download.status as 'pending' | 'processing' | 'completed' | 'failed'} />
                             <p className="text-xs text-muted-foreground">
-                              {download.status === 'processing' && 'Generating...'}
-                              {download.status === 'pending' && 'Pending'}
-                              {download.status === 'failed' && 'Failed'}
+                              {download.status === 'processing' && 'Adding designs...'}
+                              {download.status === 'pending' && 'Click to generate'}
                             </p>
-                            {download.status === 'processing' && (
-                              <Loader2 className="w-3 h-3 mx-auto mt-1 animate-spin text-primary" />
+                            {download.status === 'pending' && (
+                              <Button
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => handleDownload(download)}
+                                disabled={downloadingPDFId === download.pdfDownloadId}
+                              >
+                                {downloadingPDFId === download.pdfDownloadId ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Generating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <FileText className="w-4 h-4" />
+                                    Generate PDF
+                                  </>
+                                )}
+                              </Button>
                             )}
                           </div>
                         ) : (

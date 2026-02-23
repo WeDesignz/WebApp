@@ -40,8 +40,10 @@ export type DownloadPDFToDeviceOptions = {
   onProgress?: (percent: number) => void
   onComplete?: () => void
   onError?: (message: string) => void
+  /** Called when PDF is being generated on-demand (202). Use to invalidate queries and show "Generating..." toast. */
+  onGenerating?: () => void
   getDownloadUrl: (downloadId: number) => Promise<{ data?: { url: string }; error?: string }>
-  downloadPDF: (downloadId: number, onProgress?: (percent: number) => void) => Promise<{ data?: Blob; filename?: string | null; error?: string }>
+  downloadPDF: (downloadId: number, onProgress?: (percent: number) => void) => Promise<{ data?: Blob; filename?: string | null; error?: string; status?: string }>
 }
 
 /**
@@ -53,7 +55,7 @@ export async function downloadPDFToDevice(
   downloadId: number,
   options: DownloadPDFToDeviceOptions
 ): Promise<void> {
-  const { onProgress, onComplete, onError, getDownloadUrl, downloadPDF } = options
+  const { onProgress, onComplete, onError, onGenerating, getDownloadUrl, downloadPDF } = options
   const isMobile = isMobileDevice()
 
   if (isMobile) {
@@ -76,6 +78,10 @@ export async function downloadPDFToDevice(
 
   try {
     const result = await downloadPDF(downloadId, onProgress)
+    if ((result as any)?.status === 'generating') {
+      onGenerating?.()
+      return
+    }
     if (result.error) {
       onError?.(result.error)
       return
