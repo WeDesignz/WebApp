@@ -531,13 +531,18 @@ export const catalogAPI = {
   /**
    * Get home feed with products and bundles
    */
-  async getHomeFeed(page: number = 1): Promise<ApiResponse<{
+  async getHomeFeed(page: number = 1, excludeProductIds?: number[]): Promise<ApiResponse<{
     products: any[];
     bundles: any[];
     page: number;
     has_next: boolean;
   }>> {
-    return apiRequest(`/api/catalog/home-feed/?page=${page}`);
+    const params = new URLSearchParams();
+    params.append('page', String(page));
+    if (excludeProductIds && excludeProductIds.length > 0) {
+      params.append('exclude_product_ids', excludeProductIds.join(','));
+    }
+    return apiRequest(`/api/catalog/home-feed/?${params.toString()}`);
   },
 
   /**
@@ -549,6 +554,7 @@ export const catalogAPI = {
     tag?: number;
     pricing?: 'free' | 'paid';
     page?: number;
+    excludeProductIds?: number[];
   }): Promise<ApiResponse<{
     results: any[];
     total_pages: number;
@@ -561,6 +567,9 @@ export const catalogAPI = {
     if (params.tag) queryParams.append('tag', params.tag.toString());
     if (params.pricing) queryParams.append('pricing', params.pricing);
     if (params.page) queryParams.append('page', params.page.toString());
+    if (params.excludeProductIds && params.excludeProductIds.length > 0) {
+      queryParams.append('exclude_product_ids', params.excludeProductIds.join(','));
+    }
 
     return apiRequest(`/api/catalog/search/?${queryParams.toString()}`);
   },
@@ -1463,6 +1472,10 @@ export const apiClient = {
     }>('/api/catalog/pdf/check-eligibility/');
   },
 
+  getPreviousPDFDesignIds: async (): Promise<ApiResponse<{ product_ids: number[]; count: number }>> => {
+    return apiRequest<{ product_ids: number[]; count: number }>('/api/catalog/pdf/previous-design-ids/');
+  },
+
   createPDFRequest: async (
     data: {
       download_type: 'free' | 'paid';
@@ -1470,6 +1483,7 @@ export const apiClient = {
       selection_type?: 'specific' | 'search_results';
       selected_products?: number[];
       search_filters?: any;
+      exclude_designs_from_previous_pdfs?: boolean;
       use_subscription_mock_pdf?: boolean;
       customer_name: string;
       customer_mobile: string;
@@ -1640,6 +1654,16 @@ export const apiClient = {
         },
         credentials: 'include',
       });
+
+      // 202 = PDF is being generated on-demand, not ready yet
+      if (response.status === 202) {
+        const json = await response.json().catch(() => ({}));
+        return {
+          error: json?.error || 'PDF is being generated. Please wait a moment and try again.',
+          status: 'generating',
+          errorDetails: { statusCode: 202 },
+        };
+      }
 
       if (!response.ok) {
         let errorData: any = {};
