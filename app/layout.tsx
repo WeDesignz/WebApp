@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 import Providers from "./providers";
 import Script from "next/script";
 import { Inter, Poppins } from "next/font/google";
-import { OrganizationSchema, WebsiteSchema } from "@/components/SEO/StructuredData";
+import { OrganizationSchema, WebsiteSchema, LocalBusinessSchema } from "@/components/SEO/StructuredData";
 import ConsentBanner from "@/components/common/ConsentBanner";
 
 const inter = Inter({
@@ -44,7 +44,8 @@ export const metadata: Metadata = {
     "wedesignz",
     "wedesign",
     "design platform",
-    "creative services"
+    "creative services",
+    "digital designs"
   ],
   authors: [{ name: "WeDesignz" }],
   creator: "WeDesignz",
@@ -142,6 +143,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <meta name="p:domain_verify" content="7efb64ebb140ef75eb3643e0a9714d6b" />
         <OrganizationSchema siteUrl={siteUrl} />
         <WebsiteSchema siteUrl={siteUrl} />
+        <LocalBusinessSchema siteUrl={siteUrl} />
         {/* Theme-aware favicon switching */}
         <script
           dangerouslySetInnerHTML={{

@@ -27,12 +27,12 @@ export default function Navbar({ onOpenLensSearch }: NavbarProps) {
           <a href="/" className="flex items-center gap-2.5 flex-shrink-0" data-testid="link-home">
             <img 
               src="/Logos/ONLY LOGO.png" 
-              alt="WeDesign Logo" 
+              alt="WeDesignz logo" 
               className="h-8 md:h-10 w-auto brightness-0 invert"
             />
             <img 
               src="/Logos/ONLY TEXT.png" 
-              alt="WeDesign" 
+              alt="WeDesignz" 
               className="h-6 md:h-7 w-auto brightness-0 invert"
             />
           </a>

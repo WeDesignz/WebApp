@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { Metadata } from 'next';
 import DesignerOnboardingWizard from '@/components/designer-onboarding/DesignerOnboardingWizard';
+import { BreadcrumbSchema } from '@/components/SEO/StructuredData';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wedesignz.com';
 
@@ -34,8 +35,11 @@ export const metadata: Metadata = {
 
 export default function DesignerOnboardingPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
-      <DesignerOnboardingWizard />
-    </Suspense>
+    <>
+      <BreadcrumbSchema items={[{ name: 'Home', url: siteUrl }, { name: 'Designer Onboarding', url: `${siteUrl}/designer-onboarding` }]} />
+      <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+        <DesignerOnboardingWizard />
+      </Suspense>
+    </>
   );
 }

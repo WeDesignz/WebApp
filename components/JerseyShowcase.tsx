@@ -91,7 +91,7 @@ function Jersey3DCard({ jersey, isActive }: { jersey: typeof jerseyModels[0]; is
           
           <motion.img
             src={jersey.image}
-            alt={jersey.name}
+            alt={jersey.name || 'Jersey design'}
             className="w-full h-full object-contain p-4"
             style={{
               transformStyle: "preserve-3d",
@@ -269,7 +269,7 @@ export default function JerseyShowcase() {
                     <div className="aspect-square p-2">
                       <img 
                         src={jersey.image} 
-                        alt={jersey.name}
+                        alt={jersey.name || 'Jersey design'}
                         className="w-full h-full object-contain"
                       />
                     </div>
