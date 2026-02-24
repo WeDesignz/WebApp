@@ -88,7 +88,7 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
                 <img 
                   src="/Logos/ONLY LOGO.png" 
                   alt="WeDesign Logo" 
-                  className={`h-10 w-10 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                  className={`h-10 w-auto object-contain ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
                 />
                 <img 
                   src="/Logos/ONLY TEXT.png" 
@@ -102,12 +102,12 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex items-center justify-center mx-auto"
+                className="flex items-center justify-center mx-auto min-w-[40px]"
               >
                 <img 
                   src="/Logos/ONLY LOGO.png" 
                   alt="WeDesign Logo" 
-                  className={`h-10 w-10 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                  className={`h-10 w-auto max-w-10 object-contain ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
                 />
               </motion.div>
             )}
@@ -245,7 +245,7 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
                   <img 
                     src="/Logos/ONLY LOGO.png" 
                     alt="WeDesign Logo" 
-                    className={`h-10 w-10 ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
+                    className={`h-10 w-auto object-contain ${mounted && theme === 'dark' ? 'brightness-0 invert' : ''}`}
                   />
                   <img 
                     src="/Logos/ONLY TEXT.png" 
