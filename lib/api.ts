@@ -1143,7 +1143,7 @@ export const apiClient = {
       updated_at: string;
       media?: Array<any>;
     };
-    order_id?: number;
+    custom_request_id: number;
     payment_required: boolean;
     amount: number;
     payment_message: string;
@@ -1172,6 +1172,7 @@ export const apiClient = {
           updated_at: string;
           media?: Array<any>;
         };
+        custom_request_id: number;
         payment_required: boolean;
         amount: number;
         payment_message: string;
@@ -1193,6 +1194,7 @@ export const apiClient = {
           updated_at: string;
           media?: Array<any>;
         };
+        custom_request_id: number;
         payment_required: boolean;
         amount: number;
         payment_message: string;
@@ -1208,7 +1210,7 @@ export const apiClient = {
   },
 
   /**
-   * Submit custom request (returns order_id)
+   * Submit custom request (returns custom_request_id; Order is created after payment capture).
    */
 
   getCustomRequestHistory: async (): Promise<ApiResponse<{
@@ -1267,6 +1269,7 @@ export const apiClient = {
     amount: number;
     currency?: string;
     order_id?: string;
+    custom_request_id?: number;
     description?: string;
   }): Promise<ApiResponse<{
     razorpay_order_id: string;
@@ -1281,6 +1284,7 @@ export const apiClient = {
         amount: data.amount,
         currency: data.currency || 'INR',
         order_id: data.order_id,
+        custom_request_id: data.custom_request_id,
         description: data.description,
       }),
     });

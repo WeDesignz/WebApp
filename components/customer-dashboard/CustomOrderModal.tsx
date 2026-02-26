@@ -64,20 +64,18 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
     setIsProcessing(true);
 
     try {
-      // Step 1: Submit custom request (this creates CustomOrderRequest and Order)
-      // Title and description are optional - backend will provide defaults if empty
+      // Step 1: Submit custom request (creates CustomOrderRequest only; Order is created after payment)
       const submitResponse = await apiClient.submitCustomRequest({
-        title: description.trim().substring(0, 200) || "", // Optional - backend will default to "Custom Order"
-        description: description.trim() || "", // Optional - backend will default to "No description provided"
+        title: description.trim().substring(0, 200) || "",
+        description: description.trim() || "",
         budget: customOrderPrice,
-        files: files.length > 0 ? files : undefined, // Include files if any
+        files: files.length > 0 ? files : undefined,
       });
 
       if (submitResponse.error || !submitResponse.data) {
         throw new Error(submitResponse.error || 'Failed to submit custom request');
       }
 
-      // TypeScript type narrowing - after the check above, data is guaranteed to exist
       const data = submitResponse.data as {
         message: string;
         custom_request: {
@@ -90,26 +88,26 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
           updated_at: string;
           media?: Array<any>;
         };
-        order_id?: number;
+        custom_request_id: number;
         payment_required: boolean;
         amount: number;
         payment_message: string;
       };
       const customRequest = data.custom_request;
-      const orderId = data.order_id;
+      const customRequestId = data.custom_request_id;
       const amount = data.amount || customOrderPrice;
 
-      if (!orderId) {
-        throw new Error('Failed to create order for custom request');
+      if (customRequestId == null) {
+        throw new Error('Failed to create custom request');
       }
 
-      // Step 2: Create payment order with order_id to link payment to order
+      // Step 2: Create payment order linked to custom request (Order created on successful capture)
       setIsProcessing(true);
       const paymentOrderResponse = await apiClient.createPaymentOrder({
         amount: amount,
         currency: 'INR',
         description: `Custom Order`,
-        order_id: orderId.toString(), // Link payment to order
+        custom_request_id: customRequestId,
       });
 
       if (paymentOrderResponse.error || !paymentOrderResponse.data) {
@@ -155,7 +153,7 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
         description: "Your custom order has been placed and payment processed.",
       });
 
-      onOrderPlaced(customRequest.id?.toString() || orderId.toString());
+      onOrderPlaced(customRequest.id?.toString() ?? String(customRequestId));
       resetForm();
       onClose();
     } catch (error: any) {
