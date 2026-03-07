@@ -51,6 +51,9 @@ export default function CartContent() {
     free_items_count?: number;
     paid_items_count?: number;
     discounted_amount?: number;
+    one_time_free_designs_remaining?: number;
+    one_time_free_designs_total?: number;
+    one_time_free_items_count?: number;
   } | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -85,9 +88,12 @@ export default function CartContent() {
             subscription_plan: data.subscription_plan || undefined,
             remaining_free_downloads: data.remaining_free_downloads || 0,
             plan_discount: data.plan_discount || 0,
-            free_items_count: data.free_items_count || 0,
-            paid_items_count: data.paid_items_count || 0,
-            discounted_amount: data.discounted_amount || data.total_amount || 0,
+            free_items_count: data.free_items_count ?? 0,
+            paid_items_count: data.paid_items_count ?? data.total_items ?? 0,
+            discounted_amount: data.discounted_amount ?? data.total_amount ?? 0,
+            one_time_free_designs_remaining: data.one_time_free_designs_remaining ?? 0,
+            one_time_free_designs_total: data.one_time_free_designs_total ?? 0,
+            one_time_free_items_count: data.one_time_free_items_count ?? 0,
           });
         }
       });
@@ -256,85 +262,85 @@ export default function CartContent() {
     setIsProcessingPayment(true);
 
     try {
-      const finalAmount = cartSummary?.will_be_free ? 0 : Math.max(0, total);
+      // Use 0 for free orders (one-time free or subscription); backend validates and may recalculate
+      const requestedAmount = cartSummary?.will_be_free ? 0 : Math.max(0, total);
 
-      // If free (has active subscription), complete purchase directly
-      if (cartSummary?.will_be_free) {
-        const purchaseResponse = await apiClient.purchaseCart({
-          payment_method: 'razorpay',
-          coupon_code: couponApplied ? couponCode : undefined,
-        });
-
-        if (purchaseResponse.error) {
-          setIsProcessingPayment(false);
-          throw new Error(purchaseResponse.error);
-        }
-
-        // Clear cart and refresh
-        await queryClient.invalidateQueries({ queryKey: ['cart'] });
-        await queryClient.invalidateQueries({ queryKey: ['orders'] });
-
-        toast({
-          title: "Order placed successfully!",
-          description: "Your order has been placed. Check your orders page.",
-        });
-
-        // Reset processing state before navigation
-        setIsProcessingPayment(false);
-        
-        // Use a small delay to ensure state update is reflected before navigation
-        setTimeout(() => {
-          router.push('/customer-dashboard?view=orders');
-        }, 50);
-        return;
-      }
-
-      // Step 1: Create order first
-      // Extract product IDs and convert to integers
       const productIds = cartItems
-        .map(item => {
-          // Use productId (camelCase) from CartItem interface
-          const productId = item.productId;
-          if (!productId) {
-            return null;
-          }
-          const id = parseInt(productId.toString(), 10);
-          if (isNaN(id)) {
-            return null;
-          }
-          return id;
+        .map((item) => {
+          const id = parseInt(String(item.productId ?? ''), 10);
+          return isNaN(id) ? null : id;
         })
         .filter((id): id is number => id !== null);
 
       if (productIds.length === 0) {
-        throw new Error('No valid product IDs found in cart');
+        throw new Error('No valid product IDs in cart');
       }
-
       if (productIds.length !== cartItems.length) {
         throw new Error('Some cart items have invalid product IDs');
       }
 
+      // Step 1: Create order (single call for both free and paid; backend applies one-time free / subscription)
       const orderResponse = await apiClient.createOrder({
         product_ids: productIds,
-        total_amount: finalAmount,
+        total_amount: requestedAmount,
         coupon_code: couponApplied ? couponCode : undefined,
       });
 
-      if (orderResponse.error || !orderResponse.data) {
-        throw new Error(orderResponse.error || 'Failed to create order');
+      if (orderResponse.error) {
+        setIsProcessingPayment(false);
+        const errMsg = orderResponse.error;
+        const isAllAlreadyPurchased = errMsg?.toLowerCase().includes('already in your downloads');
+        if (isAllAlreadyPurchased) {
+          await queryClient.invalidateQueries({ queryKey: ['cart'] });
+          toast({
+            title: "Already in your Downloads",
+            description: "All items in your cart are already in your Downloads. You don't need to purchase them again.",
+            variant: "default",
+          });
+          return;
+        }
+        throw new Error(errMsg);
+      }
+      if (!orderResponse.data) {
+        setIsProcessingPayment(false);
+        throw new Error('No order data returned');
       }
 
-      // Type assertion: create_order returns { order_id: number, order: {...}, ... }
-      const orderData = orderResponse.data as { order_id?: number; id?: number; order?: { id?: number } };
-      const orderId = orderData.order_id || orderData.id || orderData.order?.id;
-      
+      const orderData = orderResponse.data as {
+        order_id?: number;
+        id?: number;
+        order?: { id?: number };
+        total_amount?: number;
+        free_purchase?: boolean;
+      };
+      const orderId = orderData.order_id ?? orderData.id ?? orderData.order?.id;
+      const orderTotal = typeof orderData.total_amount === 'number' ? orderData.total_amount : requestedAmount;
+      const isFreeOrder = orderTotal === 0 || orderData.free_purchase === true;
+
       if (!orderId) {
+        setIsProcessingPayment(false);
         throw new Error('Order ID not found in response');
+      }
+
+      // Free order: complete without payment
+      if (isFreeOrder) {
+        await queryClient.invalidateQueries({ queryKey: ['cart'] });
+        await queryClient.invalidateQueries({ queryKey: ['orders'] });
+        await queryClient.invalidateQueries({ queryKey: ['free-benefits'] });
+        toast({
+          title: "Order placed successfully!",
+          description: cartSummary?.one_time_free_items_count
+            ? "Your first 10 designs are free (one-time). Order complete."
+            : "Your order has been placed. Check your orders page.",
+        });
+        setIsProcessingPayment(false);
+        setTimeout(() => router.push('/customer-dashboard?view=orders'), 50);
+        return;
       }
 
       // Step 2: Create payment order and associate with order
       const paymentOrderResponse = await apiClient.createPaymentOrder({
-        amount: finalAmount,
+        amount: orderTotal,
         currency: 'INR',
         order_id: orderId.toString(),
         description: `Payment for ${cartItems.length} item(s)`,
@@ -355,7 +361,7 @@ export default function CartContent() {
       // Step 3: Initialize Razorpay checkout
       const paymentResult = await initializeRazorpayCheckout({
         key: razorpayKey,
-        amount: finalAmount * 100, // Convert rupees to paise for Razorpay
+        amount: orderTotal * 100, // Convert rupees to paise for Razorpay
         currency: 'INR',
         name: 'WeDesign',
         description: `Payment for ${cartItems.length} item(s)`,
@@ -373,7 +379,7 @@ export default function CartContent() {
       const captureResponse = await apiClient.capturePayment({
         payment_id: payment_id,
         razorpay_payment_id: paymentResult.razorpay_payment_id!,
-        amount: finalAmount,
+        amount: orderTotal,
       });
 
       // Check if there's an error (but allow "already captured" and handle timeout specially)
@@ -681,7 +687,7 @@ export default function CartContent() {
                   </div>
                 </div>
 
-                {/* Case 1: Partial free downloads available */}
+                {/* Case 1a: Partial free from subscription */}
                 {cartSummary?.has_active_subscription && 
                  cartSummary.free_items_count !== undefined &&
                  cartSummary.free_items_count !== null &&
@@ -696,12 +702,26 @@ export default function CartContent() {
                     </p>
                   </div>
                 )}
+                {/* Case 1b: Partial free from one-time (no subscription) */}
+                {!cartSummary?.has_active_subscription && 
+                 (cartSummary?.one_time_free_items_count ?? 0) > 0 && 
+                 (cartSummary?.paid_items_count ?? 0) > 0 && cartSummary && (
+                  <div className="p-3 bg-success/5 border border-success/20 rounded-lg mb-4">
+                    <p className="text-sm text-success font-medium">
+                      ✓ {cartSummary.free_items_count} design{cartSummary.free_items_count !== 1 ? 's' : ''} free (one-time). Remaining {cartSummary.paid_items_count} design{cartSummary.paid_items_count !== 1 ? 's' : ''} will be charged.
+                    </p>
+                  </div>
+                )}
 
-                {/* Case 2: All items free */}
+                {/* Case 2: All items free (subscription or one-time free designs) */}
                 {cartSummary?.will_be_free && (
                   <div className="p-3 bg-success/5 border border-success/20 rounded-lg mb-4">
                     <p className="text-sm text-success font-medium">
-                      🎉 Your active subscription ({cartSummary.subscription_plan || 'Plan'}) makes this purchase free!
+                      {cartSummary.one_time_free_items_count != null && cartSummary.one_time_free_items_count > 0 && !cartSummary.has_active_subscription
+                        ? `🎉 Your first ${cartSummary.one_time_free_designs_total ?? 10} designs are free (one-time per account)!`
+                        : cartSummary.has_active_subscription
+                          ? `🎉 Your active subscription (${cartSummary.subscription_plan || 'Plan'}) makes this purchase free!`
+                          : '🎉 This purchase is free!'}
                     </p>
                   </div>
                 )}
@@ -736,10 +756,14 @@ export default function CartContent() {
                     </div>
                   )}
                   
-                  {/* Subscription discount - show when all items are free */}
-                  {cartSummary?.will_be_free && (
+                  {/* Free discount - show when all items are free (subscription or one-time) */}
+                  {cartSummary?.will_be_free && getCartTotal() > 0 && (
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Subscription Discount</span>
+                      <span className="text-muted-foreground">
+                        {cartSummary.one_time_free_items_count != null && cartSummary.one_time_free_items_count > 0 && !cartSummary.has_active_subscription
+                          ? 'One-time free designs'
+                          : 'Subscription / Free'}
+                      </span>
                       <span className="text-success">-{formatPrice(getCartTotal())}</span>
                     </div>
                   )}

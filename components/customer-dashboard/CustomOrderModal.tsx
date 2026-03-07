@@ -89,9 +89,12 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
           media?: Array<any>;
         };
         custom_request_id: number;
+        order_id?: number;
         payment_required: boolean;
         amount: number;
-        payment_message: string;
+        free_custom_order_used?: boolean;
+        free_custom_orders_remaining?: number;
+        payment_message: string | null;
       };
       const customRequest = data.custom_request;
       const customRequestId = data.custom_request_id;
@@ -99,6 +102,20 @@ export default function CustomOrderModal({ open, onClose, onOrderPlaced }: Custo
 
       if (customRequestId == null) {
         throw new Error('Failed to create custom request');
+      }
+
+      if (data.payment_required === false) {
+        await queryClient.invalidateQueries({ queryKey: ['orders'] });
+        await queryClient.invalidateQueries({ queryKey: ['customRequests'] });
+        await queryClient.invalidateQueries({ queryKey: ['free-benefits'] });
+        toast({
+          title: "Free custom order placed!",
+          description: "Your custom order was placed using your free custom order benefit.",
+        });
+        onOrderPlaced(customRequest.id?.toString() ?? String(customRequestId));
+        resetForm();
+        onClose();
+        return;
       }
 
       // Step 2: Create payment order linked to custom request (Order created on successful capture)
