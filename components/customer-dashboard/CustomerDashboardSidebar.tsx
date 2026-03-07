@@ -14,6 +14,8 @@ import {
   ShoppingBag,
   CreditCard,
   FileText,
+  Gift,
+  Palette,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,7 @@ import { Card } from "@/components/ui/card";
 import CustomOrderModal from "@/components/customer-dashboard/CustomOrderModal";
 import { DashboardView, PUBLIC_VIEWS } from "./CustomerDashboard";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiClient } from "@/lib/api";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -46,6 +49,12 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
   const [hovering, setHovering] = useState(false);
   const [customOrderOpen, setCustomOrderOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [freeBenefits, setFreeBenefits] = useState<{
+    one_time_free_designs_remaining: number;
+    one_time_free_designs_total: number;
+    free_custom_orders_remaining: number;
+    free_custom_orders_total: number;
+  } | null>(null);
 
   const isExpanded = !collapsed || hovering;
 
@@ -60,6 +69,20 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    apiClient.getFreeBenefits().then((res) => {
+      if (res.data && !res.error) {
+        setFreeBenefits({
+          one_time_free_designs_remaining: res.data.one_time_free_designs_remaining,
+          one_time_free_designs_total: res.data.one_time_free_designs_total,
+          free_custom_orders_remaining: res.data.free_custom_orders_remaining,
+          free_custom_orders_total: res.data.free_custom_orders_total,
+        });
+      }
+    }).catch(() => {});
+  }, [isAuthenticated, customOrderOpen]);
 
   const handleOrderPlaced = (orderId: string) => {
     onViewChange("orders");
@@ -151,8 +174,40 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
+              className="space-y-3 mt-4"
             >
-              <Card className="mt-4 p-4 bg-gradient-to-br from-primary/10 to-purple-500/10 border-primary/20">
+              {isAuthenticated && freeBenefits && (
+                <Card className="p-4 bg-gradient-to-br from-amber-500/15 via-emerald-500/10 to-primary/10 border-2 border-amber-400/40 shadow-md">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Gift className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    <h4 className="font-bold text-sm text-amber-800 dark:text-amber-200">Your free benefits</h4>
+                  </div>
+                  <ul className="space-y-2 text-xs">
+                    <li className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Palette className="w-4 h-4 text-primary" />
+                        Free designs (one-time)
+                      </span>
+                      <span className="font-semibold text-foreground tabular-nums">
+                        {freeBenefits.one_time_free_designs_remaining}/{freeBenefits.one_time_free_designs_total}
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Zap className="w-4 h-4 text-primary" />
+                        Free custom orders
+                      </span>
+                      <span className="font-semibold text-foreground tabular-nums">
+                        {freeBenefits.free_custom_orders_remaining}/{freeBenefits.free_custom_orders_total}
+                      </span>
+                    </li>
+                  </ul>
+                  <p className="text-[10px] text-muted-foreground mt-2 leading-tight">
+                    For logged-in users only. Use at checkout or when placing a custom order.
+                  </p>
+                </Card>
+              )}
+              <Card className="p-4 bg-gradient-to-br from-primary/10 to-purple-500/10 border-primary/20">
                 <div className="flex items-center gap-2 mb-2">
                   <Zap className="w-5 h-5 text-primary" />
                   <h4 className="font-semibold text-sm">Custom Design</h4>
@@ -277,8 +332,7 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
                   );
                 })}
 
-                {isAuthenticated && (
-                  <Card className="mt-4 p-4 bg-gradient-to-br from-primary/10 to-purple-500/10 border-primary/20">
+                <Card className="mt-4 p-4 bg-gradient-to-br from-primary/10 to-purple-500/10 border-primary/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="w-5 h-5 text-primary" />
                     <h4 className="font-semibold text-sm">Custom Design</h4>
@@ -297,7 +351,6 @@ export default function CustomerDashboardSidebar({ collapsed, onToggle, mobileMe
                     Order Now
                   </Button>
                 </Card>
-                )}
               </nav>
 
               <div className="p-3 border-t border-border space-y-2">
