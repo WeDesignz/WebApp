@@ -371,9 +371,39 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  const { data: freeBenefitsData } = useQuery({
+    queryKey: ['free-benefits'],
+    queryFn: () => apiClient.getFreeBenefits(),
+    enabled: isAuthenticated,
+  });
+  const freeBenefits = freeBenefitsData?.data;
+
   return (
     <div className="p-4 md:p-6 pb-24 md:pb-6">
       <div className="max-w-7xl mx-auto space-y-6">
+        {isAuthenticated && freeBenefits && (freeBenefits.one_time_free_designs_remaining > 0 || freeBenefits.free_custom_orders_remaining > 0) && (
+          <Card className="p-4 bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-primary/15 border-2 border-amber-400/50 shadow-lg">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Gift className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                <h3 className="font-bold text-base text-amber-900 dark:text-amber-100">Your free benefits</h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-6 text-sm">
+                <span className="flex items-center gap-1.5">
+                  <Palette className="w-4 h-4 text-primary" />
+                  <strong>{freeBenefits.one_time_free_designs_remaining}</strong> free design{freeBenefits.one_time_free_designs_remaining !== 1 ? 's' : ''} (one-time)
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Crown className="w-4 h-4 text-primary" />
+                  <strong>{freeBenefits.free_custom_orders_remaining}</strong> free custom order{freeBenefits.free_custom_orders_remaining !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground w-full md:w-auto">
+                Use at checkout or when placing a custom order. For logged-in users only.
+              </p>
+            </div>
+          </Card>
+        )}
         <div className="overflow-x-auto overflow-y-visible pb-4 -mx-4 px-4 pt-2">
           {isLoadingCategories ? (
             <div className="flex gap-4 min-w-max">
@@ -519,12 +549,14 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
           <h2 className="text-2xl font-bold mb-4">Design Feed</h2>
           
           {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-              {[...Array(10)].map((_, idx) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+              {[...Array(24)].map((_, idx) => (
                 <div
                   key={idx}
-                  className="aspect-[3/4] rounded-xl bg-muted animate-pulse"
-                />
+                  className="aspect-[3/4] rounded-xl overflow-hidden bg-muted border border-border/50 shadow-sm"
+                >
+                  <div className="w-full h-full animate-pulse bg-muted-foreground/20" />
+                </div>
               ))}
             </div>
           ) : error ? (
@@ -546,7 +578,7 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
             </Card>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                 {products.map((product, idx) => (
                   <motion.div
                     key={`${product.id}-${idx}`}
@@ -588,6 +620,14 @@ export default function CustomerDashboardContent({ searchQuery, selectedCategory
                     {!isProductFree(product) && (
                       <div className="absolute top-3 right-3 bg-gradient-to-r from-yellow-500 to-amber-500 text-yellow-950 p-2 rounded-full flex items-center justify-center z-10 shadow-lg hover:shadow-xl transition-shadow">
                         <Crown className="w-4 h-4" />
+                      </div>
+                    )}
+
+                    {/* In your downloads badge - already purchased */}
+                    {isAuthenticated && downloadedProductIds.has(Number(product.id)) && (
+                      <div className="absolute top-3 left-3 bg-emerald-500/95 text-white text-xs font-medium px-2 py-1 rounded-md z-10 shadow-lg flex items-center gap-1">
+                        <Download className="w-3.5 h-3.5" />
+                        In your downloads
                       </div>
                     )}
 
