@@ -3148,6 +3148,27 @@ export const apiClient = {
   },
 
   /**
+   * Get free benefits for logged-in user (one-time free designs and free custom orders)
+   */
+  getFreeBenefits: async (): Promise<ApiResponse<{
+    one_time_free_designs_remaining: number;
+    one_time_free_designs_total: number;
+    one_time_free_designs_used: number;
+    free_custom_orders_remaining: number;
+    free_custom_orders_total: number;
+    free_custom_orders_used: number;
+  }>> => {
+    return apiRequest<{
+      one_time_free_designs_remaining: number;
+      one_time_free_designs_total: number;
+      one_time_free_designs_used: number;
+      free_custom_orders_remaining: number;
+      free_custom_orders_total: number;
+      free_custom_orders_used: number;
+    }>('/api/orders/free-benefits/');
+  },
+
+  /**
    * Check free downloads availability (including mock PDF downloads from subscription)
    */
   checkFreeDownloadsAvailability: async (): Promise<ApiResponse<{
