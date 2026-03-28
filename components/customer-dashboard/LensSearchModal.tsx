@@ -1,16 +1,22 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Camera, Upload, X, Loader2, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { catalogAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
+type LensSearchResponse = Awaited<ReturnType<typeof catalogAPI.lensSearch>>;
+
 interface LensSearchModalProps {
   open: boolean;
   onClose: () => void;
   onSearchComplete: (products: any[]) => void;
+}
+
+function isAbortedResponse(r: LensSearchResponse): boolean {
+  return r.error === "aborted";
 }
 
 export default function LensSearchModal({
@@ -29,6 +35,74 @@ export default function LensSearchModal({
   const [showCamera, setShowCamera] = useState(false);
   const { toast } = useToast();
 
+  const selectedFileRef = useRef<File | null>(null);
+  const searchPromiseRef = useRef<Promise<LensSearchResponse> | null>(null);
+  const prefetchAbortRef = useRef<AbortController | null>(null);
+
+  const [prefetchLoading, setPrefetchLoading] = useState(false);
+  const [prefetchReady, setPrefetchReady] = useState(false);
+  const [prefetchError, setPrefetchError] = useState<string | null>(null);
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const resetPrefetchState = useCallback(() => {
+    prefetchAbortRef.current?.abort();
+    prefetchAbortRef.current = null;
+    searchPromiseRef.current = null;
+    setPrefetchLoading(false);
+    setPrefetchReady(false);
+    setPrefetchError(null);
+  }, []);
+
+  // Prefetch lens search as soon as an image is selected (same promise reused on Search click)
+  useEffect(() => {
+    selectedFileRef.current = selectedImage;
+
+    if (!open || !selectedImage) {
+      resetPrefetchState();
+      return;
+    }
+
+    prefetchAbortRef.current?.abort();
+    const ac = new AbortController();
+    prefetchAbortRef.current = ac;
+
+    const file = selectedImage;
+    setPrefetchLoading(true);
+    setPrefetchReady(false);
+    setPrefetchError(null);
+
+    const promise = catalogAPI.lensSearch(file, 20, ac.signal);
+    searchPromiseRef.current = promise;
+
+    promise.then((response) => {
+      if (selectedFileRef.current !== file) return;
+      if (isAbortedResponse(response)) return;
+
+      setPrefetchLoading(false);
+
+      if (response.error) {
+        setPrefetchReady(false);
+        setPrefetchError(response.error === "aborted" ? null : response.error);
+        return;
+      }
+
+      if (response.data) {
+        setPrefetchReady(true);
+        setPrefetchError(null);
+      }
+    });
+
+    return () => {
+      ac.abort();
+    };
+  }, [selectedImage, open, resetPrefetchState]);
+
   // Cleanup camera stream when modal closes
   useEffect(() => {
     if (!open) {
@@ -37,15 +111,9 @@ export default function LensSearchModal({
       setPreviewUrl(null);
       setShowCamera(false);
       setCameraError(null);
+      resetPrefetchState();
     }
-  }, [open]);
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-  };
+  }, [open, resetPrefetchState]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -120,14 +188,46 @@ export default function LensSearchModal({
     }
   };
 
+  const applySearchSuccess = (products: any[], count: number) => {
+    onSearchComplete(products);
+    toast({
+      title: "Search complete",
+      description: `Found ${count} similar products`,
+    });
+    onClose();
+  };
+
   const handleSearch = async () => {
     if (!selectedImage) return;
 
+    const file = selectedImage;
     setIsSearching(true);
     try {
-      const response = await catalogAPI.lensSearch(selectedImage, 20);
+      let response: LensSearchResponse;
+
+      const pending = searchPromiseRef.current;
+      if (pending && selectedFileRef.current === file) {
+        response = await pending;
+      } else {
+        response = await catalogAPI.lensSearch(file, 20);
+      }
+
+      if (selectedFileRef.current !== file) return;
+
+      if (isAbortedResponse(response)) {
+        response = await catalogAPI.lensSearch(file, 20);
+        if (selectedFileRef.current !== file) return;
+      }
+
+      if (response.error && response.error !== "aborted") {
+        response = await catalogAPI.lensSearch(file, 20);
+        if (selectedFileRef.current !== file) return;
+      }
 
       if (response.error) {
+        if (response.error === "aborted") {
+          return;
+        }
         const details = (response as { errorDetails?: { details?: string } }).errorDetails?.details;
         toast({
           title: "Search failed",
@@ -138,12 +238,9 @@ export default function LensSearchModal({
       }
 
       if (response.data) {
-        onSearchComplete(response.data.products || []);
-        toast({
-          title: "Search complete",
-          description: `Found ${response.data.count || 0} similar products`,
-        });
-        onClose();
+        const products = response.data.products || [];
+        const count = response.data.count || 0;
+        applySearchSuccess(products, count);
       }
     } catch (error: any) {
       toast({
@@ -166,6 +263,14 @@ export default function LensSearchModal({
     } else {
       handleCameraCapture();
     }
+  };
+
+  const clearPreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setSelectedImage(null);
+    setPreviewUrl(null);
   };
 
   return (
@@ -219,13 +324,8 @@ export default function LensSearchModal({
                     className="w-full h-[400px] object-contain rounded-lg bg-muted border border-border"
                   />
                   <button
-                    onClick={() => {
-                      setSelectedImage(null);
-                      setPreviewUrl(null);
-                      if (previewUrl) {
-                        URL.revokeObjectURL(previewUrl);
-                      }
-                    }}
+                    type="button"
+                    onClick={clearPreview}
                     className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
                   >
                     <X className="w-5 h-5" />
@@ -235,6 +335,7 @@ export default function LensSearchModal({
                 <div className="flex flex-col sm:flex-row gap-4">
                   {/* Upload File Option */}
                   <button
+                    type="button"
                     onClick={handleUploadClick}
                     className="flex-1 p-8 border-2 border-dashed border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all cursor-pointer"
                   >
@@ -251,6 +352,7 @@ export default function LensSearchModal({
 
                   {/* Camera Option */}
                   <button
+                    type="button"
                     onClick={handleCameraClick}
                     className="flex-1 p-8 border-2 border-dashed border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all cursor-pointer"
                   >
@@ -293,6 +395,25 @@ export default function LensSearchModal({
             </div>
           )}
 
+          {selectedImage && !showCamera && (
+            <div className="text-sm text-muted-foreground min-h-[1.25rem]">
+              {prefetchLoading && (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                  Finding similar products…
+                </span>
+              )}
+              {prefetchReady && !prefetchLoading && (
+                <span>Ready — tap Search to view results.</span>
+              )}
+              {prefetchError && !prefetchLoading && (
+                <span className="text-destructive">
+                  Could not prepare search. Tap Search to retry.
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={onClose} disabled={isSearching}>
@@ -306,7 +427,7 @@ export default function LensSearchModal({
               {isSearching ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Searching...
+                  Searching…
                 </>
               ) : (
                 <>

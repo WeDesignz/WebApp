@@ -722,7 +722,11 @@ export const catalogAPI = {
    * Lens search - Search products by uploading an image
    * Uses same API base URL as rest of app (NEXT_PUBLIC_API_BASE_URL) so it works on hosting.
    */
-  async lensSearch(imageFile: File, numResults: number = 20): Promise<ApiResponse<{
+  async lensSearch(
+    imageFile: File,
+    numResults: number = 20,
+    signal?: AbortSignal
+  ): Promise<ApiResponse<{
     success: boolean;
     products: any[];
     extracted_image: string | null;
@@ -747,6 +751,7 @@ export const catalogAPI = {
         method: 'POST',
         body: formData,
         headers,
+        signal,
       });
 
       const data = await response.json();
@@ -760,6 +765,15 @@ export const catalogAPI = {
 
       return { data };
     } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        return {
+          error: 'aborted',
+          errorDetails: {
+            type: ErrorType.UNKNOWN,
+            message: 'Request aborted',
+          },
+        };
+      }
       return {
         error: error.message || 'Network error occurred',
         errorDetails: error,
