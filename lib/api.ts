@@ -725,7 +725,8 @@ export const catalogAPI = {
   async lensSearch(
     imageFile: File,
     numResults: number = 20,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    options?: { source?: string; sessionId?: string }
   ): Promise<ApiResponse<{
     success: boolean;
     products: any[];
@@ -737,6 +738,8 @@ export const catalogAPI = {
     const formData = new FormData();
     formData.append('image', imageFile);
     formData.append('num_results', String(numResults));
+    if (options?.source) formData.append('source', options.source);
+    if (options?.sessionId) formData.append('session_id', options.sessionId);
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
     

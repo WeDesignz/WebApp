@@ -97,6 +97,7 @@ export default function Page() {
       <LensSearchModal
         open={lensModalOpen}
         onClose={() => setLensModalOpen(false)}
+        source="landing"
         onSearchComplete={(products) => {
           if (typeof window !== "undefined") {
             sessionStorage.setItem("lensSearchResults", JSON.stringify(products ?? []));
