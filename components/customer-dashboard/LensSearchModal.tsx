@@ -13,6 +13,7 @@ interface LensSearchModalProps {
   open: boolean;
   onClose: () => void;
   onSearchComplete: (products: any[]) => void;
+  source?: string;
 }
 
 function isAbortedResponse(r: LensSearchResponse): boolean {
@@ -23,6 +24,7 @@ export default function LensSearchModal({
   open,
   onClose,
   onSearchComplete,
+  source = "unknown",
 }: LensSearchModalProps) {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -82,7 +84,7 @@ export default function LensSearchModal({
     setPrefetchError(null);
     searchResponseRef.current = null;
 
-    const promise = catalogAPI.lensSearch(file, 20, ac.signal);
+    const promise = catalogAPI.lensSearch(file, 20, ac.signal, { source });
     searchPromiseRef.current = promise;
 
     promise.then((response) => {
@@ -107,7 +109,7 @@ export default function LensSearchModal({
     return () => {
       ac.abort();
     };
-  }, [selectedImage, open, resetPrefetchState]);
+  }, [selectedImage, open, resetPrefetchState, source]);
 
   // Cleanup camera stream when modal closes
   useEffect(() => {
@@ -265,14 +267,14 @@ export default function LensSearchModal({
         if (pending && selectedFileRef.current === file) {
           response = await pending;
         } else {
-          response = await catalogAPI.lensSearch(file, 20);
+          response = await catalogAPI.lensSearch(file, 20, undefined, { source });
         }
       }
 
       if (selectedFileRef.current !== file) return;
 
       if (isAbortedResponse(response) || response.error) {
-        response = await catalogAPI.lensSearch(file, 20);
+        response = await catalogAPI.lensSearch(file, 20, undefined, { source });
         if (selectedFileRef.current !== file) return;
       }
 

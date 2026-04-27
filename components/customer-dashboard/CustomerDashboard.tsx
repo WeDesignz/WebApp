@@ -254,6 +254,7 @@ export default function CustomerDashboard() {
       <LensSearchModal
         open={lensModalOpen}
         onClose={() => setLensModalOpen(false)}
+        source="customer_dashboard"
         onSearchComplete={(products) => {
           setLensModalOpen(false);
           // Always switch to dashboard view and show lens results (even if empty)
