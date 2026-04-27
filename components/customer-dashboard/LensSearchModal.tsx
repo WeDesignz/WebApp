@@ -37,11 +37,14 @@ export default function LensSearchModal({
 
   const selectedFileRef = useRef<File | null>(null);
   const searchPromiseRef = useRef<Promise<LensSearchResponse> | null>(null);
+  const searchResponseRef = useRef<LensSearchResponse | null>(null);
   const prefetchAbortRef = useRef<AbortController | null>(null);
 
   const [prefetchLoading, setPrefetchLoading] = useState(false);
   const [prefetchReady, setPrefetchReady] = useState(false);
   const [prefetchError, setPrefetchError] = useState<string | null>(null);
+  const [isUploadDragOver, setIsUploadDragOver] = useState(false);
+  const uploadDragDepthRef = useRef(0);
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -54,6 +57,7 @@ export default function LensSearchModal({
     prefetchAbortRef.current?.abort();
     prefetchAbortRef.current = null;
     searchPromiseRef.current = null;
+    searchResponseRef.current = null;
     setPrefetchLoading(false);
     setPrefetchReady(false);
     setPrefetchError(null);
@@ -76,6 +80,7 @@ export default function LensSearchModal({
     setPrefetchLoading(true);
     setPrefetchReady(false);
     setPrefetchError(null);
+    searchResponseRef.current = null;
 
     const promise = catalogAPI.lensSearch(file, 20, ac.signal);
     searchPromiseRef.current = promise;
@@ -84,6 +89,7 @@ export default function LensSearchModal({
       if (selectedFileRef.current !== file) return;
       if (isAbortedResponse(response)) return;
 
+      searchResponseRef.current = response;
       setPrefetchLoading(false);
 
       if (response.error) {
@@ -108,18 +114,21 @@ export default function LensSearchModal({
     if (!open) {
       stopCamera();
       setSelectedImage(null);
-      setPreviewUrl(null);
+      setPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
       setShowCamera(false);
       setCameraError(null);
       resetPrefetchState();
+      uploadDragDepthRef.current = 0;
+      setIsUploadDragOver(false);
     }
   }, [open, resetPrefetchState]);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
+  const applyImageFile = useCallback(
+    (file: File) => {
+      if (!file.type.startsWith("image/")) {
         toast({
           title: "Invalid file type",
           description: "Please select an image file (JPG, PNG, or WebP)",
@@ -128,7 +137,6 @@ export default function LensSearchModal({
         return;
       }
 
-      // Validate file size (10MB)
       if (file.size > 10 * 1024 * 1024) {
         toast({
           title: "File too large",
@@ -138,11 +146,59 @@ export default function LensSearchModal({
         return;
       }
 
+      setPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(file);
+      });
       setSelectedImage(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
       stopCamera();
       setShowCamera(false);
+    },
+    [toast]
+  );
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) applyImageFile(file);
+  };
+
+  const onUploadDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    uploadDragDepthRef.current += 1;
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsUploadDragOver(true);
+    }
+  };
+
+  const onUploadDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    uploadDragDepthRef.current -= 1;
+    if (uploadDragDepthRef.current <= 0) {
+      uploadDragDepthRef.current = 0;
+      setIsUploadDragOver(false);
+    }
+  };
+
+  const onUploadDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes("Files")) {
+      e.dataTransfer.dropEffect = "copy";
+    }
+  };
+
+  const onUploadDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    uploadDragDepthRef.current = 0;
+    setIsUploadDragOver(false);
+
+    const dropped = e.dataTransfer.files?.[0];
+    if (dropped) {
+      applyImageFile(dropped);
     }
   };
 
@@ -178,10 +234,7 @@ export default function LensSearchModal({
         canvas.toBlob((blob) => {
           if (blob) {
             const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
-            setSelectedImage(file);
-            setPreviewUrl(URL.createObjectURL(blob));
-            stopCamera();
-            setShowCamera(false);
+            applyImageFile(file);
           }
         }, 'image/jpeg');
       }
@@ -204,22 +257,21 @@ export default function LensSearchModal({
     setIsSearching(true);
     try {
       let response: LensSearchResponse;
-
-      const pending = searchPromiseRef.current;
-      if (pending && selectedFileRef.current === file) {
-        response = await pending;
+      const prefetched = searchResponseRef.current;
+      if (prefetched && selectedFileRef.current === file) {
+        response = prefetched;
       } else {
-        response = await catalogAPI.lensSearch(file, 20);
+        const pending = searchPromiseRef.current;
+        if (pending && selectedFileRef.current === file) {
+          response = await pending;
+        } else {
+          response = await catalogAPI.lensSearch(file, 20);
+        }
       }
 
       if (selectedFileRef.current !== file) return;
 
-      if (isAbortedResponse(response)) {
-        response = await catalogAPI.lensSearch(file, 20);
-        if (selectedFileRef.current !== file) return;
-      }
-
-      if (response.error && response.error !== "aborted") {
+      if (isAbortedResponse(response) || response.error) {
         response = await catalogAPI.lensSearch(file, 20);
         if (selectedFileRef.current !== file) return;
       }
@@ -238,6 +290,7 @@ export default function LensSearchModal({
       }
 
       if (response.data) {
+        searchResponseRef.current = response;
         const products = response.data.products || [];
         const count = response.data.count || 0;
         applySearchSuccess(products, count);
@@ -271,6 +324,8 @@ export default function LensSearchModal({
     }
     setSelectedImage(null);
     setPreviewUrl(null);
+    uploadDragDepthRef.current = 0;
+    setIsUploadDragOver(false);
   };
 
   return (
@@ -333,16 +388,24 @@ export default function LensSearchModal({
                 </div>
               ) : (
                 <div className="flex flex-col sm:flex-row gap-4">
-                  {/* Upload File Option */}
+                  {/* Upload / drag-and-drop zone */}
                   <button
                     type="button"
                     onClick={handleUploadClick}
-                    className="flex-1 p-8 border-2 border-dashed border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all cursor-pointer"
+                    onDragEnter={onUploadDragEnter}
+                    onDragLeave={onUploadDragLeave}
+                    onDragOver={onUploadDragOver}
+                    onDrop={onUploadDrop}
+                    className={`flex-1 p-8 border-2 border-dashed rounded-lg transition-all cursor-pointer ${
+                      isUploadDragOver
+                        ? "border-primary bg-primary/10 scale-[1.01]"
+                        : "border-border hover:border-primary hover:bg-primary/5"
+                    }`}
                   >
-                    <div className="flex flex-col items-center gap-3">
+                    <div className="flex flex-col items-center gap-3 pointer-events-none">
                       <Upload className="w-12 h-12 text-muted-foreground" />
                       <div className="text-center">
-                        <p className="font-medium">Upload Image</p>
+                        <p className="font-medium">Drag &amp; drop or upload</p>
                         <p className="text-sm text-muted-foreground mt-1">
                           JPG, PNG, or WebP (max 10MB)
                         </p>
