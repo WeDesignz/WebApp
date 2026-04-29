@@ -19,7 +19,6 @@ import { catalogAPI, apiClient } from "@/lib/api";
 import { transformProduct, type TransformedProduct } from "@/lib/utils/transformers";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { convertAvifToJpg as convertAvifToJpgUtil } from "@/lib/utils/transformers";
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -62,9 +61,6 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
   // Use fetched product data or fallback to initial product
   const product = productData?.transformed || initialProduct;
   const rawProduct = productData?.raw || null;
-
-  // Use the utility function from transformers
-  const convertAvifToJpg = convertAvifToJpgUtil;
 
   // Organize media by type: mockup vs design (AVIF only for tab display)
   const organizeMediaByType = () => {
@@ -771,7 +767,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                             
                             {/* Hover Overlay with Eye Icon */}
                             <button
-                              onClick={() => setPreviewImage(convertAvifToJpg(currentImages[selectedImageIndex].url))}
+                              onClick={() => setPreviewImage(currentImages[selectedImageIndex].url)}
                               className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center transition-all duration-200 z-10 ${
                                 isMainImageHovered 
                                   ? 'opacity-100 pointer-events-auto' 
@@ -835,7 +831,7 @@ export default function ProductModal({ isOpen, onClose, hasActivePlan, product: 
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setPreviewImage(convertAvifToJpg(image.url));
+                                    setPreviewImage(image.url);
                                   }}
                                   className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center transition-all duration-200 z-10 ${
                                     hoveredThumbnailIndex === index 
