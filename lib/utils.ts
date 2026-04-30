@@ -77,22 +77,40 @@ export async function downloadPDFToDevice(
   }
 
   try {
-    const result = await downloadPDF(downloadId, onProgress)
-    if ((result as any)?.status === 'generating') {
-      onGenerating?.()
-      return
-    }
-    if (result.error) {
-      onError?.(result.error)
-      return
-    }
-    if (result.data instanceof Blob) {
-      const filename = (result as { filename?: string | null }).filename || `designs_${downloadId}.pdf`
-      triggerBlobDownload(result.data, filename)
-      onComplete?.()
-    } else {
+    // When backend responds 202 (generating), keep polling until ready and then auto-download.
+    const MAX_ATTEMPTS = 30 // ~60s total with 2s interval
+    const POLL_INTERVAL_MS = 2000
+    let generationNotified = false
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const result = await downloadPDF(downloadId, onProgress)
+
+      if ((result as any)?.status === 'generating') {
+        if (!generationNotified) {
+          generationNotified = true
+          onGenerating?.()
+        }
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
+        continue
+      }
+
+      if (result.error) {
+        onError?.(result.error)
+        return
+      }
+
+      if (result.data instanceof Blob) {
+        const filename = (result as { filename?: string | null }).filename || `designs_${downloadId}.pdf`
+        triggerBlobDownload(result.data, filename)
+        onComplete?.()
+        return
+      }
+
       onError?.('Download failed')
+      return
     }
+
+    onError?.('PDF generation is taking longer than expected. Please try again in a moment.')
   } catch (e: any) {
     onError?.(e?.message || 'Download failed')
   }
