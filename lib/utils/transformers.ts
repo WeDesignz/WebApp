@@ -316,12 +316,14 @@ export function getDisplayImageUrl(
  */
 export function preferAvifForDisplay(imageUrl: string | null | undefined): string | null {
   if (!imageUrl) return null;
-  
-  const urlLower = imageUrl.toLowerCase();
+
+  // Public display endpoints may return private storage paths; use the public media URL.
+  const publicUrl = imageUrl.replace(/\/designs\/private\//i, '/designs/');
+  const urlLower = publicUrl.toLowerCase();
   
   // If already AVIF, return as-is
   if (urlLower.endsWith('.avif')) {
-    return imageUrl;
+    return publicUrl;
   }
   
   // Convert design.jpg to design_JPG.avif
@@ -329,19 +331,19 @@ export function preferAvifForDisplay(imageUrl: string | null | undefined): strin
     // Check if it's a design file (not mockup)
     if (!urlLower.includes('mockup')) {
       // Replace .jpg/.jpeg with _JPG.avif
-      return imageUrl.replace(/\.(jpg|jpeg)$/i, '_JPG.avif');
+      return publicUrl.replace(/\.(jpg|jpeg)$/i, '_JPG.avif');
     }
   }
   
   // Convert design.png to design_PNG.avif
   if (urlLower.endsWith('.png')) {
     if (!urlLower.includes('mockup')) {
-      return imageUrl.replace(/\.png$/i, '_PNG.avif');
+      return publicUrl.replace(/\.png$/i, '_PNG.avif');
     }
   }
   
   // Return original if no conversion needed
-  return imageUrl;
+  return publicUrl;
 }
 
 /**
